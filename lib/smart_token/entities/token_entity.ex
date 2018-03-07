@@ -86,8 +86,8 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   def bind_ref(ref, bindings) do
     case ref do
-      {:bind, field} when !is_list(field) -> get_in(bindings, [field]) |> Noizu.ERP.ref()
       {:bind, path} when is_list(path) -> get_in(bindings, path) |> Noizu.ERP.ref()
+      {:bind, field} -> get_in(bindings, [field]) |> Noizu.ERP.ref()
       _ -> ref
     end
   end
@@ -187,16 +187,16 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   # record_valid_access!/2
   #---------------------------
-  def record_valid_access!(%__MODULE{} == this, conn) do
+  def record_valid_access!(%__MODULE{} = this, conn) do
     ip = conn.remote_ip |> Tuple.to_list |> Enum.join(".")
     entry = %{time: DateTime.utc_now(), ip: ip,  type: :valid}
-    record_access!(this, conn, entry)
+    record_access!(this, entry)
   end
 
   #---------------------------
   # record_access!/3
   #---------------------------
-  def record_access!(%__MODULE__{} = this, entry) when is_list(tokens) do
+  def record_access!(%__MODULE__{} = this, entry) do
     this
     |> update_in([Access.key(:access_history), :count], &((&1 || 0) + 1))
     |> update_in([Access.key(:access_history), :history], &((&1 || []) ++ [entry]))
@@ -211,14 +211,14 @@ defmodule Noizu.SmartToken.TokenEntity do
     entry = %{time: DateTime.utc_now(), ip: ip,  type: {:error, :check_mismatch}}
     # TODO deal with active flag if it needs to be changed. @PRI-2
     Enum.map(tokens, fn(token) ->
-      record_access!(token, conn, entry)
+      record_access!(token, entry)
     end)
   end
 
-  def record_invalid_access!(%__MODULE{} == this, conn) do
+  def record_invalid_access!(%__MODULE{} = this, conn) do
     ip = conn.remote_ip |> Tuple.to_list |> Enum.join(".")
     entry = %{time: DateTime.utc_now(), ip: ip,  type: {:error, :check_mismatch}}
-    record_access!(token, conn, entry)
+    record_access!(this, entry)
   end
 
 end

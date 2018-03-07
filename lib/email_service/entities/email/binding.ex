@@ -86,7 +86,7 @@ defmodule Noizu.EmailService.Email.Binding do
       body: bindings.body,
 
       template: template,
-      template_version: %{template: template.external_template_identifier, version: template_record.cached_details[:version]},
+      template_version: %{template: template.external_template_identifier, version: template.cached_details[:version]},
 
       state: outcome,
       substitutions: bound,
@@ -153,7 +153,7 @@ defmodule Noizu.EmailService.Email.Binding do
   #-------------------------
   # extract_inner_eav/1
   #-------------------------
-  defp extract_inner_eav(_path) do
+  defp extract_inner_eav(_path, _context) do
     #@TODO _path ->  ref.type.id|attribute
     #@TODO pending EAV table implementation.
     {:error, :eav_lookup_nyi}
@@ -170,10 +170,10 @@ defmodule Noizu.EmailService.Email.Binding do
     matching_key = Map.keys(current)
                    |> Enum.find(&("#{&1}" == h))
     cond do
-      matchin_key == nil && h == "EAV" ->
+      matching_key == nil && h == "EAV" ->
         # @TODO Noizu.ERP.ref(current) -> EAV fetch
         {:error, :eav_lookup_nyi}
-      matchin_key == nil -> {:error, "#{h} key not found."}
+      matching_key == nil -> {:error, "#{h} key not found."}
         true -> extract_inner_path(t, Map.get(current, matching_key), context)
     end
   end # end extract_inner/3
@@ -208,7 +208,7 @@ defmodule Noizu.EmailService.Email.Binding do
     sender = Noizu.ERP.entity!(email.sender)
 
     # 2. Append recipient, sender fields to simplify downstream logic.
-    (is_map(bindings) && bindings || %{})
+    (is_map(email.bindings) && email.bindings || %{})
       |> Map.put(:recipient, recipient)
       |> Map.put(:sender, sender)
       |> Map.put(:body, email.body)

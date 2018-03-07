@@ -146,16 +146,4 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     Application.get_env(:sendgrid, :simulate)
   end
 
-
-  use Noizu.Scaffolding.EntityBehaviour,
-      sref_module: "txn-email",
-      as_record_options: %{additional_fields: []},
-      override: [],
-      default_implementation: Noizu.Scaffolding.EntityBehaviour.DefaultImplementation
-
-  #=============================================================================
-  # has_permission - cast|info
-  #=============================================================================
-  def has_permission(_ref, _permission, context, _options), do: context.auth[:permissions][:admin] || context.auth[:permissions][:system] || false
-  def has_permission!(ref, permission, context, options), do: has_permission(ref, permission, context, options)
 end # end defmodule

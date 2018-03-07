@@ -53,7 +53,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
       simulate?() -> this
       (this.synched_on == nil || DateTime.compare(DateTime.utc_now, Timex.shift(this.synched_on, minutes: 30)) == :gt ) ->
                        refresh(this.template.external_template_identifier, this)
-                       |> TemplateRepo.update!(update, context)
+                       |> TemplateRepo.update!(context)
       true -> this
     end
   end # end refresh/1

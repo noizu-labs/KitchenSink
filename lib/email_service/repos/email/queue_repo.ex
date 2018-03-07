@@ -56,7 +56,7 @@ defmodule Noizu.EmailService.Email.QueueRepo do
     |> update!(CallingContext.system(context))
   end # end update_state/2
 
-  def update_state(%QueueEntity{} = entity, new_state) do
+  def update_state(%QueueEntity{} = entity, new_state, context) do
     %QueueEntity{entity| retry_on: nil, state: new_state}
     |> update!(CallingContext.system(context))
   end # end update_state/2
