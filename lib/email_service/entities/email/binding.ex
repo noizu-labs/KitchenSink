@@ -29,7 +29,7 @@ defmodule Noizu.EmailService.Email.Binding do
                state: :valid|{:error| any},
                substitutions: Map.t,
                unbound: Map.t,
-
+               attachments: Map.t,
                vsn: float
              }
 
@@ -47,6 +47,7 @@ defmodule Noizu.EmailService.Email.Binding do
     state: nil,
     substitutions: nil,
     unbound: nil,
+    attachments: nil,
     vsn: @vsn
   ]
 
@@ -91,6 +92,8 @@ defmodule Noizu.EmailService.Email.Binding do
       state: outcome,
       substitutions: bound,
       unbound: unbound,
+
+      attachments: bindings.attachments,
     }
 
     {outcome, binding}
@@ -213,6 +216,7 @@ defmodule Noizu.EmailService.Email.Binding do
       |> Map.put(:sender, sender)
       |> Map.put(:body, email.body)
       |> Map.put(:subject, email.subject)
+      |> Map.put(:attachments, email.attachments)
   end # end prep_email_bindings/1
 
   #----------------------------

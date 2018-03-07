@@ -22,6 +22,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
                subject: String.t,
 
                bindings: Map.t,
+               attachments: Map.t,
                vsn: float
              }
 
@@ -33,6 +34,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     body: nil,
     subject: nil,
     bindings: %{},
+    attachments: %{},
     vsn: @vsn
   ]
 
@@ -96,14 +98,42 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     --------------------------------------
     "
     # Setup email
-    Email.build()
-    |> Email.put_template(sendgrid_template_id)
-    |> Email.add_to(binding.recipient_email)
-    |> Email.put_from(binding.sender_email)
+    email = SendGrid.Email.build()
+    |> SendGrid.Email.put_template(sendgrid_template_id)
+    |> SendGrid.Email.add_to(binding.recipient_email)
+    |> SendGrid.Email.put_from(binding.sender_email)
     |> put_html(binding)
     |> put_subject(binding)
     |> put_substitions(binding)
+    |> put_attachments(binding)
+
   end # end build_email/2
+
+  #--------------------------
+  # put_attachments
+  #--------------------------
+  def put_attachments(email, binding) do
+    cond do
+      is_map(binding.attachments) -> Enum.reduce(binding.attachments, email, fn({name, v}, acc) ->
+        cond do
+          is_function(v, 0) ->
+            case v.() do
+              {:ok, attachment} -> SendGrid.Email.add_attachment(email, attachment)
+              _ -> email
+            end
+
+          is_function(v, 2) ->
+            case v.(name, binding) do
+              {:ok, attachment} -> SendGrid.Email.add_attachment(email, attachment)
+              _ -> email
+            end
+          is_map(v) -> SendGrid.Email.add_attachment(email, v)
+          true-> email
+        end
+      end)
+      true -> email
+    end
+  end
 
   #--------------------------
   # put_html/2
