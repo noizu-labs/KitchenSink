@@ -10,7 +10,6 @@ defprotocol Noizu.Proto.EmailBind do
 end # end defprotocol
 
 if (Application.get_env(:noizu_email_service, :protocols, true)) do
-
   defimpl Noizu.Proto.EmailBind, for: Any do
     def format(reference) do
       case Poison.encode(reference) do

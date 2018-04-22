@@ -22,6 +22,9 @@ System for synchronizing email templates with SendGrid (or other source) and bin
 Current version heavy targeted towards SendGrid's built in Template support but will be extended in the future 
 for CMS backed templates and dynamic email generation from template for email services that do not support template binding. 
 
+### CMS
+ Basic system to tracking versioned articles/files/images. [WIP]
+
 ## Pending 
 updates need to be pulled in from various repos for these
 
@@ -43,4 +46,3 @@ access to different components than regular users. etc.
 
 ### EAV 
 - Basic Entity Attribute Value support. 
-

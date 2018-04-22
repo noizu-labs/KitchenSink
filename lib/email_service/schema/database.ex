@@ -10,12 +10,13 @@ defdatabase Noizu.EmailService.Database do
   # @Email.Template
   #-----------------------------------------------------------------------------
   # 1. Email Template
-  deftable Email.TemplateTable, [:identifier, :synched_on, :entity], type: :ordered_set, index: [:handle, :synched_on] do
+  deftable Email.TemplateTable, [:identifier, :handle, :synched_on, :entity], type: :ordered_set, index: [:handle, :synched_on] do
     @moduledoc """
     Email Template
     """
     @type t :: %Email.TemplateTable{
                  identifier: any,
+                 handle: nil,
                  synched_on: nil | integer,
                  entity: Noizu.EmailService.Email.TemplateEntity.t
                }
