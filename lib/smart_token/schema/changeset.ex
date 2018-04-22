@@ -26,7 +26,7 @@ defmodule Noizu.SmartToken.ChangeSet do
         environments: [],
         update: fn() ->
                   neighbors = neighbors()
-                  create_table(Noizu.SmartToken.Database.TokenTable, [disk!: neighbors])
+                  create_table(Noizu.SmartToken.Database.TokenTable, [disk: neighbors])
                   :success
         end,
         rollback: fn() ->

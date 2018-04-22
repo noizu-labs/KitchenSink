@@ -7,10 +7,12 @@ defmodule Noizu.Cms.Post.Article do
   @type t :: %__MODULE__{
                title: String.t,
                body: String.t,
+               attributes: Map.t,
              }
 
   defstruct [
     title: nil,
     body: nil,
+    attributes: %{},
   ]
 end # end defmodule

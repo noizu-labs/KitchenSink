@@ -8,11 +8,13 @@ defmodule Noizu.Cms.Post.File do
                title: String.t,
                alt: String.t,
                file: String.t,
+               attributes: Map.t,
              }
 
   defstruct [
     title: nil,
     alt: nil,
     file: nil,
+    attributes: %{},
   ]
 end # end defmodule

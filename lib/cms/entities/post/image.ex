@@ -8,11 +8,13 @@ defmodule Noizu.Cms.Post.Image do
                title: String.t,
                alt: String.t,
                resolutions: Map.t, # various resolutions
+               attributes: Map.t,
              }
 
   defstruct [
     title: nil,
     alt: nil,
     resolutions: %{},
+    attributes: %{},
   ]
 end # end defmodule
