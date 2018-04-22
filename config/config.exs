@@ -10,6 +10,6 @@ config :noizu_scaffolding,
        default_nmid_generator: Noizu.KitchenSink.NmidGenerator
 
 config :sendgrid,
-       api_key: "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",
+       api_key: System.get_env("SENDGRID_KS_KEY"),
        simulate: true,
        email_site_url: "https://github.com/noizu/KitchenSink"

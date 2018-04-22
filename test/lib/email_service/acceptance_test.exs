@@ -11,7 +11,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
 
   test "Send Transactional Email" do
 
-    
+
 
 
 
