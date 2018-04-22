@@ -5,8 +5,7 @@
 
 defmodule Noizu.SmartToken.TokenRepo do
   use Noizu.Scaffolding.RepoBehaviour,
-      mnesia_table: Noizu.SmartToken.Database.TokenTable,
-      override: []
+      mnesia_table: Noizu.SmartToken.Database.TokenTable
   require Logger
 
   @vsn 1.0

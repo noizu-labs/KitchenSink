@@ -56,9 +56,7 @@ defmodule Noizu.SmartToken.TokenEntity do
   use Noizu.Scaffolding.EntityBehaviour,
       sref_module: "smart-token",
       mnesia_table: Noizu.SmartToken.Database.TokenTable,
-      as_record_options: %{additional_fields: [:active, :token]},
-      override: [],
-      default_implementation: Noizu.Scaffolding.EntityBehaviour.DefaultImplementation
+      as_record_options: %{additional_fields: [:active, :token]}
 
   #=============================================================================
   # has_permission - cast|info
