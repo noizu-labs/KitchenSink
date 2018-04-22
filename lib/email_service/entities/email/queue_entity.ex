@@ -5,7 +5,6 @@
 
 defmodule Noizu.EmailService.Email.QueueEntity do
   @vsn 1.0
-  alias Noizu.KitchenSink.Types, as: T
 
   @type t :: %__MODULE__{
                identifier: any,

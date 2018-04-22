@@ -7,8 +7,21 @@ defmodule Noizu.EmailService.AcceptanceTest do
   use ExUnit.Case, async: false
   require Logger
 
-  test "stub" do
+  @context Noizu.ElixirCore.CallingContext.admin()
+
+  test "Send Transactional Email" do
+
+    
+
+
+
+
+
+
     assert true == false
   end
 
+  test "Send Standard Email" do
+    assert true == false
+  end
 end

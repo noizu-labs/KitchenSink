@@ -53,30 +53,30 @@ defmodule Noizu.SmartToken.TokenRepo do
   # account_verification_token/1
   #-------------------------------------
   def account_verification_token(options \\ %{}) do
-    defaults = %{
-                 resource: {:bind, :recipient},
-                 context: {:bind, :recipient},
-                 scope: {:account_info, :verification},
-                 validity_period: @period_three_days,
-                 extended_info: %{single_use: true}
-               }
-               |> Map.merge(options)
-               |> put_in([:type], :account_verification)
-               |> new()
+    %{
+      resource: {:bind, :recipient},
+      context: {:bind, :recipient},
+      scope: {:account_info, :verification},
+      validity_period: @period_three_days,
+      extended_info: %{single_use: true}
+    }
+    |> Map.merge(options)
+    |> put_in([:type], :account_verification)
+    |> new()
   end
 
   #-------------------------------------
   # edit_resource_token/3
   #-------------------------------------
   def edit_resource_token(resource, scope, options) do
-    defaults = %{
-                 context: {:bind, :recipient},
-                 validity_period: @period_fifteen_days,
-                 extended_info: %{multi_use: true, limit: 25}
-               }
-               |> Map.merge(options)
-               |> Map.merge(%{resource: resource, scope: scope, type: :edit_resource})
-               |> new()
+    %{
+      context: {:bind, :recipient},
+      validity_period: @period_fifteen_days,
+      extended_info: %{multi_use: true, limit: 25}
+    }
+    |> Map.merge(options)
+    |> Map.merge(%{resource: resource, scope: scope, type: :edit_resource})
+    |> new()
   end
 
   #-------------------------------------
@@ -99,19 +99,20 @@ defmodule Noizu.SmartToken.TokenRepo do
             r_extract = UUID.binary_to_string!(:erlang.list_to_binary(r))
             match = [{:active, true}, {:token, {l_extract, r_extract}}]
             # @TODO dynamic database selection.
-            case Noizu.SmartToken.Database.TokenTable.match!(match) |> Amnesia.Selection.values do
+            case (Noizu.SmartToken.Database.TokenTable.match!(match) |> Amnesia.Selection.values) do
+              nil -> {:error, :no_match}
               [] ->
                 flag_invalid_attempt({l_extract, r_extract}, conn, context, options)
                 {:error, :invalid}
-              [r] -> Noizu.SmartToken.TokenEntity.validate(r, conn, context, options)
               m when is_list(m) ->
+                m = Enum.map(m, &(&1.entity))
                 case validate(m, conn, context, options) do
                   {:ok, token} ->
-                      update = Noizu.SmartToken.TokenEntity.record_valid_access!(token, conn)
-                      {:ok, update}
-                    {:error, reason} ->
-                      Noizu.SmartToken.TokenEntity.record_invalid_access!(m, conn)
-                      {:error, reason}
+                    update = Noizu.SmartToken.TokenEntity.record_valid_access!(token, conn, options)
+                    {:ok, update}
+                  {:error, reason} ->
+                    Noizu.SmartToken.TokenEntity.record_invalid_access!(m, conn, options)
+                    {:error, reason}
                 end
               _ -> {:error, :other}
             end
@@ -124,7 +125,7 @@ defmodule Noizu.SmartToken.TokenRepo do
   #-------------------------------------
   # flag_invalid_attempt/4
   #-------------------------------------
-  def flag_invalid_attempt({l_extract, r_extract}, conn, context, options) do
+  def flag_invalid_attempt({_l_extract, _r_extract}, _conn, _context, _options) do
     # @TODO check for partial hit. and record malformed request for user.
     # @PRI-1
     :ok
@@ -133,11 +134,11 @@ defmodule Noizu.SmartToken.TokenRepo do
   #-------------------------------------
   # validate/4
   #-------------------------------------
-  def validate(nil, conn, context, options) do
+  def validate(nil, _conn, _context, _options) do
     {:error, :invalid}
   end
 
-  def validate([], conn, context, options) do
+  def validate([], _conn, _context, _options) do
     {:error, :invalid}
   end
 
@@ -153,7 +154,7 @@ defmodule Noizu.SmartToken.TokenRepo do
   #-------------------------------------
   def bind!(%Noizu.SmartToken.TokenEntity{} = token, bindings, context, options \\ %{}) do
     token
-    |> Noizu.SmartToken.TokenEntity.bind(bindings)
+    |> Noizu.SmartToken.TokenEntity.bind(bindings, options)
     |> create!(context, options)
   end
 end

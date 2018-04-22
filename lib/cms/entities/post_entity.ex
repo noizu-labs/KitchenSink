@@ -8,6 +8,7 @@ defmodule Noizu.Cms.PostEntity do
   @type t :: %__MODULE__{
                identifier: integer,
                created_on: DateTime.t,
+               modified_on: DateTime.t,
                version: integer,
                version_record: tuple,
                status: atom,
@@ -23,6 +24,7 @@ defmodule Noizu.Cms.PostEntity do
   defstruct [
     identifier: nil,
     created_on: nil,
+    modified_on: nil,
     version: nil,
     version_record: nil,
     status: nil,

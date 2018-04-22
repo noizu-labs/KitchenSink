@@ -5,7 +5,6 @@
 
 defmodule Noizu.EmailService.Email.Binding do
   @vsn 1.0
-  alias Noizu.EmailService.Email.Binding
   alias Noizu.KitchenSink.Types, as: T
 
   alias Noizu.EmailService.SendGrid.TransactionalEmail
@@ -55,11 +54,11 @@ defmodule Noizu.EmailService.Email.Binding do
   #--------------------------
   # bind_from_template/1
   #--------------------------
-  def bind_from_template(%TransactionalEmail{} = email, %TemplateEntity{} = template, context) do
+  def bind_from_template(%TransactionalEmail{} = email, %TemplateEntity{} = template, context, options) do
     #-------------------------------
     # 1. Update Bindings & Extract final recipient/sender values in reference format.
     #-------------------------------------
-    bindings = apply_template_bindings(email, template, context)
+    bindings = apply_template_bindings(email, template, context, options)
 
     #-------------------------------------
     # 2. Track bindings required for current template. Only these need to be persisted.
@@ -182,9 +181,9 @@ defmodule Noizu.EmailService.Email.Binding do
   end # end extract_inner/3
 
   #----------------------------
-  # apply_template_bindings/3
+  # apply_template_bindings/4
   #----------------------------
-  def apply_template_bindings(%TransactionalEmail{} = email, %TemplateEntity{} = template, context) do
+  def apply_template_bindings(%TransactionalEmail{} = email, %TemplateEntity{} = template, context, options) do
     # 1. Expand email bindings, ensure :sender and :recipient set.
     initial_bindings = prep_email_bindings(email)
 
@@ -195,7 +194,7 @@ defmodule Noizu.EmailService.Email.Binding do
         template.binding_defaults,
         initial_bindings,
         fn({key, default}, updated) ->
-          apply_template_binding(key, default, updated, context)
+          apply_template_binding(key, default, updated, context, options)
         end # end lambda
       ) # end foldl
     end # end if/else
@@ -220,35 +219,35 @@ defmodule Noizu.EmailService.Email.Binding do
   end # end prep_email_bindings/1
 
   #----------------------------
-  # apply_template_binding/3
+  # apply_template_binding/5
   #----------------------------
-  defp apply_template_binding(key, default, bindings, context) do
+  defp apply_template_binding(key, default, bindings, context, options) do
     # Process if entry does not exist or is set to :nil (use :undefined if you specifically do not want another value)
     # @NOTE logic may change in the future based on usage patterns/needs.
     cond do
-      (bindings[key] == nil) -> bindings |> Map.put(key, calculate_binding(default, bindings, context))
+      (bindings[key] == nil) -> bindings |> Map.put(key, calculate_binding(default, bindings, context, options))
       true -> bindings
     end
-  end # end apply_template_binding/3
+  end # end apply_template_binding/5
 
   #----------------------------
   # calculate_binding/3
   #----------------------------
-  defp calculate_binding({:literal, value}, _bindings, _context) do
+  defp calculate_binding({:literal, value}, _bindings, _context, _options) do
     value
   end # end calculate_binding/2
 
-  defp calculate_binding({:bind, field}, bindings, _context) do
+  defp calculate_binding({:bind, field}, bindings, _context, _options) do
     bindings[field]
   end # end calculate_binding/2
 
-  defp calculate_binding({:entity_reference, reference}, _bindings, _context) do
+  defp calculate_binding({:entity_reference, reference}, _bindings, _context, _options) do
     Noizu.ERP.entity!(reference)
   end # end calculate_binding/2
 
-  defp calculate_binding(%Noizu.SmartToken.TokenEntity{} = smart_token, bindings, context) do
+  defp calculate_binding(%Noizu.SmartToken.TokenEntity{} = smart_token, bindings, context, options) do
     smart_token
-    |> Noizu.SmartToken.TokenEntity.bind(bindings)
+    |> Noizu.SmartToken.TokenEntity.bind(bindings, options)
     |> Noizu.SmartToken.TokenRepo.create!(Noizu.ElixirCore.CallingContext.system(context))
   end # end calculate_binding/2
 

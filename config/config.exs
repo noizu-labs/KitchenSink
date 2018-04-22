@@ -8,3 +8,8 @@ use Mix.Config
 config :noizu_scaffolding,
        default_audit_engine: Noizu.KitchenSink.AuditEngine,
        default_nmid_generator: Noizu.KitchenSink.NmidGenerator
+
+config :sendgrid,
+       api_key: "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",
+       simulate: true,
+       email_site_url: "https://github.com/noizu/KitchenSink"

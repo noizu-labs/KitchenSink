@@ -33,6 +33,7 @@ defmodule Noizu.RuleEngine.Mixfile do
       {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.20"},
       {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.28"},
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.8"},
+      {:timex, "~> 3.1.24"}, # Date/Time library
       {:sendgrid, github: "SolaceClub/sendgrid_elixir", tag: "v1.8.0-templates"}, # Derived from Sendgrid Api Wrapper (https://github.com/alexgaribay/sendgrid_elixir)
     ]
   end # end deps

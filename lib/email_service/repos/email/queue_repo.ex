@@ -13,9 +13,9 @@ defmodule Noizu.EmailService.Email.QueueRepo do
   alias Noizu.EmailService.Email.Binding
 
   #--------------------------
-  # queue_failed
+  # queue_failed!
   #--------------------------
-  def queue_failed(binding, _details, context) do
+  def queue_failed!(binding, _details, context) do
     %QueueEntity{
       recipient: binding.recipient,
       sender: binding.sender,
@@ -30,9 +30,9 @@ defmodule Noizu.EmailService.Email.QueueRepo do
   end # end queue_failed/3
 
   #--------------------------
-  # queue
+  # queue!
   #--------------------------
-  def queue(%Binding{} = binding, context) do
+  def queue!(%Binding{} = binding, context) do
     time = DateTime.utc_now()
     %QueueEntity{
       recipient: binding.recipient,
@@ -48,15 +48,15 @@ defmodule Noizu.EmailService.Email.QueueRepo do
   end # end queue/2
 
   #--------------------------
-  # update_state
+  # update_state!
   #--------------------------
-  def update_state(%QueueEntity{} = entity, :retrying, context) do
+  def update_state!(%QueueEntity{} = entity, :retrying, context) do
     retry_on = Timex.shift(DateTime.utc_now(), minutes: 30)
     %QueueEntity{entity| retry_on: retry_on, state: :retrying}
     |> update!(CallingContext.system(context))
   end # end update_state/2
 
-  def update_state(%QueueEntity{} = entity, new_state, context) do
+  def update_state!(%QueueEntity{} = entity, new_state, context) do
     %QueueEntity{entity| retry_on: nil, state: new_state}
     |> update!(CallingContext.system(context))
   end # end update_state/2

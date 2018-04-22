@@ -44,7 +44,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   @doc """
   @TODO cleanup implementation get rid of nested case statements.
   """
-  def send!(%__MODULE__{} = this, context) do
+  def send!(%__MODULE__{} = this, context, options \\ %{}) do
     template = Noizu.ERP.entity!(this.template) |> TemplateEntity.refresh!(context)
     case template do
       {:error, details} ->
@@ -52,7 +52,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
         Logger.error("extract template error: #{inspect details}")
         {:error, details}
       %TemplateEntity{} ->
-        case Binding.bind_from_template(this, template, context) do
+        case Binding.bind_from_template(this, template, context, options) do
           {{:error, details}, %Binding{} = binding} ->
             QueueRepo.queue_failed!(binding, {:error, details}, context) #Todo save more information on bind failure.
             {:error, details}
@@ -69,8 +69,8 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   #--------------------------
   def send_email!(queued_email, context) do
     cond do
-      simulate?() -> QueueRepo.update_state(queued_email, :delivered, context)
-      restricted?(queued_email.binding.recipient_email) -> QueueRepo.update_state(queued_email, :restricted, context)
+      simulate?() -> QueueRepo.update_state!(queued_email, :delivered, context)
+      restricted?(queued_email.binding.recipient_email) -> QueueRepo.update_state!(queued_email, :restricted, context)
       true ->
         case queued_email.binding.template.external_template_identifier do
           {:sendgrid, sendgrid_template_id} ->
@@ -98,7 +98,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     --------------------------------------
     "
     # Setup email
-    email = SendGrid.Email.build()
+    SendGrid.Email.build()
     |> SendGrid.Email.put_template(sendgrid_template_id)
     |> SendGrid.Email.add_to(binding.recipient_email)
     |> SendGrid.Email.put_from(binding.sender_email)
@@ -114,7 +114,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   #--------------------------
   def put_attachments(email, binding) do
     cond do
-      is_map(binding.attachments) -> Enum.reduce(binding.attachments, email, fn({name, v}, acc) ->
+      is_map(binding.attachments) -> Enum.reduce(binding.attachments, email, fn({name, v}, email) ->
         cond do
           is_function(v, 0) ->
             case v.() do
@@ -139,21 +139,21 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   # put_html/2
   #--------------------------
   defp put_html(email, binding) do
-    binding.body && Email.put_html(email, binding.body) || email
+    binding.body && SendGrid.Email.put_html(email, binding.body) || email
   end # end put_html/2
 
   #--------------------------
   # put_subject/2
   #--------------------------
   defp put_subject(email, binding) do
-    binding.subject && Email.put_subject(email, binding.subject) || email
+    binding.subject && SendGrid.Email.put_subject(email, binding.subject) || email
   end # end put_subject
 
   #--------------------------
   # put_substitions/2
   #--------------------------
   defp put_substitions(email, binding) do
-    List.foldl(binding.substitutions, email, fn({substition_key, substition_value}, acc) -> Email.add_substitution(acc, "-{#{substition_key}}-", substition_value) end)
+    List.foldl(binding.substitutions, email, fn({substition_key, substition_value}, acc) -> SendGrid.Email.add_substitution(acc, "-{#{substition_key}}-", substition_value) end)
   end # end put_substitions/2
 
   #--------------------------

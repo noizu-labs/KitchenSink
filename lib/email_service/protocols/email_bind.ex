@@ -58,9 +58,9 @@ if (Application.get_env(:noizu_email_service, :protocols, true)) do
 
   defimpl Noizu.Proto.EmailBind, for: Noizu.SmartToken.TokenEntity do
     def format(reference) do
-      case reference.token do
-        {l, r} -> Base.encode64((UUID.string_to_binary!(l) <> UUID.string_to_binary!(r)))
-        _ -> "invalid_token"
+      case Noizu.SmartToken.TokenEntity.encoded_key(reference) do
+        {:error, _details} -> "invalid_token"
+        v -> v
       end
     end # end format/1
   end # end defimpl

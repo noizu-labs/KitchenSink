@@ -4,8 +4,8 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.SmartToken.TokenEntity do
-  alias Noizu.SmartToken.TokenEntity
   alias Noizu.KitchenSink.Types, as: T
+  use Timex
 
   @moduledoc """
     This class is used to represent a token that will be generated and stored to mnesia.
@@ -67,15 +67,25 @@ defmodule Noizu.SmartToken.TokenEntity do
   def has_permission!(ref, permission, context, options), do: has_permission(ref, permission, context, options)
 
   #---------------------------
+  # encoded_key
+  #---------------------------
+  def encoded_key(%__MODULE__{} = this) do
+    case this.token do
+      {l, r} -> Base.encode64((UUID.string_to_binary!(l) <> UUID.string_to_binary!(r)))
+      _ -> {:error, {:invalid_token, this.token}}
+    end
+  end
+
+  #---------------------------
   #
   #---------------------------
-  def bind(%__MODULE__{} = this, bindings) do
+  def bind(%__MODULE__{} = this, bindings, options) do
     %__MODULE__{this|
       token: bind_token(this.token, bindings),
       resource: bind_ref(this.resource, bindings),
       context: bind_ref(this.context, bindings),
       owner: bind_ref(this.owner, bindings),
-      validity_period: bind_period(this.validity_period, bindings),
+      validity_period: bind_period(this, bindings, options),
       access_history: %{history: [], count: 0},
       template: this
     }
@@ -95,26 +105,27 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   #
   #---------------------------
-  def bind_token(:generate, bindings) do
+  def bind_token(:generate, _bindings) do
     {UUID.uuid4(), UUID.uuid4()}
   end
-  def bind_token(token, bindings), do: token
+  def bind_token(token, _bindings), do: token
 
   #---------------------------
   #
   #---------------------------
-  def bind_period(%__MODULE__{} = this, bindings) do
+  def bind_period(%__MODULE__{} = this, _bindings, options) do
+    current_time = options[:current_time] || DateTime.utc_now()
     case this.validity_period do
       :nil -> :nil
       {lv, rv} ->
         lv = case lv do
           :unbound -> :unbound
-          {:relative, shift} -> Timex.shift(DateTime.utc_now(), shift)
+          {:relative, shift} -> Timex.shift(current_time, shift)
           {:fixed, time} -> time
         end
         rv = case rv do
           :unbound -> :unbound
-          {:relative, shift} -> Timex.shift(DateTime.utc_now(), shift)
+          {:relative, shift} -> Timex.shift(current_time, shift)
           {:fixed, time} -> time
         end
         {lv, rv}
@@ -124,7 +135,7 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   # validate/4
   #---------------------------
-  def validate(this, conn, context, options) do
+  def validate(this, _conn, _context, options) do
     this = entity!(this)
 
     p_c = validate_period(this, options)
@@ -187,9 +198,10 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   # record_valid_access!/2
   #---------------------------
-  def record_valid_access!(%__MODULE{} = this, conn) do
-    ip = conn.remote_ip |> Tuple.to_list |> Enum.join(".")
-    entry = %{time: DateTime.utc_now(), ip: ip,  type: :valid}
+  def record_valid_access!(%__MODULE{} = this, conn, options) do
+    current_time = options[:current_time] || DateTime.utc_now()
+    ip = conn && conn.remote_ip && conn.remote_ip |> Tuple.to_list |> Enum.join(".")
+    entry = %{time: current_time, ip: ip,  type: :valid}
     record_access!(this, entry)
   end
 
@@ -206,18 +218,20 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   # record_invalid_access/2
   #---------------------------
-  def record_invalid_access!(tokens, conn) when is_list(tokens) do
-    ip = conn.remote_ip |> Tuple.to_list |> Enum.join(".")
-    entry = %{time: DateTime.utc_now(), ip: ip,  type: {:error, :check_mismatch}}
+  def record_invalid_access!(tokens, conn, options) when is_list(tokens) do
+    current_time = options[:current_time] || DateTime.utc_now()
+    ip = conn && conn.remote_ip && conn.remote_ip |> Tuple.to_list |> Enum.join(".")
+    entry = %{time: current_time, ip: ip,  type: {:error, :check_mismatch}}
     # TODO deal with active flag if it needs to be changed. @PRI-2
     Enum.map(tokens, fn(token) ->
       record_access!(token, entry)
     end)
   end
 
-  def record_invalid_access!(%__MODULE{} = this, conn) do
+  def record_invalid_access!(%__MODULE{} = this, conn, options) do
+    current_time = options[:current_time] || DateTime.utc_now()
     ip = conn.remote_ip |> Tuple.to_list |> Enum.join(".")
-    entry = %{time: DateTime.utc_now(), ip: ip,  type: {:error, :check_mismatch}}
+    entry = %{time: current_time, ip: ip,  type: {:error, :check_mismatch}}
     record_access!(this, entry)
   end
 

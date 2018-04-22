@@ -6,7 +6,8 @@
 defmodule Noizu.EmailService.Email.TemplateEntity do
   @vsn 1.0
   alias Noizu.KitchenSink.Types, as: T
-  Noizu.EmailService.Email.TemplateRepo
+  alias Noizu.EmailService.Email.TemplateRepo
+  alias Noizu.EmailService.Email.Binding
 
   @type t :: %__MODULE__{
                identifier: T.nmid,
@@ -48,12 +49,13 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
   #--------------------------
   # refresh!
   #--------------------------
-  def refresh(%__MODULE__{} = this, context) do
+  def refresh!(%__MODULE__{} = this, context) do
     cond do
       simulate?() -> this
       (this.synched_on == nil || DateTime.compare(DateTime.utc_now, Timex.shift(this.synched_on, minutes: 30)) == :gt ) ->
-                       refresh(this.template.external_template_identifier, this)
-                       |> TemplateRepo.update!(context)
+        this.template.external_template_identifier
+        |> refresh!(this)
+        |> TemplateRepo.update!(context)
       true -> this
     end
   end # end refresh/1
@@ -61,7 +63,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
   #--------------------------
   # refresh/2
   #--------------------------
-  def refresh({:sendgrid, identifier}, this) do
+  def refresh!({:sendgrid, identifier}, this) do
     # Load Template from SendGrid
     template = SendGrid.Templates.get(identifier)
 
@@ -69,7 +71,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     version = Enum.find(template.versions, &(&1.active))
 
     # Grab Substitutions
-    substitutions = Template.extract_substitutions(version)
+    substitutions = Binding.extract_substitutions(version)
 
     cached = %{version: version.id, substitutions: substitutions}
 

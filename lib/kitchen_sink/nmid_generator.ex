@@ -1,11 +1,11 @@
 defmodule Noizu.KitchenSink.NmidGenerator do
   @behaviour Noizu.Scaffolding.NmidBehaviour
 
-  def generate(seq, opts \\ nil) do
-    :os.system_time(:millisecond)
+  def generate(_seq, _opts \\ nil) do
+    :os.system_time(:millisecond) * 5000 + :rand.uniform(5000)
   end
 
   def generate!(seq, opts \\ nil) do
-    :os.system_time(:millisecond)
+    generate(seq, opts)
   end
 end
