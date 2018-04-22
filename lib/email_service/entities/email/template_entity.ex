@@ -13,6 +13,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
                identifier: T.nmid,
                synched_on: DateTime.t,
                cached: any,
+               cached_details: any,
                name: String.t,
                description: String.t,
                external_template_identifier: T.entity_reference,
@@ -25,6 +26,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     identifier: nil,
     synched_on: nil,
     cached: nil,
+    cached_details: %{},
     name: nil,
     description: nil,
     external_template_identifier: nil,
@@ -53,7 +55,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     cond do
       simulate?() -> this
       (this.synched_on == nil || DateTime.compare(DateTime.utc_now, Timex.shift(this.synched_on, minutes: 30)) == :gt ) ->
-        this.template.external_template_identifier
+        this.external_template_identifier
         |> refresh!(this)
         |> TemplateRepo.update!(context)
       true -> this

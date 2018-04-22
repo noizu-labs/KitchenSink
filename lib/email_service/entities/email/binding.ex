@@ -20,6 +20,7 @@ defmodule Noizu.EmailService.Email.Binding do
                sender_email: :default | String.t,
 
                body: String.t,
+               html_body: String.t,
                subject: String.t,
 
                template: any,
@@ -40,6 +41,7 @@ defmodule Noizu.EmailService.Email.Binding do
     sender_name: :default,
     sender_email: :default,
     body: nil,
+    html_body: nil,
     subject: nil,
     template: nil, # temporary
     template_version: nil,
@@ -84,6 +86,7 @@ defmodule Noizu.EmailService.Email.Binding do
 
       subject: bindings.subject,
       body: bindings.body,
+      html_body: bindings.html_body,
 
       template: template,
       template_version: %{template: template.external_template_identifier, version: template.cached_details[:version]},
@@ -147,7 +150,7 @@ defmodule Noizu.EmailService.Email.Binding do
   #-------------------------
   defp extract_inner_site() do
     case Application.get_env(:sendgrid, :email_site_url) do
-      :nil -> {:error, :email_sit_url_not_set}
+      nil -> {:error, :email_sit_url_not_set}
       m -> m
     end
   end # end extract_inner/1
@@ -214,6 +217,7 @@ defmodule Noizu.EmailService.Email.Binding do
       |> Map.put(:recipient, recipient)
       |> Map.put(:sender, sender)
       |> Map.put(:body, email.body)
+      |> Map.put(:html_body, email.html_body)
       |> Map.put(:subject, email.subject)
       |> Map.put(:attachments, email.attachments)
   end # end prep_email_bindings/1

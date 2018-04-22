@@ -8,12 +8,14 @@ defmodule Noizu.KitchenSink.Support.UserEntity do
   @type t :: %__MODULE__{
                identifier: integer,
                name: String.t,
+               email: String.t,
                vsn: float
              }
 
   defstruct [
     identifier: nil,
     name: "Test User",
+    email: "test-user@email.com",
     vsn: @vsn
   ]
 

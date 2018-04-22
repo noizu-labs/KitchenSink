@@ -11,5 +11,5 @@ config :noizu_scaffolding,
 
 config :sendgrid,
        api_key: System.get_env("SENDGRID_KS_KEY"),
-       simulate: true,
+       simulate: false,
        email_site_url: "https://github.com/noizu/KitchenSink"

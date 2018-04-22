@@ -19,6 +19,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
                sender: :nil | T.entity_reference | any,
 
                body: String.t,
+               html_body: String.t,
                subject: String.t,
 
                bindings: Map.t,
@@ -32,6 +33,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     recipient_email: :default,
     sender: nil,
     body: nil,
+    html_body: nil,
     subject: nil,
     bindings: %{},
     attachments: %{},
@@ -69,13 +71,16 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   #--------------------------
   def send_email!(queued_email, context) do
     cond do
-      simulate?() -> QueueRepo.update_state!(queued_email, :delivered, context)
-      restricted?(queued_email.binding.recipient_email) -> QueueRepo.update_state!(queued_email, :restricted, context)
+      simulate?() ->
+        QueueRepo.update_state!(queued_email, :delivered, context)
+      restricted?(queued_email.binding.recipient_email) ->
+        QueueRepo.update_state!(queued_email, :restricted, context)
       true ->
         case queued_email.binding.template.external_template_identifier do
           {:sendgrid, sendgrid_template_id} ->
             email = build_email(sendgrid_template_id, queued_email.binding)
-            case SendGrid.Mailer.send(email) do
+            v = SendGrid.Mailer.send(email)
+            case v do
               :ok -> QueueRepo.update_state!(queued_email, :delivered, context)
                 :ok
               error ->
@@ -92,21 +97,16 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   # build_email/2
   #--------------------------
   defp build_email(sendgrid_template_id, binding) do
-    Logger.info "
-    --------------------------------------
-     Bindings: #{inspect binding, pretty: true, limit: :infinity}
-    --------------------------------------
-    "
     # Setup email
     SendGrid.Email.build()
     |> SendGrid.Email.put_template(sendgrid_template_id)
     |> SendGrid.Email.add_to(binding.recipient_email)
     |> SendGrid.Email.put_from(binding.sender_email)
+    |> put_text(binding)
     |> put_html(binding)
     |> put_subject(binding)
     |> put_substitions(binding)
     |> put_attachments(binding)
-
   end # end build_email/2
 
   #--------------------------
@@ -139,7 +139,14 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   # put_html/2
   #--------------------------
   defp put_html(email, binding) do
-    binding.body && SendGrid.Email.put_html(email, binding.body) || email
+    binding.html_body && SendGrid.Email.put_html(email, binding.html_body) || email
+  end # end put_html/2
+
+  #--------------------------
+  # put_body/2
+  #--------------------------
+  defp put_text(email, binding) do
+    binding.body && SendGrid.Email.put_text(email, binding.body) || email
   end # end put_html/2
 
   #--------------------------
@@ -152,8 +159,16 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   #--------------------------
   # put_substitions/2
   #--------------------------
+  defp put_substitions({substition_key, substition_value}, email) do
+    if is_map(substition_value) do
+      Enum.reduce(substition_value, email, fn({k,v}, acc) -> put_substitions({"#{substition_key}.#{k}", v}, acc) end)
+    else
+      SendGrid.Email.add_substitution(email, "-{#{substition_key}}-", substition_value)
+    end
+  end
+
   defp put_substitions(email, binding) do
-    List.foldl(binding.substitutions, email, fn({substition_key, substition_value}, acc) -> SendGrid.Email.add_substitution(acc, "-{#{substition_key}}-", substition_value) end)
+    Enum.reduce(binding.substitutions || %{}, email, fn({substition_key, substition_value}, acc) -> put_substitions({substition_key, substition_value}, acc) end)
   end # end put_substitions/2
 
   #--------------------------

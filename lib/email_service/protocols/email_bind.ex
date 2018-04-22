@@ -21,10 +21,11 @@ if (Application.get_env(:noizu_email_service, :protocols, true)) do
 
   defimpl Noizu.Proto.EmailBind, for: [Atom, Integer, Float, BitString] do
     def format(reference) do
-      case Poison.encode(reference) do
-        {:ok, json} -> json
-        _ -> "#{inspect reference}"
-      end
+      "#{reference}"
+      #case Poison.encode(reference) do
+      #  {:ok, json} when is_bitstring(json) -> json
+      #  _ -> "#{reference}"
+      #end
     end # end format/1
   end # end defimpl
 
