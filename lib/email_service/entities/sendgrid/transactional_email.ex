@@ -112,8 +112,8 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
 
   defp put_sender(email, binding) do
     cond do
-      binding.sender_name -> SendGrid.Email.add_from(email, binding.sender_email, binding.sender_name)
-      true -> SendGrid.Email.add_from(email, binding.sender_email)
+      binding.sender_name -> SendGrid.Email.put_from(email, binding.sender_email, binding.sender_name)
+      true -> SendGrid.Email.put_from(email, binding.sender_email)
     end
   end
 
