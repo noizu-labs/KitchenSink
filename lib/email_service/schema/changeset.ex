@@ -23,7 +23,7 @@ defmodule Noizu.EmailService.ChangeSet do
         changeset:  "Email Service Related Schema",
         author: "Keith Brings",
         note: "You may specify your own tables and override persistence layer in the settings. ",
-        environments: [],
+        environments: :all,
         update: fn() ->
                   neighbors = neighbors()
                   create_table(Noizu.EmailService.Database.Email.TemplateTable, [disk: neighbors])
