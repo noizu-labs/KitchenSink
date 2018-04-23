@@ -78,11 +78,11 @@ defmodule Noizu.EmailService.Email.Binding do
     binding = %__MODULE__{
       recipient: recipient.ref,
       recipient_name: recipient.name,
-      recipient_email: recipient.email,
+      recipient_email: bindings[:recipient_email] || recipient.email,
 
       sender: sender.ref,
       sender_name: recipient.name,
-      sender_email: recipient.email,
+      sender_email: bindings[:sender_email] ||  recipient.email,
 
       subject: bindings.subject,
       body: bindings.body,
@@ -221,6 +221,8 @@ defmodule Noizu.EmailService.Email.Binding do
       |> Map.put(:subject, email.subject)
       |> Map.put(:attachments, email.attachments)
   end # end prep_email_bindings/1
+
+
 
   #----------------------------
   # apply_template_binding/5

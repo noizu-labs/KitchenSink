@@ -100,14 +100,31 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     # Setup email
     SendGrid.Email.build()
     |> SendGrid.Email.put_template(sendgrid_template_id)
-    |> SendGrid.Email.add_to(binding.recipient_email)
-    |> SendGrid.Email.put_from(binding.sender_email)
+    |> put_sender(binding)
+    |> put_recipient(binding)
     |> put_text(binding)
     |> put_html(binding)
     |> put_subject(binding)
     |> put_substitions(binding)
     |> put_attachments(binding)
   end # end build_email/2
+
+
+  defp put_sender(email, binding) do
+    cond do
+      binding.sender_name -> SendGrid.Email.add_from(email, binding.sender_email, binding.sender_name)
+      true -> SendGrid.Email.add_from(email, binding.sender_email)
+    end
+  end
+
+  defp put_recipient(email, binding) do
+    cond do
+      binding.recipient_name -> SendGrid.Email.add_to(email, binding.recipient_email, binding.recipient_name)
+      true -> SendGrid.Email.add_to(email, binding.recipient_email)
+    end
+  end
+
+
 
   #--------------------------
   # put_attachments
