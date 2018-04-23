@@ -272,7 +272,7 @@ defmodule Noizu.EmailService.Email.Binding do
     case Map.get(subject, field) do
       :nil -> MapSet.new
       value when is_bitstring(value) ->
-        case Regex.scan(~r/-\{([a-zA-Z0-9\._]+)\}-/, value, capture: :all_but_first) do
+        case Regex.scan(~r/-\{([a-zA-Z0-9\._\[\]]+)\}-/, value, capture: :all_but_first) do
           :nil -> MapSet.new()
           matches when is_list(matches) ->
             matches
