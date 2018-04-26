@@ -3,7 +3,7 @@ defmodule Noizu.RuleEngine.Mixfile do
 
   def project do
     [app: :noizu_kitchen_sink,
-     version: "0.1.1",
+     version: "0.1.2",
      elixir: "~> 1.4",
      package: package(),
      deps: deps(),
@@ -30,8 +30,8 @@ defmodule Noizu.RuleEngine.Mixfile do
       {:markdown, github: "devinus/markdown", only: [:dev], optional: true}, # Markdown processor for ex_doc
       {:uuid, "~> 1.1" },
       {:noizu_core, github: "noizu/ElixirCore", tag: "1.0.4", override: true},
-      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.28"},
-      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.32"},
+      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.29"},
+      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.33"},
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.8"},
       {:timex, "~> 3.1.24"}, # Date/Time library
       {:sendgrid, github: "SolaceClub/sendgrid_elixir", tag: "v1.8.0-templates"}, # Derived from Sendgrid Api Wrapper (https://github.com/alexgaribay/sendgrid_elixir)
