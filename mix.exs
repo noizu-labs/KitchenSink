@@ -1,4 +1,4 @@
-defmodule Noizu.RuleEngine.Mixfile do
+defmodule Noizu.KitchenSink.Mixfile do
   use Mix.Project
 
   def project do
