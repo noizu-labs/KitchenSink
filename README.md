@@ -41,8 +41,21 @@ access to different components than regular users. etc.
 ### Credentials 
 - Basic tracking of user credentials from multiple sources. (Facebook, Oauth, Google, etc. tied to single underlying account)
 
-### Settings 
-- Basic tracking for site settings. 
+### User Settings 
+- Tree setting structure that incorporates weight and inheritance.  
+
+  Use fills in setting with specified paths `path = [Top, Parent, ParentsParent]` and weight. To calculate 
+  the effective setting for a given path the system grabs all entries at 
+  `path = [Top, Parent, ParentsParent]`, `path = [Parent, ParentsParent]`, `path = [ParentsParent]`, and `path = []`.
+  The entry with the highest weight at the given path (and it's parents) is returned as the effective value.
+  This allows the library user to build up a tree of default settings and allow the user to override these at a specific level of globally.
+  
+  You could for example specify log levels to initiate different systems with. `path = [:email_system, :communmication, :monitoring]` 
+  and allow the end user to override any value within  monitoring, or a subset (if you use a much higher weight for critical systems). or another leaf on the tree.
+  
+  You may also lookup the effective setting of multiple paths `effective_for(settings, setting, [path_1, path_2])`
+   
+  @note this library is not highly optomized and is innapropriate for scenarios where it will be called frequently against large settings structs. 
 
 ### EAV 
 - Basic Entity Attribute Value support. 
