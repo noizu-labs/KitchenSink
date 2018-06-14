@@ -12,6 +12,30 @@ defmodule Noizu.UserSettings.Settings do
     settings: %{}
   ]
 
+  #--------------------------------------------
+  # append/4
+  #--------------------------------------------
+  def append(a, b, path_prefix \\ [], weight_offset \\ 0)
+  def append(%__MODULE__{} = a, nil, _path_prefix, _weight_offset), do: a
+  def append(nil, %__MODULE__{} = b, _path_prefix, _weight_offset), do: b
+  def append(%__MODULE__{} = a, %__MODULE__{} = b, path_prefix, weight_offset) do
+    Enum.reduce(Map.keys(a.settings) ++ Map.keys(b.settings), a,
+      fn(setting, acc) ->
+        put_in(acc, [Access.key(:settings), setting], Noizu.UserSettings.Setting.append(a.settings[setting], b.settings[setting], path_prefix, weight_offset))
+      end)
+  end
+
+  #--------------------------------------------
+  # merge/2
+  #--------------------------------------------
+  def merge(%__MODULE__{} = a, nil), do: a
+  def merge(nil, %__MODULE__{} = b), do: b
+  def merge(%__MODULE__{} = a, %__MODULE__{} = b) do
+    Enum.reduce(Map.keys(a.settings) ++ Map.keys(b.settings), a,
+      fn(setting, acc) ->
+        put_in(acc, [Access.key(:settings), setting], Noizu.UserSettings.Setting.merge(a.settings[setting], b.settings[setting]))
+      end)
+  end
 
   #--------------------------------------------
   # insert/4
@@ -20,7 +44,7 @@ defmodule Noizu.UserSettings.Settings do
     Insert new value for a setting at top level/global default.
   """
   def insert(%__MODULE__{} = this, setting, value, weight) do
-    update_in(this, [Access.key(:settings), setting], &(Noizu.UserSettings.Setting.insert(&1, setting, [], value, weight)))
+    update_in(this, [Access.key(:settings), setting], &(Noizu.UserSettings.Setting.insert(&1, setting, value, [], weight)))
   end
 
   #--------------------------------------------
@@ -29,8 +53,8 @@ defmodule Noizu.UserSettings.Settings do
   @doc """
     Insert new value for a setting at a given path and weight.
   """
-  def insert(%__MODULE__{} = this, setting, path, value, weight) do
-    update_in(this, [Access.key(:settings), setting], &(Noizu.UserSettings.Setting.insert(&1, setting, path, value, weight)))
+  def insert(%__MODULE__{} = this, setting, value, path, weight) do
+    update_in(this, [Access.key(:settings), setting], &(Noizu.UserSettings.Setting.insert(&1, setting, value, path, weight)))
   end
 
   #--------------------------------------------
