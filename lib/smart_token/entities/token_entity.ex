@@ -69,7 +69,7 @@ defmodule Noizu.SmartToken.TokenEntity do
   #---------------------------
   def encoded_key(%__MODULE__{} = this) do
     case this.token do
-      {l, r} -> Base.encode64((UUID.string_to_binary!(l) <> UUID.string_to_binary!(r)))
+      {l, r} -> Base.url_encode64((UUID.string_to_binary!(l) <> UUID.string_to_binary!(r)))
       _ -> {:error, {:invalid_token, this.token}}
     end
   end

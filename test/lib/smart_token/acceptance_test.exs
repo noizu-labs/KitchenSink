@@ -10,6 +10,7 @@ defmodule Noizu.SmartToken.AcceptanceTest do
   @context Noizu.ElixirCore.CallingContext.admin()
   @conn_stub %{remote_ip: {127, 0, 0, 1}}
 
+  @tag :smart_token
   test "Account Verification Create & Redeem" do
     user = %Noizu.KitchenSink.Support.UserEntity{name: "SmartToken Account Verification Test"}
            |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
@@ -34,6 +35,7 @@ defmodule Noizu.SmartToken.AcceptanceTest do
     assert token.resource == user_ref
   end
 
+  @tag :smart_token
   test "Account Verification - Max Attempts Exceeded - Single Use" do
     user = %Noizu.KitchenSink.Support.UserEntity{name: "SmartToken Account Verification Test"}
            |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
@@ -48,6 +50,7 @@ defmodule Noizu.SmartToken.AcceptanceTest do
     assert attempt == {:error, :invalid}
   end
 
+  @tag :smart_token
   test "Account Verification - Max Attempts Exceeded - Multi Use" do
     user = %Noizu.KitchenSink.Support.UserEntity{name: "SmartToken Account Verification Test"}
            |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
@@ -68,6 +71,7 @@ defmodule Noizu.SmartToken.AcceptanceTest do
     assert attempt == {:error, :invalid}
   end
 
+  @tag :smart_token
   test "Account Verification - Expired" do
     user = %Noizu.KitchenSink.Support.UserEntity{name: "SmartToken Account Verification Test"}
            |> Noizu.KitchenSink.Support.UserRepo.create!(@context)

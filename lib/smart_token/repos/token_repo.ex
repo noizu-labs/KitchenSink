@@ -89,7 +89,7 @@ defmodule Noizu.SmartToken.TokenRepo do
     # 5. If constraints failed return error status
     # 6. If constraints match return success status.
 
-    case Base.decode64(token_key) do
+    case Base.url_decode64(token_key) do
       {:ok, value} ->
         {l,r} = Enum.split(:erlang.binary_to_list(value), 16)
         cond do
