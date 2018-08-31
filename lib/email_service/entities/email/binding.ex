@@ -77,12 +77,12 @@ defmodule Noizu.EmailService.Email.Binding do
 
     binding = %__MODULE__{
       recipient: recipient.ref,
-      recipient_name: recipient.name,
+      recipient_name: bindings[:recipient_name] || recipient.name,
       recipient_email: bindings[:recipient_email] || recipient.email,
 
       sender: sender.ref,
-      sender_name: recipient.name,
-      sender_email: bindings[:sender_email] ||  recipient.email,
+      sender_name: bindings[:sender_name] || sender.name,
+      sender_email: bindings[:sender_email] ||  sender.email,
 
       subject: bindings.subject,
       body: bindings.body,
