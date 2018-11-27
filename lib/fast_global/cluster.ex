@@ -15,6 +15,7 @@ defmodule Noizu.FastGlobal.Cluster do
   def get(identifier, default, options) do
     case FastGlobal.get(identifier, :no_match) do
       %Record{value: v} -> v
+      :no_match -> default
       error -> error
     end
   end
