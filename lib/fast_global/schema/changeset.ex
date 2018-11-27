@@ -3,10 +3,10 @@
 # Copyright (C) 2018 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.ChangeSet do
+defmodule Noizu.FastGlobal.ChangeSet do
   alias Noizu.MnesiaVersioning.ChangeSet
   use Amnesia
-  use Noizu.EmailService.Database
+  use Noizu.FastGlobal.Database
   use Noizu.MnesiaVersioning.SchemaBehaviour
 
   def neighbors() do
