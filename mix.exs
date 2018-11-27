@@ -29,10 +29,11 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:ex_doc, "~> 0.16.2", only: [:dev], optional: true}, # Documentation Provider
       {:markdown, github: "devinus/markdown", only: [:dev], optional: true}, # Markdown processor for ex_doc
       {:uuid, "~> 1.1" },
-      {:noizu_core, github: "noizu/ElixirCore", tag: "1.0.5", override: true},
-      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.30"},
-      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.35"},
-      {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.8"},
+      {:amnesia, git: "https://github.com/noizu/amnesia.git", ref: "9266002", override: true}, # Mnesia Wrappeir
+      {:noizu_core, github: "noizu/ElixirCore", tag: "1.0.6", override: true},
+      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.33", override: true},
+      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.37", override: true},
+      {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.9", override: true},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
       {:timex, "~> 3.1.24"}, # Date/Time library
