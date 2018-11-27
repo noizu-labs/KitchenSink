@@ -7,6 +7,74 @@ defmodule Noizu.FastGlobal.Cluster do
   @vsn 1.0
   alias Noizu.FastGlobal.Record
 
+  def get_settings() do
+    get(:fast_global_settings,
+      fn() ->
+        try do
+          if :ok == Noizu.FastGlobal.Database.Settings.wait(100) do
+            case Noizu.FastGlobal.Database.Settings.read!(:fast_global_settings) do
+              %Noizu.FastGlobal.Database.Settings{value: v} -> v
+              _ -> {:fast_global, :no_cache, %{}}
+            end
+          else
+            {:fast_global, :no_cache, %{}}
+          end
+        rescue e -> {:fast_global, :no_cache, %{}}
+        catch e -> {:fast_global, :no_cache, %{}}
+        end
+      end
+    )
+  end
+
+  #-------------------
+  # sync_record
+  #-------------------
+  def sync_record(identifier, default, options) do
+    value = if is_function(default, 0) do
+      default.()
+    else
+      default
+    end
+
+    if Semaphore.acquire({:fg_write_record, identifier}, 1) do
+      spawn fn ->
+        rersponse = try do
+          settings = cond do
+            identifier == :fast_global_settings -> %{}
+            true -> get_settings()
+          end
+          origin = options[:origin] || settings[:origin]
+          record = try do
+            origin && :rpc.call(origin, __MODULE__, :get_record, [identifier], 15_000)
+          rescue _e -> nil
+          catch _e -> nil
+          end
+
+          case record do
+            %Record{} ->
+              put(identifier, record)
+            _ ->
+              case value do
+                {:fast_global, :no_cache, _} -> :bypass
+                _ ->
+                  update = %Record{identifier: identifier, origin: origin || node(), pool: [node()], value: value, revision: 1, ts: :os.system_time(:millisecond)}
+                  put(identifier, update)
+              end
+          end
+        rescue _e -> nil
+        catch _e -> nil
+        end
+        Semaphore.release({:fg_write_record, identifier})
+      end
+    end
+
+    case value do
+      {:fast_global, :no_cache, v} -> v
+      _ ->
+        value
+    end
+  end
+
   #-------------------
   # get
   #-------------------
@@ -15,7 +83,7 @@ defmodule Noizu.FastGlobal.Cluster do
   def get(identifier, default, options) do
     case FastGlobal.get(identifier, :no_match) do
       %Record{value: v} -> v
-      :no_match -> default
+      :no_match -> sync_record(identifier, default, options)
       error -> error
     end
   end
@@ -33,7 +101,7 @@ defmodule Noizu.FastGlobal.Cluster do
     FastGlobal.put(identifier, record)
   end
   def put(identifier, value, options) do
-    settings = get(:fast_global_settings)
+    settings = get_settings()
     origin = options[:origin] || settings[:origin]
     cond do
       origin == node() -> coordinate_put(identifier, value, settings, options)
