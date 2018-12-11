@@ -36,7 +36,7 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.9", override: true},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
-      {:timex, "~> 3.1.24"}, # Date/Time library
+      {:timex, "~> 3.4.2"}, # Date/Time library
       {:sendgrid, github: "SolaceClub/sendgrid_elixir", tag: "v1.8.0-templates"}, # Derived from Sendgrid Api Wrapper (https://github.com/alexgaribay/sendgrid_elixir)
     ]
   end # end deps

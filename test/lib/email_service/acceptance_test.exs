@@ -9,6 +9,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
 
   @context Noizu.ElixirCore.CallingContext.admin()
 
+  @tag :email
   test "Send Transactional Email" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
                |> Noizu.EmailService.Email.TemplateEntity.refresh!(@context)

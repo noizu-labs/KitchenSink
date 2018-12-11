@@ -19,8 +19,8 @@ defmodule Noizu.FastGlobal.Cluster do
           else
             {:fast_global, :no_cache, %{}}
           end
-        rescue e -> {:fast_global, :no_cache, %{}}
-        catch e -> {:fast_global, :no_cache, %{}}
+        rescue _e -> {:fast_global, :no_cache, %{}}
+        catch _e -> {:fast_global, :no_cache, %{}}
         end
       end
     )
@@ -38,7 +38,7 @@ defmodule Noizu.FastGlobal.Cluster do
 
     if Semaphore.acquire({:fg_write_record, identifier}, 1) do
       spawn fn ->
-        rersponse = try do
+        try do
           settings = cond do
             identifier == :fast_global_settings -> %{}
             true -> get_settings()
@@ -125,6 +125,7 @@ defmodule Noizu.FastGlobal.Cluster do
         %Record{identifier: identifier, origin: node(), pool: pool, value: value, revision: 1, ts: :os.system_time(:millisecond)}
     end
 
+    # @TODO we actually need to wait until recieved, this will fail immedietly if semaphore not acquired.
     Semaphore.call({:fg_update_record, identifier}, 1,
       fn() ->
         Enum.map(update.pool,

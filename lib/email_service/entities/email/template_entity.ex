@@ -53,7 +53,8 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
   #--------------------------
   def refresh!(%__MODULE__{} = this, context) do
     cond do
-      simulate?() -> this
+      simulate?() ->
+        this
       (this.synched_on == nil || DateTime.compare(DateTime.utc_now, Timex.shift(this.synched_on, minutes: 30)) == :gt ) ->
         this.external_template_identifier
         |> refresh!(this)
