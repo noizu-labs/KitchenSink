@@ -9,12 +9,12 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @ArticleTable
   #-----------------------------------------------------------------------------
-  deftable ArticleTable, [:article, :status, :type, :owner, :created_on, :modified_on], type: :set, index: [:status, :type, :owner, :created_on, :modified_on] do
+  deftable ArticleTable, [:article, :status, :type, :editor, :created_on, :modified_on], type: :set, index: [:status, :type, :editor, :created_on, :modified_on] do
     @type t :: %ArticleTable{
-                 article: Noizu.KitchenSink.Types.entity_reference,
+                 identifier: Noizu.KitchenSink.Types.entity_reference,
                  status: :approved | :pending | :disabled | atom,
                  type: :post | :file | :image | atom | module,
-                 owner: Noizu.KitchenSink.Types.entity_reference,
+                 editor: Noizu.KitchenSink.Types.entity_reference,
                  created_on: integer,
                  modified_on: integer,
                }
