@@ -21,10 +21,11 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @EntryTable
   #-----------------------------------------------------------------------------
-  deftable EntryTable, [:article, :status, :type, :editor, :created_on, :modified_on], type: :set, index: [:status, :type, :editor, :created_on, :modified_on] do
+  deftable EntryTable, [:article, :status, :module, :type, :editor, :created_on, :modified_on, :active_version], type: :set, index: [:status, :module, :type, :editor, :created_on, :modified_on] do
     @type t :: %EntryTable{
-                 identifier: Noizu.KitchenSink.Types.entity_reference,
+                 article: Noizu.KitchenSink.Types.entity_reference,
                  status: :approved | :pending | :disabled | atom,
+                 module: module,
                  type: :post | :file | :image | atom | module,
                  editor: Noizu.KitchenSink.Types.entity_reference,
                  created_on: integer,
@@ -55,10 +56,11 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @Entry.VersionHistoryTable
   #-----------------------------------------------------------------------------
-  deftable Entry.VersionHistoryTable, [:article, :version, :full_copy, :created_on, :article_version], type: :bag, index: [:version, :full_copy, :created_on, :editior] do
+  deftable Entry.VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :article_version], type: :bag, index: [:version, :parent_version, :full_copy, :created_on, :editior] do
     @type t :: %Entry.VersionHistoryTable{
                  article: Noizu.KitchenSink.Types.entity_reference,
-                 version: integer,
+                 version: String.t,
+                 parent_version: String.t | nil,
                  full_copy: boolean,
                  created_on: integer,
                  editor: Noizu.KitchenSink.Types.entity_reference,
