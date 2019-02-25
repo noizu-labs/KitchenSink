@@ -3,9 +3,7 @@
 # Copyright (C) 2019 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.Cms.V2.RepoBehaviour do
-
-  defmodule Default do
+defmodule Noizu.Cms.V2.DefaultRepoImplementation do
 
     # on CRUD actions update tags, versions, etc.
     def get_by_status(status, context, options \\ []) do
@@ -51,12 +49,5 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     def delete_entry(entry, context, options \\[]) do
       # Version handling . . .
     end
-
-  end
-
-  defmacro __using__(options) do
-    quote do
-
-    end
-  end
+    
 end

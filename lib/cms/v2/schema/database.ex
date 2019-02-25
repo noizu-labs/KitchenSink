@@ -6,11 +6,23 @@
 use Amnesia
 
 defdatabase Noizu.Cms.V2.Database do
+
+
   #-----------------------------------------------------------------------------
   # @ArticleTable
   #-----------------------------------------------------------------------------
-  deftable ArticleTable, [:article, :status, :type, :editor, :created_on, :modified_on], type: :set, index: [:status, :type, :editor, :created_on, :modified_on] do
+  deftable ArticleTable, [:identifier, :entity], type: :set, index: [] do
     @type t :: %ArticleTable{
+                 identifier: integer,
+                 entity: any
+               }
+  end # end deftable
+
+  #-----------------------------------------------------------------------------
+  # @EntryTable
+  #-----------------------------------------------------------------------------
+  deftable EntryTable, [:article, :status, :type, :editor, :created_on, :modified_on], type: :set, index: [:status, :type, :editor, :created_on, :modified_on] do
+    @type t :: %EntryTable{
                  identifier: Noizu.KitchenSink.Types.entity_reference,
                  status: :approved | :pending | :disabled | atom,
                  type: :post | :file | :image | atom | module,
@@ -21,30 +33,30 @@ defdatabase Noizu.Cms.V2.Database do
   end # end deftable
 
   #-----------------------------------------------------------------------------
-  # @Article.TagTable
+  # @Entry.TagTable
   #-----------------------------------------------------------------------------
-  deftable Article.TagTable, [:article, :tag], type: :bag, index: [:tag] do
-    @type t :: %Article.TagTable{
+  deftable Entry.TagTable, [:article, :tag], type: :bag, index: [:tag] do
+    @type t :: %Entry.TagTable{
                  article: Noizu.KitchenSink.Types.entity_reference,
                  tag: atom,
                }
   end # end deftable
 
   #-----------------------------------------------------------------------------
-  # @Article.VersionTable
+  # @Entry.VersionTable
   #-----------------------------------------------------------------------------
-  deftable Article.VersionTable, [:identifier, :entity], type: :set, index: [] do
-    @type t :: %Article.VersionTable{
+  deftable Entry.VersionTable, [:identifier, :entity], type: :set, index: [] do
+    @type t :: %Entry.VersionTable{
                  identifier: integer, # {article, version}
                  entity: any,
                }
   end # end deftable
 
   #-----------------------------------------------------------------------------
-  # @Article.VersionHistoryTable
+  # @Entry.VersionHistoryTable
   #-----------------------------------------------------------------------------
-  deftable Article.VersionHistoryTable, [:article, :version, :full_copy, :created_on, :article_version], type: :bag, index: [:version, :full_copy, :created_on, :editior] do
-    @type t :: %Article.VersionHistoryTable{
+  deftable Entry.VersionHistoryTable, [:article, :version, :full_copy, :created_on, :article_version], type: :bag, index: [:version, :full_copy, :created_on, :editior] do
+    @type t :: %Entry.VersionHistoryTable{
                  article: Noizu.KitchenSink.Types.entity_reference,
                  version: integer,
                  full_copy: boolean,

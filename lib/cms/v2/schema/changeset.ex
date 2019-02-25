@@ -27,16 +27,18 @@ defmodule Noizu.Cms.V2.ChangeSet do
         update: fn() ->
                   neighbors = neighbors()
                   create_table(Noizu.Cms.V2.Database.ArticleTable, [disk: neighbors])
-                  create_table(Noizu.Cms.V2.Database.Article.TagTable, [disk: neighbors])
-                  create_table(Noizu.Cms.V2.Database.Article.VersionTable, [disk: neighbors])
-                  create_table(Noizu.Cms.V2.Database.Article.VersionHistoryTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.EntryTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.Entry.TagTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.Entry.VersionTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.Entry.VersionHistoryTable, [disk: neighbors])
                   :success
         end,
         rollback: fn() ->
           destroy_table(Noizu.Cms.V2.Database.ArticleTable)
-          destroy_table(Noizu.Cms.V2.Database.Article.TagTable)
-          destroy_table(Noizu.Cms.V2.Database.Article.VersionTable)
-          destroy_table(Noizu.Cms.V2.Database.Article.VersionHistoryTable)
+          destroy_table(Noizu.Cms.V2.Database.EntryTable)
+          destroy_table(Noizu.Cms.V2.Database.Entry.TagTable)
+          destroy_table(Noizu.Cms.V2.Database.Entry.VersionTable)
+          destroy_table(Noizu.Cms.V2.Database.Entry.VersionHistoryTable)
           :removed
         end
       }
