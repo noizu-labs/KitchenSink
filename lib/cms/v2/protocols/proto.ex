@@ -1,8 +1,10 @@
 defprotocol Noizu.Cms.V2.Proto do
   @fallback_to_any true
 
-  #def cms_get_article_details(ref, context)
-  #def cms_prepare_version(ref, version, context)
-  #def cms_expand_version(ref, version, context)
+  def tags(ref, context)
+  def set_version(ref, version, context, options)
+  def prepare_version(ref, context, options)
+  def expand_version(ref, version, context, options)
+  def index_details(ref, context, options)
 
 end # end defprotocol

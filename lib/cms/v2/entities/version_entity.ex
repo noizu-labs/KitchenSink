@@ -3,15 +3,7 @@
 # Copyright (C) 2019 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.Cms.V2.RepoBehaviour do
+defmodule Noizu.Cms.V2.VersionEntity do
 
 
-  defmacro __using__(options) do
-    quote do
-
-      # @todo forward declarations
-      # @todo override section
-      
-    end
-  end
 end

@@ -16,9 +16,8 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
 
     # @TODO use nested path versions instead of string versions, use matrix tree encoding and expose data structure for tracking next available version for parent version.
     # @TODO implement
-    alias Noizu.Cms.V2.Entry.VersionRepo
-    # @TODO implement
-    alias Noizu.Cms.V2.Entry.VersionEntity
+    alias Noizu.Cms.V2.VersionRepo
+    alias Noizu.Cms.V2.VersionEntity
 
     @default_options %{
       expand: true,
@@ -145,7 +144,7 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
       [tag: tag]
       |> TagTable.match()
       |> Amnesia.Selection.values()
-      |> Enum.map(&(EntryTable.read(&1.article)))
+      |> Enum.map(&(IndexTable.read(&1.article)))
       |> filter_records(context, options)
       |> expand_records(context, options)
     end
@@ -160,7 +159,7 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
 
       if is_list(records) do
         records
-        |> Enum.map(&(EntryTable.read!(&1.article)))
+        |> Enum.map(&(IndexTable.read!(&1.article)))
         |> filter_records(context, options)
         |> expand_records!(context, options)
       else
@@ -178,11 +177,11 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
       cond do
         Kernel.match({:type, _}, options.filter) ->
           t = elem(options.filter, 1)
-          EntryTable.where(type == t && created_on >= from_ts && created_on < to_ts)
+          IndexTable.where(type == t && created_on >= from_ts && created_on < to_ts)
         Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
           m = elem(options.filter, 1)
-          EntryTable.where(module == m && created_on >= from_ts && created_on < to_ts)
-        true -> EntryTable.where(created_on >= from_ts && created_on < to_ts)
+          IndexTable.where(module == m && created_on >= from_ts && created_on < to_ts)
+        true -> IndexTable.where(created_on >= from_ts && created_on < to_ts)
       end
       |> Amnesia.Selection.values
       |> expand_records(context, options)
@@ -196,11 +195,11 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
         cond do
           Kernel.match({:type, _}, options.filter) ->
             t = elem(options.filter, 1)
-            EntryTable.where(type == t && created_on >= from_ts && created_on < to_ts)
+            IndexTable.where(type == t && created_on >= from_ts && created_on < to_ts)
           Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
             m = elem(options.filter, 1)
-            EntryTable.where(module == m && created_on >= from_ts && created_on < to_ts)
-          true -> EntryTable.where(created_on >= from_ts && created_on < to_ts)
+            IndexTable.where(module == m && created_on >= from_ts && created_on < to_ts)
+          true -> IndexTable.where(created_on >= from_ts && created_on < to_ts)
         end
         |> Amnesia.Selection.values
       end)
@@ -217,11 +216,11 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
       cond do
         Kernel.match({:type, _}, options.filter) ->
           t = elem(options.filter, 1)
-          EntryTable.where(type == t && modified_on >= from_ts && modified_on < to_ts)
+          IndexTable.where(type == t && modified_on >= from_ts && modified_on < to_ts)
         Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
           m = elem(options.filter, 1)
-          EntryTable.where(module == m && modified_on >= from_ts && modified_on < to_ts)
-        true -> EntryTable.where(modified_on >= from_ts && modified_on < to_ts)
+          IndexTable.where(module == m && modified_on >= from_ts && modified_on < to_ts)
+        true -> IndexTable.where(modified_on >= from_ts && modified_on < to_ts)
       end
       |> Amnesia.Selection.values
       |> expand_records(context, options)
@@ -235,11 +234,11 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
         cond do
           Kernel.match({:type, _}, options.filter) ->
             t = elem(options.filter, 1)
-            EntryTable.where(type == t && modified_on >= from_ts && modified_on < to_ts)
+            IndexTable.where(type == t && modified_on >= from_ts && modified_on < to_ts)
           Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
             m = elem(options.filter, 1)
-            EntryTable.where(module == m && modified_on >= from_ts && modified_on < to_ts)
-          true -> EntryTable.where(modified_on >= from_ts && modified_on < to_ts)
+            IndexTable.where(module == m && modified_on >= from_ts && modified_on < to_ts)
+          true -> IndexTable.where(modified_on >= from_ts && modified_on < to_ts)
         end
         |> Amnesia.Selection.values
       end)
@@ -291,24 +290,71 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
     #----------------------------------
     #
     #----------------------------------
-    def generate_version_hash(entry, context, options) do
-      # @TODO Generate Version Hash - Get nmid id, hash it with entry ref.
+    def generate_version_hash(entry, version, context, options) do
+      #ref = Noizu.ERP.ref(entry)
+      #if ref do
+      #  m = elem(ref, 1)
+      #  sref = Noizu.ERP.sref(ref)
+      #  version = :os.system_time(:milliseconds) # m.nmid_generator().generate({m, :version}, %{})
+      #  version_str = "#{sref}-#{version}"
+      #  crypto.hash(:md5, version_str) |> Base.encode16()
+      #end
+      "WIP"
     end
 
     #----------------------------------
     #
     #----------------------------------
-    def update_cms_records(entry, version, context, options \\[]) do
-      # @TODO Update Tags
-      # @TODO Update VersionTable (automatically updates VersionHistoryTable)
+    def update_cms_tags(entry, context, options \\ %{}) do
+      article = Noizu.ERP.ref(entry)
+      tags = Noizu.Cms.V2.Proto.tags(entry, context, options)
+      Entry.TagTable.delete(article)
+      Enum.map(tags, fn(tag) ->
+        %Entry.TagTable{article: article, tag: tag} |> Entry.TagTable.write
+      end)
+      :wip
+    end
+
+    def write_version_record(entry, context, options \\ %{}) do
+      version_entity = Noizu.Cms.V2.Proto.prepare_version(entry, context, options)
+      version_entity = VersionRepo.create(version_entity, context, options)
+      %VersionHistoryTable{
+        article: Noizu.ERP.ref(entry),
+        version: Noizu.ERP.ref(version_entity),
+        parent_version: version_entity.parent,
+        full_copy: version_entity.fully_copy,
+        created_on: version_entity.created_on,
+        editor: version_entity.editor
+      } |> VersionHistoryTable.write()
+      :wip
+    end
+
+    def update_cms_master_table(entry, context, options \\ %{}) do
+      index_details = Noizu.Cms.V2.Proto.index_details(entry, context, options)
+      %Entry.IndexTable{
+                   article: index_details.article,
+                   status: index_details.status,
+                   module: index_details.module,
+                   type: index_details.type,
+                   editor: index_details.editor,
+                   created_on: index_details.created_on,
+                   modified_on: index_details.modified_on,
+       } |> Entry.IndexTable.write()
+      :wipy
     end
 
     #----------------------------------
     #
     #----------------------------------
     def delete_cms_records(entry, context, options \\[]) do
-      # @TODO Delete Tags
-      # @TODO Delete VersionTable (automatically deletes VersionHistoryTable)
+      article = Noizu.ERP.ref(entry)
+      Entry.TagTable.delete(article)
+      Entry.VersionHistoryTable.delete(article)
+      # @TODO clean up VersionTable records.
+      :wip
     end
+
+
+    # @TODO provide hooks that can be called or overridden in repo's on_create/post_create, update, delete, etc. callbacks.
 
 end
