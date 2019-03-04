@@ -4,357 +4,362 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.DefaultRepoImplementation do
-    use Noizu.Cms.V2.Database.EntryTable
-    use Noizu.Cms.V2.Database.Entry.TagTable
-    use Noizu.Cms.V2.Database.Entry.VersionTable
-    use Noizu.Cms.V2.Database.Entry.VersionHistoryTable
+  use Amnesia
+  use Noizu.Cms.V2.Database.IndexTable
+  use Noizu.Cms.V2.Database.TagTable
+  use Noizu.Cms.V2.Database.VersionTable
+  use Noizu.Cms.V2.Database.VersionHistoryTable
 
-    alias Noizu.Cms.V2.Database.EntryTable
-    alias Noizu.Cms.V2.Database.Entry.TagTable
-    alias Noizu.Cms.V2.Database.Entry.VersionTable
-    alias Noizu.Cms.V2.Database.Entry.VersionHistoryTable
+  alias Noizu.Cms.V2.Database.IndexTable
+  alias Noizu.Cms.V2.Database.TagTable
+  alias Noizu.Cms.V2.Database.VersionTable
+  alias Noizu.Cms.V2.Database.VersionHistoryTable
 
-    # @TODO use nested path versions instead of string versions, use matrix tree encoding and expose data structure for tracking next available version for parent version.
-    # @TODO implement
-    alias Noizu.Cms.V2.VersionRepo
-    alias Noizu.Cms.V2.VersionEntity
+  # @TODO use nested path versions instead of string versions, use matrix tree encoding and expose data structure for tracking next available version for parent version.
+  # @TODO implement
+  alias Noizu.Cms.V2.VersionRepo
+  alias Noizu.Cms.V2.VersionEntity
 
-    @default_options %{
-      expand: true,
-      filter: false
-    }
+  @default_options %{
+    expand: true,
+    filter: false
+  }
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def expand_records(records, _context, %{expand: true}) when is_list(records), do: Enum.map(records, &(Noizu.ERP.entity(&1.article))) |> Enum.filter(&(&1 != nil))
-    def expand_records(records, _context, _) when is_list(records), do: records
-    def expand_records(e, _context, _), do: throw {:error, e}
+  #----------------------------------
+  #
+  #----------------------------------
+  def expand_records(records, _context, %{expand: true}) when is_list(records), do: Enum.map(records, &(Noizu.ERP.entity(&1.article))) |> Enum.filter(&(&1 != nil))
+  def expand_records(records, _context, _) when is_list(records), do: records
+  def expand_records(e, _context, _), do: throw {:error, e}
 
 
-    def expand_records!(records, _context, %{expand: true}) when is_list(records), do: Enum.map(records, &(Noizu.ERP.entity!(&1.article))) |> Enum.filter(&(&1 != nil))
-    def expand_records!(records, _context, _) when is_list(records), do: records
-    def expand_records!(e, _context, _), do: throw {:error, e}
+  def expand_records!(records, _context, %{expand: true}) when is_list(records), do: Enum.map(records, &(Noizu.ERP.entity!(&1.article))) |> Enum.filter(&(&1 != nil))
+  def expand_records!(records, _context, _) when is_list(records), do: records
+  def expand_records!(e, _context, _), do: throw {:error, e}
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def match_records(filter, _context, options) do
-      case options.filter do
-        {:type, t} -> [type: t] ++ filter # Unexpected behaviour if filter is [type: t2]
-        {:module, m} -> [module: m] ++ filter
-        m when is_atom(m) -> [module: m] ++ filter
-        _ -> filter
-      end
-      |> Enum.uniq()
-      |> EntryTable.match()
-      |> Amnesia.Selection.values
+  #----------------------------------
+  #
+  #----------------------------------
+  def match_records(filter, _context, options) do
+    case options.filter do
+      {:type, t} -> [type: t] ++ filter # Unexpected behaviour if filter is [type: t2]
+      {:module, m} -> [module: m] ++ filter
+      m when is_atom(m) -> [module: m] ++ filter
+      _ -> filter
     end
-    def match_records!(filter, context, options), do: Amnesia.Fragment.async(fn -> match_records(filter, context, options) end)
+    |> Enum.uniq()
+    |> IndexTable.match()
+    |> Amnesia.Selection.values
+  end
+  def match_records!(filter, context, options), do: Amnesia.Fragment.async(fn -> match_records(filter, context, options) end)
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def filter_records(records, _context, options) when is_list(records) do
-      cond do
-        Kernel.match({:type, _}, options.filter) ->
-          t = elem(options.filter, 1)
-          Enum.filter(records, &(&1 && &1.type == t || false))
-        Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-          m = elem(options.filter, 1)
-          Enum.filter(records, &(&1 && &1.module == m || false))
-        true ->
-          Enum.filter(records, &(&1 || false))
-      end
+  #----------------------------------
+  #
+  #----------------------------------
+  def filter_records(records, _context, options) when is_list(records) do
+    cond do
+      Kernel.match?({:type, _}, options.filter) ->
+        t = elem(options.filter, 1)
+        Enum.filter(records, &(&1 && &1.type == t || false))
+      Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
+        m = elem(options.filter, 1)
+        Enum.filter(records, &(&1 && &1.module == m || false))
+      true ->
+        Enum.filter(records, &(&1 || false))
     end
-    def filter_records(e, _context, _), do: throw {:error, e}
+  end
+  def filter_records(e, _context, _), do: throw {:error, e}
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_status(status, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [status: status]
-      |> match_records(context, options)
-      |> expand_records(context, options)
-    end
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_status(status, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [status: status]
+    |> match_records(context, options)
+    |> expand_records(context, options)
+  end
 
-    def get_by_status!(status, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [status: status]
-      |> match_records!(context, options)
-      |> expand_records!(context, options)
-    end
+  def get_by_status!(status, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [status: status]
+    |> match_records!(context, options)
+    |> expand_records!(context, options)
+  end
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_type(type, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [type: type]
-      |> match_records(context, options)
-      |> expand_records(context, options)
-    end
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_type(type, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [type: type]
+    |> match_records(context, options)
+    |> expand_records(context, options)
+  end
 
-    def get_by_type!(type, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [type: type]
-      |> match_records!(context, options)
-      |> expand_records!(context, options)
-    end
+  def get_by_type!(type, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [type: type]
+    |> match_records!(context, options)
+    |> expand_records!(context, options)
+  end
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_module(module, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [module: module]
-      |> match_records(context, options)
-      |> expand_records(context, options)
-    end
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_module(module, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [module: module]
+    |> match_records(context, options)
+    |> expand_records(context, options)
+  end
 
-    def get_by_module!(module, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [module: module]
-      |> match_records!(context, options)
-      |> expand_records!(context, options)
-    end
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_editor(editor, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [editor: editor]
-      |> match_records(context, options)
-      |> expand_records(context, options)
-    end
+  def get_by_module!(module, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [module: module]
+    |> match_records!(context, options)
+    |> expand_records!(context, options)
+  end
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_editor(editor, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [editor: editor]
+    |> match_records(context, options)
+    |> expand_records(context, options)
+  end
 
-    def get_by_editor!(editor, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      [editor: editor]
-      |> match_records!(context, options)
-      |> expand_records!(context, options)
-    end
+  def get_by_editor!(editor, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [editor: editor]
+    |> match_records!(context, options)
+    |> expand_records!(context, options)
+  end
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_tag(tag, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_tag(tag, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    [tag: tag]
+    |> TagTable.match()
+    |> Amnesia.Selection.values()
+    |> Enum.map(&(IndexTable.read(&1.article)))
+    |> filter_records(context, options)
+    |> expand_records(context, options)
+  end
+
+  def get_by_tag!(tag, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    records = Amnesia.Fragment.async(fn ->
       [tag: tag]
       |> TagTable.match()
       |> Amnesia.Selection.values()
-      |> Enum.map(&(IndexTable.read(&1.article)))
+    end)
+
+    if is_list(records) do
+      records
+      |> Enum.map(&(IndexTable.read!(&1.article)))
       |> filter_records(context, options)
-      |> expand_records(context, options)
+      |> expand_records!(context, options)
+    else
+      throw {:error, records}
     end
+  end
 
-    def get_by_tag!(tag, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      records = Amnesia.Fragment.async(fn ->
-        [tag: tag]
-        |> TagTable.match()
-        |> Amnesia.Selection.values()
-      end)
-
-      if is_list(records) do
-        records
-        |> Enum.map(&(IndexTable.read!(&1.article)))
-        |> filter_records(context, options)
-        |> expand_records!(context, options)
-      else
-        throw {:error, records}
-      end
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_created_on(from, to, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    from_ts = is_integer(from) && from || DateTime.to_unix(from)
+    to_ts = is_integer(to) && to || DateTime.to_unix(to)
+    cond do
+      Kernel.match?({:type, _}, options.filter) ->
+        t = elem(options.filter, 1)
+        IndexTable.where(type == t and created_on >= from_ts and created_on < to_ts)
+      Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
+        m = elem(options.filter, 1)
+        IndexTable.where(module == m and created_on >= from_ts and created_on < to_ts)
+      true -> IndexTable.where(created_on >= from_ts and created_on < to_ts)
     end
-    
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_created_on(from, to, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      from_ts = is_integer(from) && from || DateTime.to_unix!(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix!(to)
+    |> Amnesia.Selection.values
+    |> expand_records(context, options)
+  end
+
+  def get_by_created_on!(from, to, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    from_ts = is_integer(from) && from || DateTime.to_unix(from)
+    to_ts = is_integer(to) && to || DateTime.to_unix(to)
+    Amnesia.Fragment.async(fn ->
       cond do
-        Kernel.match({:type, _}, options.filter) ->
+        Kernel.match?({:type, _}, options.filter) ->
           t = elem(options.filter, 1)
-          IndexTable.where(type == t && created_on >= from_ts && created_on < to_ts)
-        Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
+          IndexTable.where(type == t and created_on >= from_ts and created_on < to_ts)
+        Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
           m = elem(options.filter, 1)
-          IndexTable.where(module == m && created_on >= from_ts && created_on < to_ts)
-        true -> IndexTable.where(created_on >= from_ts && created_on < to_ts)
+          IndexTable.where(module == m and created_on >= from_ts and created_on < to_ts)
+        true -> IndexTable.where(created_on >= from_ts and created_on < to_ts)
       end
       |> Amnesia.Selection.values
-      |> expand_records(context, options)
-    end
+    end)
+    |> expand_records!(context, options)
+  end
 
-    def get_by_created_on!(from, to, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      from_ts = is_integer(from) && from || DateTime.to_unix!(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix!(to)
-      Amnesia.Fragment.async(fn ->
-        cond do
-          Kernel.match({:type, _}, options.filter) ->
-            t = elem(options.filter, 1)
-            IndexTable.where(type == t && created_on >= from_ts && created_on < to_ts)
-          Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-            m = elem(options.filter, 1)
-            IndexTable.where(module == m && created_on >= from_ts && created_on < to_ts)
-          true -> IndexTable.where(created_on >= from_ts && created_on < to_ts)
-        end
-        |> Amnesia.Selection.values
-      end)
-      |> expand_records!(context, options)
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_by_modified_on(from, to, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    from_ts = is_integer(from) && from || DateTime.to_unix(from)
+    to_ts = is_integer(to) && to || DateTime.to_unix(to)
+    cond do
+      Kernel.match?({:type, _}, options.filter) ->
+        t = elem(options.filter, 1)
+        IndexTable.where(type == t and modified_on >= from_ts and modified_on < to_ts)
+      Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
+        m = elem(options.filter, 1)
+        IndexTable.where(module == m and modified_on >= from_ts and modified_on < to_ts)
+      true -> IndexTable.where(modified_on >= from_ts and modified_on < to_ts)
     end
+    |> Amnesia.Selection.values
+    |> expand_records(context, options)
+  end
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_by_modified_on(from, to, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      from_ts = is_integer(from) && from || DateTime.to_unix!(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix!(to)
+  def get_by_modified_on!(from, to, context, options \\ %{}) do
+    options = Map.merge(@default_options, options)
+    from_ts = is_integer(from) && from || DateTime.to_unix(from)
+    to_ts = is_integer(to) && to || DateTime.to_unix(to)
+    Amnesia.Fragment.async(fn ->
       cond do
-        Kernel.match({:type, _}, options.filter) ->
+        Kernel.match?({:type, _}, options.filter) ->
           t = elem(options.filter, 1)
-          IndexTable.where(type == t && modified_on >= from_ts && modified_on < to_ts)
-        Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
+          IndexTable.where(type == t and modified_on >= from_ts and modified_on < to_ts)
+        Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
           m = elem(options.filter, 1)
-          IndexTable.where(module == m && modified_on >= from_ts && modified_on < to_ts)
-        true -> IndexTable.where(modified_on >= from_ts && modified_on < to_ts)
+          IndexTable.where(module == m and modified_on >= from_ts and modified_on < to_ts)
+        true -> IndexTable.where(modified_on >= from_ts and modified_on < to_ts)
       end
       |> Amnesia.Selection.values
-      |> expand_records(context, options)
+    end)
+    |> expand_records!(context, options)
+  end
+
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_version_history(entry, context, options \\ %{}) do
+    (ref = Noizu.ERP.ref(entry)) && Enum.sort(VersionHistoryTable.read(ref) || [], &(&1.created_on <= &2.created_on)) || []
+  end
+
+  def get_version_history!(entry, context, options \\ %{}) do
+    (ref = Noizu.ERP.ref(entry)) && Enum.sort(VersionHistoryTable.read!(ref) || [], &(&1.created_on <= &2.created_on)) || []
+  end
+
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_version(entry, version, _context, options \\ %{}) do
+    (ref = Noizu.ERP.ref(entry)) && VersionEntity.entity({:ref, VersionEntity, {ref, version}}, options)
+  end
+
+  def get_version!(entry, version, _context, options \\ %{}) do
+    (ref = Noizu.ERP.ref(entry)) && VersionEntity.entity!({:ref, VersionEntity, {ref, version}}, options)
+  end
+
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_all_versions(entry, context, options \\ %{}) do
+    if (ref = Noizu.ERP.ref(entry)) do
+      record = VersionTable.match([identifier: {ref, :_}])
+               |> Amnesia.Selection.values()
+               |> Enum.map(&(&1.entity))
+    else
+      []
     end
+  end
 
-    def get_by_modified_on!(from, to, context, options \\ %{}) do
-      options = Map.merge(@default_options, options)
-      from_ts = is_integer(from) && from || DateTime.to_unix!(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix!(to)
-      Amnesia.Fragment.async(fn ->
-        cond do
-          Kernel.match({:type, _}, options.filter) ->
-            t = elem(options.filter, 1)
-            IndexTable.where(type == t && modified_on >= from_ts && modified_on < to_ts)
-          Kernel.match({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-            m = elem(options.filter, 1)
-            IndexTable.where(module == m && modified_on >= from_ts && modified_on < to_ts)
-          true -> IndexTable.where(modified_on >= from_ts && modified_on < to_ts)
-        end
-        |> Amnesia.Selection.values
-      end)
-      |> expand_records!(context, options)
+  #----------------------------------
+  #
+  #----------------------------------
+  def get_all_versions!(entry, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> get_all_versions(entry, context, options) end)
+  end
+
+  #----------------------------------
+  #
+  #----------------------------------
+  def generate_version_hash(entry, version, context, options) do
+    if ref = Noizu.ERP.ref(entry) do
+      #m = elem(ref, 1)
+      #v = m.repo().nmid_generator().generate({m, :version}, %{})
+      :crypto.hash(:md5, "#{Noizu.ERP.sref(ref)}-#{version}") |> Base.encode16()
     end
+  end
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_version_history(entry, context, options \\ %{}) do
-      (ref = Noizu.ERP.ref(entry)) && Enum.sort(VersionHistoryTable.read(ref) || [], &(&1.created_on <= &2.created_on)) || []
-    end
+  #----------------------------------
+  #
+  #----------------------------------
+  def update_cms_tags(entry, context, options \\ %{}) do
+    article = Noizu.ERP.ref(entry)
+    tags = Noizu.Cms.V2.Proto.tags(entry, context, options)
+    TagTable.delete(article)
+    Enum.map(tags, fn(tag) ->
+      %TagTable{article: article, tag: tag} |> TagTable.write
+    end)
+    entry
+  end
 
-    def get_version_history!(entry, context, options \\ %{}) do
-      (ref = Noizu.ERP.ref(entry)) && Enum.sort(VersionHistoryTable.read!(ref) || [], &(&1.created_on <= &2.created_on)) || []
-    end
+  def write_version_record(entry, context, options \\ %{}) do
+    version_entity = Noizu.Cms.V2.Proto.prepare_version(entry, context, options)
+    version_entity = VersionRepo.create(version_entity, context, options)
+    %VersionHistoryTable{
+      article: Noizu.ERP.ref(entry),
+      version: Noizu.ERP.ref(version_entity),
+      parent_version: version_entity.parent,
+      full_copy: version_entity.fully_copy,
+      created_on: version_entity.created_on,
+      editor: version_entity.editor
+    } |> VersionHistoryTable.write()
+    entry
+  end
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_version(entry, version, _context, options \\ %{}) do
-      (ref = Noizu.ERP.ref(entry)) && VersionEntity.entity({:ref, VersionEntity, {ref, version}}, options)
-    end
+  def update_cms_master_table(entry, context, options \\ %{}) do
+    index_details = Noizu.Cms.V2.Proto.index_details(entry, context, options)
+    %IndexTable{
+      article: index_details.article,
+      status: index_details.status,
+      module: index_details.module,
+      type: index_details.type,
+      editor: index_details.editor,
+      created_on: index_details.created_on,
+      modified_on: index_details.modified_on,
+    } |> IndexTable.write()
+    entry
+  end
 
-    def get_version!(entry, version, _context, options \\ %{}) do
-      (ref = Noizu.ERP.ref(entry)) && VersionEntity.entity!({:ref, VersionEntity, {ref, version}}, options)
-    end
+  #----------------------------------
+  #
+  #----------------------------------
+  def delete_cms_records(entry, context, options \\[]) do
+    article = Noizu.ERP.ref(entry)
+    # Clear Tags
+    TagTable.delete(article)
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_all_versions(entry, context, options \\ %{}) do
-      if (ref = Noizu.ERP.ref(entry)) do
-        record = VersionTable.match([identifier: {ref, :_}])
-                 |> Amnesia.Selection.values()
-                 |> Enum.map(&(&1.entity))
-      else
-        []
-      end
-    end
+    # Clear Version History
+    VersionHistoryTable.delete(article)
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def get_all_versions!(entry, context, options \\ %{}) do
-      Amnesia.Fragment.async(fn -> get_all_versions(entry, context, options) end)
-    end
+    # Clear Version Records
+    record = VersionTable.match([identifier: {article, :_}])
+             |> Amnesia.Selection.values()
+             |> Enum.map(&( VersionTable.delete(&1.identifier)))
 
-    #----------------------------------
-    #
-    #----------------------------------
-    def generate_version_hash(entry, version, context, options) do
-      #ref = Noizu.ERP.ref(entry)
-      #if ref do
-      #  m = elem(ref, 1)
-      #  sref = Noizu.ERP.sref(ref)
-      #  version = :os.system_time(:milliseconds) # m.nmid_generator().generate({m, :version}, %{})
-      #  version_str = "#{sref}-#{version}"
-      #  crypto.hash(:md5, version_str) |> Base.encode16()
-      #end
-      "WIP"
-    end
-
-    #----------------------------------
-    #
-    #----------------------------------
-    def update_cms_tags(entry, context, options \\ %{}) do
-      article = Noizu.ERP.ref(entry)
-      tags = Noizu.Cms.V2.Proto.tags(entry, context, options)
-      Entry.TagTable.delete(article)
-      Enum.map(tags, fn(tag) ->
-        %Entry.TagTable{article: article, tag: tag} |> Entry.TagTable.write
-      end)
-      :wip
-    end
-
-    def write_version_record(entry, context, options \\ %{}) do
-      version_entity = Noizu.Cms.V2.Proto.prepare_version(entry, context, options)
-      version_entity = VersionRepo.create(version_entity, context, options)
-      %VersionHistoryTable{
-        article: Noizu.ERP.ref(entry),
-        version: Noizu.ERP.ref(version_entity),
-        parent_version: version_entity.parent,
-        full_copy: version_entity.fully_copy,
-        created_on: version_entity.created_on,
-        editor: version_entity.editor
-      } |> VersionHistoryTable.write()
-      :wip
-    end
-
-    def update_cms_master_table(entry, context, options \\ %{}) do
-      index_details = Noizu.Cms.V2.Proto.index_details(entry, context, options)
-      %Entry.IndexTable{
-                   article: index_details.article,
-                   status: index_details.status,
-                   module: index_details.module,
-                   type: index_details.type,
-                   editor: index_details.editor,
-                   created_on: index_details.created_on,
-                   modified_on: index_details.modified_on,
-       } |> Entry.IndexTable.write()
-      :wipy
-    end
-
-    #----------------------------------
-    #
-    #----------------------------------
-    def delete_cms_records(entry, context, options \\[]) do
-      article = Noizu.ERP.ref(entry)
-      Entry.TagTable.delete(article)
-      Entry.VersionHistoryTable.delete(article)
-      # @TODO clean up VersionTable records.
-      :wip
-    end
+    entry
+  end
 
 
-    # @TODO provide hooks that can be called or overridden in repo's on_create/post_create, update, delete, etc. callbacks.
+  # @TODO provide hooks that can be called or overridden in repo's on_create/post_create, update, delete, etc. callbacks.
 
 end

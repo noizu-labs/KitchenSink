@@ -18,7 +18,7 @@ defmodule Noizu.MarkdownField do
   def expand({:markdown, markdown}), do: %__MODULE__{markdown: markdown, render: nil}
   def render(%__MODULE__{} = entity, _restrictions) do
     # TODO render & tweak data structure.
-    %__MODULE__{enity| render: entity.markdown}
+    %__MODULE__{entity| render: entity.markdown}
   end
 
 end # end defmodule Noizu.MarkdownField

@@ -15,6 +15,7 @@ defmodule Noizu.Cms.V2.Article.Info do
                description: Noizu.MarkdownField.t | nil,
                note: Noizu.MarkdownField.t | nil,
                version: any,
+               parent_version: any,
                tags: MapSet.t,
                vsn: float
              }
@@ -30,6 +31,7 @@ defmodule Noizu.Cms.V2.Article.Info do
     description: nil,
     note: nil,
     version: nil,
+    parent_version: nil,
     tags: nil,
     vsn: @vsn
   ]

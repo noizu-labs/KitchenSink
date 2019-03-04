@@ -19,7 +19,10 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @IndexTable
   #-----------------------------------------------------------------------------
-  deftable IndexTable, [:article, :status, :module, :type, :editor, :created_on, :modified_on, :active_version], type: :set, index: [:status, :module, :type, :editor, :created_on, :modified_on] do
+  deftable IndexTable,
+           [:article, :status, :module, :type, :editor, :created_on, :modified_on, :active_version],
+           type: :set,
+           index: [:status, :module, :type, :editor, :created_on, :modified_on] do
     @type t :: %IndexTable{
                  article: Noizu.KitchenSink.Types.entity_reference,
                  status: :approved | :pending | :disabled | atom,
@@ -28,6 +31,7 @@ defdatabase Noizu.Cms.V2.Database do
                  editor: Noizu.KitchenSink.Types.entity_reference,
                  created_on: integer,
                  modified_on: integer,
+                 active_version: any,
                }
   end # end deftable
 
@@ -54,7 +58,7 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @VersionHistoryTable
   #-----------------------------------------------------------------------------
-  deftable VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :article_version], type: :bag, index: [:version, :parent_version, :full_copy, :created_on, :editior] do
+  deftable VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :article_version, :editor], type: :bag, index: [:version, :parent_version, :full_copy, :created_on, :editior] do
     @type t :: %VersionHistoryTable{
                  article: Noizu.KitchenSink.Types.entity_reference,
                  version: String.t,
