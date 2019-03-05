@@ -8,12 +8,14 @@ defprotocol Noizu.Cms.V2.Proto do
 
   def tags(ref, context, options)
   def set_version(ref, version, context, options)
+  def get_version(ref, context, options)
   def prepare_version(ref, context, options)
   def expand_version(ref, version, context, options)
   def index_details(ref, context, options)
 
   def tags!(ref, context, options)
   def set_version!(ref, version, context, options)
+  def get_version!(ref, context, options)
   def prepare_version!(ref, context, options)
   def expand_version!(ref, version, context, options)
   def index_details!(ref, context, options)
@@ -32,6 +34,12 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
   def set_version(ref, version, context, options) do
     if (entity = Noizu.ERP.entity(ref)) do
       Noizu.Cms.V2.Proto.set_version(entity, version, context, options)
+    end
+  end
+
+  def get_version(ref, context, options) do
+    if (entity = Noizu.ERP.entity(ref)) do
+      Noizu.Cms.V2.Proto.get_version(entity, context, options)
     end
   end
 
@@ -63,6 +71,12 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
   def set_version!(ref, version, context, options) do
     if (entity = Noizu.ERP.entity!(ref)) do
       Noizu.Cms.V2.Proto.set_version!(entity, version, context, options)
+    end
+  end
+
+  def get_version!(ref, context, options) do
+    if (entity = Noizu.ERP.entity!(ref)) do
+      Noizu.Cms.V2.Proto.get_version!(entity, context, options)
     end
   end
 
@@ -99,11 +113,29 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
     put_in(ref, [Access.key(:article_info), Access.key(:version)], version)
   end
 
+  def get_version(ref, context, options) do
+    ref.article_info.version
+  end
+
   def prepare_version(ref, context, options) do
+
+    ref = Noizu.ERP.ref(ref)
+    identifier = {ref, ref.article_info.version}
+
+    parent = case ref.article_info.version do
+      nil -> nil
+             {1} -> nil
+             {n} -> {ref, {n - 1}}
+             v when is_tuple(v) ->
+             {p, _} = Tuple.to_list(version) |> Enum.split(-1)
+             {ref, List.to_tuple(p)}
+    end
+    parent = parent && {:ref, Noizu.Cms.V2.VersionEntity, parent}
+
     %Noizu.Cms.V2.VersionEntity{
-      identifier: ref.article_info.version,
-      article: Noizu.ERP.ref(ref),
-      parent: ref.article_info.parent_version,
+      identifier: identifier,
+      article: ref,
+      parent: parent,
       full_copy: true,
       created_on: DateTime.utc_now(),
       editor: ref.article_info.editor,
@@ -140,6 +172,10 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
 
   def set_version!(ref, version, context, options) do
     set_version(ref, version, context, options)
+  end
+
+  def get_version!(ref, context, options) do
+    ref.article_info.version
   end
 
   def prepare_version!(ref, context, options) do

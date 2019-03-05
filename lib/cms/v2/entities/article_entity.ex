@@ -18,7 +18,7 @@ defmodule Noizu.Cms.V2.ArticleEntity do
   use Noizu.Cms.V2.Database
   use Noizu.Scaffolding.V2.EntityBehaviour,
       sref_module: "cms-v2",
-      mnesia_table: Noizu.Cms.V2.Database.ArticleTable,
+      entity_table: Noizu.Cms.V2.Database.ArticleTable,
       poly_support: [
         Noizu.Cms.V2.Article.FileEntity,
         Noizu.Cms.V2.Article.ImageEntity,

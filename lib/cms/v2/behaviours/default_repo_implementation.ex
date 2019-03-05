@@ -246,6 +246,87 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
     |> expand_records!(context, options)
   end
 
+
+  #----------------------------------
+  # version_exists?
+  #----------------------------------
+  def version_exists?(entry, version, context, options \\ %{}) do
+    ref = Noizu.ERP.ref(entry)
+    lookup_key = {ref, version}
+    case Noizu.Cms.V2.Database.VersionSequenceTable.read(lookup_key) do
+      %{} -> true
+      nil -> false
+    end
+  end
+
+  #----------------------------------
+  # reserve_version
+  #----------------------------------
+  def reserve_version(entry, version, context, options \\ %{}) do
+    ref = Noizu.ERP.ref(entry)
+    if version != {} do
+      {p, [c]} = Tuple.to_list(version) |> Enum.split(-1)
+      parent_version = List.to_tuple(p)
+      next_in_sequence = c + 1
+      # @TODO data consistency check
+      %Noizu.Cms.V2.Database.VersionSequenceTable{
+        identifier: {ref, parent_version},
+        next_in_sequence: next_in_sequence
+      } |>  Noizu.Cms.V2.Database.VersionSequenceTable.write
+    end
+
+    # @TODO data consistency check
+    inject_key = {ref, version}
+    %Noizu.Cms.V2.Database.VersionSequenceTable{
+      identifier: {Noizu.ERP.ref(entry), version},
+      next_in_sequence: 1
+    } |> Noizu.Cms.V2.Database.VersionSequenceTable.write
+  end
+
+  #----------------------------------
+  # increment_cms_version
+  #----------------------------------
+  def increment_cms_version(entry, context, options \\ %{}) do
+    parent_version = case Noizu.Cms.V2.Proto.get_version(entry, context, options) do
+      nil -> {}
+      v when is_tuple(v) -> v
+    end
+
+    # ====================================================
+    # @TODO change data structure  {ref, depth, tuple} or use a simple tree structure and force atomic access.
+    # this will allow us to use simply incrementing versions 1,2,3,4,5, unless a user goes back and modifies a version that already has a child. e.g. edits version 3 when version 5 exists.
+    # e.g Next version is next available slot unless next available slot is already taken in which case we add a layer of nesting.
+    # ====================================================
+
+    # Get next available version.
+    lookup_key = {Noizu.ERP.ref(entry), parent_version}
+    case Noizu.Cms.V2.Database.VersionSequenceTable.read(lookup_key) do
+      %{next_in_sequence: n} ->
+        child_version = List.to_tuple(Tuple.to_list(parent_version) ++ [n])
+        # @TODO verify new version doesn't already exist
+        reserve_version(entry, child_version, context, options)
+        Noizu.Cms.V2.Proto.set_version(entry, child_version, context, options)
+      v -> throw "Versioning System Error #{inspect v}"
+    end
+
+
+    # Insert Record if missing.
+    if !version_exist?(entry, parent_version, context, options) do
+      reserve_version(entry, parent_version, context, options)
+    end
+
+    # Get next available version.
+    lookup_key = {Noizu.ERP.ref(entry), parent_version}
+    case Noizu.Cms.V2.Database.VersionSequenceTable.read(lookup_key) do
+      %{next_in_sequence: n} ->
+        child_version = List.to_tuple(Tuple.to_list(parent_version) ++ [n])
+        # @TODO verify new version doesn't already exist
+        reserve_version(entry, child_version, context, options)
+        Noizu.Cms.V2.Proto.set_version(entry, child_version, context, options)
+      v -> throw "Versioning System Error #{inspect v}"
+    end
+  end
+
   #----------------------------------
   #
   #----------------------------------
@@ -361,5 +442,5 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
 
 
   # @TODO provide hooks that can be called or overridden in repo's on_create/post_create, update, delete, etc. callbacks.
-
+  # @note, so caller must insure identifier obtained before on_create/on_update is called, then generate version book keeping records (since these are tied article ref).
 end

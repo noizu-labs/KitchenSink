@@ -46,7 +46,7 @@ defdatabase Noizu.Cms.V2.Database do
   end # end deftable
 
   #-----------------------------------------------------------------------------
-  # @Entry.VersionTable
+  # @VersionTable
   #-----------------------------------------------------------------------------
   deftable VersionTable, [:identifier, :entity], type: :set, index: [] do
     @type t :: %VersionTable{
@@ -55,17 +55,31 @@ defdatabase Noizu.Cms.V2.Database do
                }
   end # end deftable
 
+
+  #-----------------------------------------------------------------------------
+  # @VersionSequencerTable
+  #-----------------------------------------------------------------------------
+  deftable VersionSequenceTable, [:identifier, :next_in_sequence], type: :set, index: [] do
+    @type t :: %VersionSequenceTable{
+                 identifier: integer, # {article, version}
+                 next_in_sequence: any,
+               }
+  end # end deftable
+
+
   #-----------------------------------------------------------------------------
   # @VersionHistoryTable
   #-----------------------------------------------------------------------------
-  deftable VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :article_version, :editor], type: :bag, index: [:version, :parent_version, :full_copy, :created_on, :editior] do
+  deftable VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :editor],
+           type: :bag,
+           index: [:version, :parent_version, :full_copy, :created_on, :editor] do
     @type t :: %VersionHistoryTable{
                  article: Noizu.KitchenSink.Types.entity_reference,
                  version: String.t,
                  parent_version: String.t | nil,
                  full_copy: boolean,
                  created_on: integer,
-                 editor: Noizu.KitchenSink.Types.entity_reference,
+                 editor: any,
                }
   end # end deftable
 end
