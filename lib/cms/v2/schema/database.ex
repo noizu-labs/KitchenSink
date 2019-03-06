@@ -68,6 +68,17 @@ defdatabase Noizu.Cms.V2.Database do
 
 
   #-----------------------------------------------------------------------------
+  # @VersionSequencerTable
+  #-----------------------------------------------------------------------------
+  deftable VersionTreeTable, [:article, :tree], type: :set, index: [] do
+    @type t :: %VersionTreeTable{
+                 article: integer, # {article, version}
+                 tree: any,
+               }
+  end # end deftable
+
+
+  #-----------------------------------------------------------------------------
   # @VersionHistoryTable
   #-----------------------------------------------------------------------------
   deftable VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :editor],

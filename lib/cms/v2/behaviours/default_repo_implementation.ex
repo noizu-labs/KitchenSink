@@ -283,6 +283,178 @@ defmodule Noizu.Cms.V2.DefaultRepoImplementation do
     } |> Noizu.Cms.V2.Database.VersionSequenceTable.write
   end
 
+
+
+  defp version_tree_info([], tree, hint) do
+    :wip
+  end
+
+  defp version_tree_info([h], node, hint) do
+    # @TODO data consistency checks.
+
+    child = node.children[h]
+    has_grand_children? = !((child.children == nil) || (child.children == %{}))
+    max_sibling = Enum.max(Map.keys(node.children))
+
+
+    ########################################################################
+    # Version Path Logic
+    ########################################################################
+
+    # Goals - V2:
+    # - Strategy Pattern for version maintenance
+    # - Simple incrementing versions
+    # - Parent Tracking
+    # - Full Binary Copy
+    # - Nothing Fancy.
+
+    # Goals - V3:
+    # - Support git style forking and merging of CMS repositories.
+    # - Efficient Storage Mechanism/Deltas.
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # MVP,  Hash is a product of article, parent, editor, server, commit message, delta from parent, time and padding - Using HMAC
+
+
+    # Temporary Action Plan,
+    # 1. Document brief discussion of possible approaches.
+    # 2. Use MVP implementation. Track Immediate Parent (so that we can rebuild tree in future).
+    # Alternative,
+    #
+    #
+    #
+    # 1. Strictly increasing version counter per document.
+    # 2. Internally track full version path for constructing delta version records.
+    # 3. Internally track reverse path lookup:  `%{8: %{logical_path: 1.1.2.2, genealogy: 1.2.5.8}, hash: md5("#{sref}@#{1.2.5.8}")}`
+    # 4. Use version hash strings or compressed paths to avoid confusing users with complex version identifiers when exposing srefs.
+    # 5. track hash to version lookup table: e.g. hash_to_version = %{md5("sref@1.2.5.8") => 8}
+    # 6. Use compressed path logic so that modifying the greatest child results in the insertion of an adjacent node instead of a child node in the identifier string.
+    #
+    # - Revision - Use user provided base selection alg to determine which node internal versions are based off of. (e.g. check direct parent and one up parent to see which delta is smaller for saved record).
+    # - ? simpler solution. version + subversion logic.
+    #
+    #
+    #                   :initial_version (1)
+    #                            |
+    #               |------------------------|----------------------|------------------------|
+    #              2:(1.1,1.2)              3:(1.2,1.2.3)          9:(1.3,1.2.3.9)         10:(1.4,1.10)
+    #               |
+    #           |-------------------|------------------------|
+    #          4:(1.1.1,1.2.4)     5:(1.1.2, 1.2.5)         6:(1.1.3,1.2.5.6)
+    #                                |
+    #                   |-------------------------|
+    #                  7:(1.1.2.1,1.2.5.7)       8:(1.1.2.2,1.2.5.8)
+    #
+    # - If document parent is :initial_version aka {1} then the next version hint should be {1, 3}
+    # - If document parent is {2} then version hint should be {O, 3}.
+
+
+
+    # 1.1.1
+    # 1.1.2
+    # 1.2
+    # 1.3
+
+    cond do
+      max_sibling == h -> hint ++ [(h + 1)]
+
+      # if
+
+      # Append Child if Current Version Already has children or has a newer/higher index sibling
+      (has_grand_children? || (max_sibling != h)) ->
+                                                           hint ++ [h, (Enum.max(Map.keys(child.children)) + 1)]
+    end
+
+    case do
+      # Already has children, append next greatest child.
+      child.has_children? -> hint ++ [h, (Enum.max(Map.keys(child.children)) + 1)]
+
+      # Already has adjacent but has no children, append first child.
+      (node.children[h + 1] != nil) -> hint ++ [h, 1]
+
+      # Does not have adjacent sibling.
+      true ->
+        hint ++ [(h + 1)]
+    end
+  end
+
+  defp version_tree_info([h|t], tree, hint) do
+    # @TODO exception handling.
+    version_tree_info(t, tree.children[h])
+  end
+
+  #----------------------------------
+  # increment_cms_version
+  #----------------------------------
+  def increment_cms_version(entry, context, options \\ %{}) do
+    ref = Noizu.ERP.ref(entry)
+
+    # Determine Starting Version.
+    current_version = case Noizu.Cms.V2.Proto.get_version(entry, context, options) do
+      nil -> {}
+      v when is_tuple(v) -> v
+    end
+
+    # Determine next available slot (Breadth first).
+    case Noizu.Cms.V2.Database.VersionTreeTable.read!(ref) do
+      t = %Noizu.Cms.V2.Database.VersionTreeTable{} ->
+
+        # Walk through path, determine if sibling exists.
+
+
+        :wip
+      _ -> :wip
+    end
+
+
+
+    # ====================================================
+    # @TODO change data structure  {ref, depth, tuple} or use a simple tree structure and force atomic access.
+    # this will allow us to use simply incrementing versions 1,2,3,4,5, unless a user goes back and modifies a version that already has a child. e.g. edits version 3 when version 5 exists.
+    # e.g Next version is next available slot unless next available slot is already taken in which case we add a layer of nesting.
+    # ====================================================
+
+    # Get next available version.
+    lookup_key = {Noizu.ERP.ref(entry), parent_version}
+    case Noizu.Cms.V2.Database.VersionSequenceTable.read(lookup_key) do
+      %{next_in_sequence: n} ->
+        child_version = List.to_tuple(Tuple.to_list(parent_version) ++ [n])
+        # @TODO verify new version doesn't already exist
+        reserve_version(entry, child_version, context, options)
+        Noizu.Cms.V2.Proto.set_version(entry, child_version, context, options)
+      v -> throw "Versioning System Error #{inspect v}"
+    end
+
+
+    # Insert Record if missing.
+    if !version_exist?(entry, parent_version, context, options) do
+      reserve_version(entry, parent_version, context, options)
+    end
+
+    # Get next available version.
+    lookup_key = {Noizu.ERP.ref(entry), parent_version}
+    case Noizu.Cms.V2.Database.VersionSequenceTable.read(lookup_key) do
+      %{next_in_sequence: n} ->
+        child_version = List.to_tuple(Tuple.to_list(parent_version) ++ [n])
+        # @TODO verify new version doesn't already exist
+        reserve_version(entry, child_version, context, options)
+        Noizu.Cms.V2.Proto.set_version(entry, child_version, context, options)
+      v -> throw "Versioning System Error #{inspect v}"
+    end
+  end
+
+
   #----------------------------------
   # increment_cms_version
   #----------------------------------
