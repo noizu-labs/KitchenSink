@@ -3,7 +3,7 @@
 # Copyright (C) 2018 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.Cms.AcceptanceTest do
+defmodule Noizu.Cms.V1.AcceptanceTest do
   use ExUnit.Case, async: false
   use Amnesia
   use Noizu.Cms.Database

@@ -58,12 +58,6 @@ defmodule Noizu.SmartToken.TokenEntity do
       mnesia_table: Noizu.SmartToken.Database.TokenTable,
       as_record_options: %{additional_fields: [:active, :token]}
 
-  #=============================================================================
-  # has_permission - cast|info
-  #=============================================================================
-  def has_permission(_ref, _permission, context, _options), do: context.auth[:permissions][:admin] || context.auth[:permissions][:system] || false
-  def has_permission!(ref, permission, context, options), do: has_permission(ref, permission, context, options)
-
   #---------------------------
   # encoded_key
   #---------------------------

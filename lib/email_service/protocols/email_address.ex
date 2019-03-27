@@ -6,7 +6,7 @@ end # end defprotocol
 
 if (Application.get_env(:noizu_email_service, :protocols, true)) do
   defimpl Noizu.Proto.EmailAddress, for: Any do
-    def email_details(%{ref: ref, name: name, email: email} = reference) do
+    def email_details(%{ref: _ref, name: _name, email: _email} = reference) do
       reference
     end # end format/1
 

@@ -7,11 +7,15 @@ defmodule Noizu.Cms.V2.ArticleEntity do
   @vsn 1.0
   @type t :: %__MODULE__{
                identifier: integer,
+               article_info: Noizu.Cms.V2.Article.Info.t | nil,
+               meta: Map.t,
                vsn: float
              }
 
   defstruct [
     identifier: nil,
+    article_info: nil,
+    meta: nil,
     vsn: @vsn
   ]
 

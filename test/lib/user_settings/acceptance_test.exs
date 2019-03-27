@@ -9,7 +9,7 @@ defmodule Noizu.UserSettings.AcceptanceTest do
   alias Noizu.UserSettings.Settings
   alias Noizu.UserSettings.Setting
 
-  @context Noizu.ElixirCore.CallingContext.admin()
+  #@context Noizu.ElixirCore.CallingContext.admin()
 
 
   @tag :user_settings

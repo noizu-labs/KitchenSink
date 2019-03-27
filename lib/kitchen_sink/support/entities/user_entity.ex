@@ -21,7 +21,8 @@ defmodule Noizu.KitchenSink.Support.UserEntity do
 
   use Noizu.Scaffolding.EntityBehaviour,
       sref_module: "test-user",
-      mnesia_table: Noizu.KitchenSink.Database.Support.UserTable
+      mnesia_table: Noizu.KitchenSink.Database.Support.UserTable,
+      override: [:has_permission, :has_permission!]
 
   #=============================================================================
   # has_permission - cast|info

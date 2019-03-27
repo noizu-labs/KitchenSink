@@ -8,7 +8,8 @@ defmodule Noizu.KitchenSink.Mixfile do
      package: package(),
      deps: deps(),
      description: "Noizu Kitchen Sink",
-     docs: docs()
+     docs: docs(),
+     elixirc_paths: elixirc_paths(Mix.env),
    ]
   end # end project
 
@@ -39,6 +40,7 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
       {:timex, "~> 3.4.2"}, # Date/Time library
       {:sendgrid, github: "SolaceClub/sendgrid_elixir", tag: "v1.8.0-templates"}, # Derived from Sendgrid Api Wrapper (https://github.com/alexgaribay/sendgrid_elixir)
+      {:mock, "~> 0.3.1", optional: true},
     ]
   end # end deps
 
@@ -48,4 +50,10 @@ defmodule Noizu.KitchenSink.Mixfile do
       extras: ["README.md"]
     ]
   end # end docs
+
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_),     do: ["lib"]
+
 end # end defmodule

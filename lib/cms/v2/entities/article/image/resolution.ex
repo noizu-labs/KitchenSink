@@ -5,7 +5,7 @@
 
 defmodule Noizu.Cms.V2.Article.Image.Resolution do
   @vsn 1.0
-  alias Noizu.Cms.V2.Article.Image.Resolution
+
   @type t :: %__MODULE__{
                dimensions: {integer, integer} | nil,
                dpi: integer | nil,

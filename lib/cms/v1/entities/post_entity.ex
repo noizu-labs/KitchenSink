@@ -44,10 +44,4 @@ defmodule Noizu.Cms.PostEntity do
       as_record_options: %{additional_fields: [:status, :type, :editor]},
       override: []
 
-  #=============================================================================
-  # has_permission - cast|info
-  #=============================================================================
-  def has_permission(_ref, _permission, context, _options), do: context.auth[:permissions][:admin] || context.auth[:permissions][:system] || false
-  def has_permission!(ref, permission, context, options), do: has_permission(ref, permission, context, options)
-
 end # end defmodule SolaceBackend.Cms.PostEntity

@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defprotocol Noizu.Cms.V2.Proto do
-  @fallback_to_any true
+  @fallback_to_any false
 
   def tags(ref, context, options)
   def set_version(ref, version, context, options)
@@ -43,6 +43,30 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
     end
   end
 
+  #def set_version_path(ref, path, context, options) do
+  #  if (entity = Noizu.ERP.entity(ref)) do
+  #    Noizu.Cms.V2.Proto.set_version(entity, path, context, options)
+  #  end
+  #end
+
+  #def get_version_path(ref, context, options) do
+  #  if (entity = Noizu.ERP.entity(ref)) do
+  #    Noizu.Cms.V2.Proto.get_version_path(entity, context, options)
+  #  end
+  #end
+
+  #def set_sub_version_path(ref, path, context, options) do
+  #  if (entity = Noizu.ERP.entity(ref)) do
+  #    Noizu.Cms.V2.Proto.set_sub_version(entity, path, context, options)
+  #  end
+  #end
+
+  #def get_sub_version_path(ref, context, options) do
+  #  if (entity = Noizu.ERP.entity(ref)) do
+  #    Noizu.Cms.V2.Proto.get_sub_version_path(entity, context, options)
+  #  end
+  #end
+
   def prepare_version(ref, context, options) do
     if (entity = Noizu.ERP.entity(ref)) do
       Noizu.Cms.V2.Proto.prepare_version(entity, context, options)
@@ -80,6 +104,30 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
     end
   end
 
+  #def set_version_path!(ref, path, context, options) do
+  #  if (entity = Noizu.ERP.entity!(ref)) do
+  #    Noizu.Cms.V2.Proto.set_version!(entity, path, context, options)
+  #  end
+  #end
+
+  #def get_version_path!(ref, context, options) do
+  #  if (entity = Noizu.ERP.entity!(ref)) do
+  #    Noizu.Cms.V2.Proto.get_version_path!(entity, context, options)
+  #  end
+  #end
+
+  #def set_sub_version_path!(ref, path, context, options) do
+  #  if (entity = Noizu.ERP.entity!(ref)) do
+  #    Noizu.Cms.V2.Proto.set_sub_version!(entity, path, context, options)
+  #  end
+  #end
+
+  #def get_sub_version_path!(ref, context, options) do
+  #  if (entity = Noizu.ERP.entity!(ref)) do
+  #    Noizu.Cms.V2.Proto.get_sub_version_path!(entity, context, options)
+  #  end
+  #end
+
   def prepare_version!(ref, context, options) do
     if (entity = Noizu.ERP.entity!(ref)) do
       Noizu.Cms.V2.Proto.prepare_version!(entity, context, options)
@@ -105,19 +153,35 @@ end
 
 defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.Article.ImageEntity, Noizu.Cms.V2.Article.PostEntity] do
 
-  def tags(ref, context, options) do
+  def tags(ref, _context, _options) do
     ref.article_info.tags
   end
 
-  def set_version(ref, version, context, options) do
+  def set_version(ref, version, _context, _options) do
     put_in(ref, [Access.key(:article_info), Access.key(:version)], version)
   end
 
-  def get_version(ref, context, options) do
+  def get_version(ref, _context, _options) do
     ref.article_info.version
   end
 
-  def prepare_version(ref, context, options) do
+  #def set_version_path(ref, path, _context, _options) do
+  #  put_in(ref, [Access.key(:article_info), Access.key(:version_path)], path)
+  #end
+
+  #def get_version_path(ref, _context, _options) do
+  #  ref.article_info.version_path
+  #end
+
+  #def set_sub_version_path(ref, path, _context, _options) do
+  #  put_in(ref, [Access.key(:article_info), Access.key(:sub_version_path)], path)
+  #end
+
+  #def get_sub_version_path(ref, _context, _options) do
+  #  ref.article_info.sub_version_path
+  #end
+
+  def prepare_version(ref, _context, _options) do
 
     ref = Noizu.ERP.ref(ref)
     identifier = {ref, ref.article_info.version}
@@ -127,7 +191,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
              {1} -> nil
              {n} -> {ref, {n - 1}}
              v when is_tuple(v) ->
-             {p, _} = Tuple.to_list(version) |> Enum.split(-1)
+             {p, _} = Tuple.to_list(v) |> Enum.split(-1)
              {ref, List.to_tuple(p)}
     end
     parent = parent && {:ref, Noizu.Cms.V2.VersionEntity, parent}
@@ -144,11 +208,11 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
     }
   end
 
-  def expand_version(ref, version, context, options) do
+  def expand_version(_ref, version, _context, _options) do
     version.record
   end
 
-  def index_details(ref, context, options) do
+  def index_details(ref, _context, _options) do
     type = case ref.__struct__ do
       Noizu.Cms.V2.Article.FileEntity -> :file
       Noizu.Cms.V2.Article.ImageEntity -> :image
@@ -175,8 +239,24 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   end
 
   def get_version!(ref, context, options) do
-    ref.article_info.version
+    get_version(ref, context, options)
   end
+
+  #def set_version_path!(ref, path, context, options) do
+  #  set_version_path(ref, path, context, options)
+  #end
+
+  #def get_version_path!(ref, context, options) do
+  #  get_version_path(ref, context, options)
+  #end
+
+  #def set_sub_version_path!(ref, path, context, options) do
+  #  set_sub_version_path(ref, path, context, options)
+  #end
+
+  #def get_sub_version_path!(ref, context, options) do
+  #  get_sub_version_path(ref, context, options)
+  #end
 
   def prepare_version!(ref, context, options) do
     prepare_version(ref, context, options)

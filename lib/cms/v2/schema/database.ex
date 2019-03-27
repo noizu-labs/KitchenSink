@@ -45,52 +45,42 @@ defdatabase Noizu.Cms.V2.Database do
                }
   end # end deftable
 
+  #=============================================================================
+  #=============================================================================
+  # Versioning
+  #=============================================================================
+  #=============================================================================
+
+  #-----------------------------------------------------------------------------
+  # @VersionSequencerTable
+  #-----------------------------------------------------------------------------
+  deftable VersionSequencerTable, [:identifier, :sequence], type: :set, index: [] do
+    @type t :: %VersionSequencerTable{
+                 identifier: any, # version ref
+                 sequence: any,
+               }
+  end # end deftable
+
   #-----------------------------------------------------------------------------
   # @VersionTable
   #-----------------------------------------------------------------------------
-  deftable VersionTable, [:identifier, :entity], type: :set, index: [] do
+  deftable VersionTable, [:identifier, :created_on, :editor, :entity], type: :set, index: [:created_on, :editor] do
     @type t :: %VersionTable{
-                 identifier: integer, # {article, version}
+                 identifier: any, # {article ref, path tuple}
+                 created_on: integer,
+                 editor: tuple,
+                 entity: any, # VersionEntity
+               }
+  end # end deftable
+
+  #-----------------------------------------------------------------------------
+  # @VersionEditTable
+  #-----------------------------------------------------------------------------
+  deftable VersionEditTable, [:identifier, :entity], type: :set, index: [] do
+    @type t :: %VersionEditTable{
+                 identifier: any, # {version hash, edit}
                  entity: any,
                }
   end # end deftable
 
-
-  #-----------------------------------------------------------------------------
-  # @VersionSequencerTable
-  #-----------------------------------------------------------------------------
-  deftable VersionSequenceTable, [:identifier, :next_in_sequence], type: :set, index: [] do
-    @type t :: %VersionSequenceTable{
-                 identifier: integer, # {article, version}
-                 next_in_sequence: any,
-               }
-  end # end deftable
-
-
-  #-----------------------------------------------------------------------------
-  # @VersionSequencerTable
-  #-----------------------------------------------------------------------------
-  deftable VersionTreeTable, [:article, :tree], type: :set, index: [] do
-    @type t :: %VersionTreeTable{
-                 article: integer, # {article, version}
-                 tree: any,
-               }
-  end # end deftable
-
-
-  #-----------------------------------------------------------------------------
-  # @VersionHistoryTable
-  #-----------------------------------------------------------------------------
-  deftable VersionHistoryTable, [:article, :version, :parent_version, :full_copy, :created_on, :editor],
-           type: :bag,
-           index: [:version, :parent_version, :full_copy, :created_on, :editor] do
-    @type t :: %VersionHistoryTable{
-                 article: Noizu.KitchenSink.Types.entity_reference,
-                 version: String.t,
-                 parent_version: String.t | nil,
-                 full_copy: boolean,
-                 created_on: integer,
-                 editor: any,
-               }
-  end # end deftable
 end
