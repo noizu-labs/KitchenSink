@@ -64,21 +64,23 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @VersionTable
   #-----------------------------------------------------------------------------
-  deftable VersionTable, [:identifier, :created_on, :editor, :entity], type: :set, index: [:created_on, :editor] do
+  deftable VersionTable, [:identifier, :created_on, :modified_on, :editor, :entity], type: :set, index: [:created_on, :modified_on, :editor] do
     @type t :: %VersionTable{
                  identifier: any, # {article ref, path tuple}
                  created_on: integer,
+                 modified_on: integer,
                  editor: tuple,
                  entity: any, # VersionEntity
                }
   end # end deftable
 
   #-----------------------------------------------------------------------------
-  # @VersionEditTable
+  # @RevisionTable
   #-----------------------------------------------------------------------------
-  deftable VersionEditTable, [:identifier, :entity], type: :set, index: [] do
-    @type t :: %VersionEditTable{
-                 identifier: any, # {version hash, edit}
+  deftable Version.RevisionTable, [:identifier, :created_on, :entity], type: :set, index: [:created_on] do
+    @type t :: %Version.RevisionTable{
+                 identifier: any, # { {article, version}, revision}
+                 created_on: any,
                  entity: any,
                }
   end # end deftable

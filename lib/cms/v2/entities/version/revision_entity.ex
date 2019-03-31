@@ -3,13 +3,12 @@
 # Copyright (C) 2019 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.Cms.V2.VersionEntity do
+defmodule Noizu.Cms.V2.Version.RevisionEntity do
   @vsn 1.0
   @type t :: %__MODULE__{
                identifier: tuple,
                article: Noizu.KitchenSink.Types.entity_reference,
-               parent: Noizu.KitchenSink.Types.entity_reference,
-               revision: Noizu.KitchenSink.Types.entity_reference,
+               version: Noizu.KitchenSink.Types.entity_reference,
                full_copy: boolean,
                created_on: DateTime.t,
                modified_on: DateTime.t,
@@ -23,8 +22,7 @@ defmodule Noizu.Cms.V2.VersionEntity do
   defstruct [
     identifier: nil,
     article: nil,
-    parent: nil,
-    revision: nil,
+    version: nil,
     full_copy: nil,
     created_on: nil,
     modified_on: nil,
@@ -37,8 +35,9 @@ defmodule Noizu.Cms.V2.VersionEntity do
 
   use Noizu.Cms.V2.Database
   use Noizu.Scaffolding.V2.EntityBehaviour,
-      sref_module: "cms-version-v2",
+      sref_module: "cms-revision-v2",
       mnesia_table: Noizu.Cms.V2.Database.VersionTable
+
 
   #------------
   #
@@ -47,8 +46,8 @@ defmodule Noizu.Cms.V2.VersionEntity do
   def id({:ref, __MODULE__, identifier} = _ref), do: identifier
   def id(%{__struct__: __MODULE__, identifier: identifier}), do: identifier
   def id(%{entity: %{__struct__: __MODULE__, identifier: identifier}}), do: identifier
-  def id({{:ref, _article_type, _article_id}, version_path} = ref) when is_tuple(version_path), do: ref
-  def id("ref.cms-version-v2." <> ref), do: id(ref)
+  def id({{:ref, Noizu.Cms.V2.VersionEntity, _version}, _id} = ref), do: ref
+  def id("ref.cms-revision-v2." <> ref), do: id(ref)
   def id(ref) when is_bitstring(ref) do
     case string_to_id(ref) do
       {:ok, v} -> v

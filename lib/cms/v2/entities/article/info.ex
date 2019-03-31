@@ -6,37 +6,53 @@ defmodule Noizu.Cms.V2.Article.Info do
   @vsn 1.0
   @type t :: %__MODULE__{
                article: tuple,
+
                created_on: DateTime.t,
                modified_on: DateTime.t,
+
                status: atom,
+
                type: atom,
+               module: module,
+
                editor: any,
+
                name: String.t,
                description: Noizu.MarkdownField.t | nil,
                note: Noizu.MarkdownField.t | nil,
+
                version: any,
-               version_path: [],
-               sub_version_path: [],
-               parent_version: any,
+               parent: any,
+               revision: any,
+
                tags: MapSet.t,
+
                vsn: float
              }
 
   defstruct [
     article: nil,
+
     created_on: nil,
     modified_on: nil,
+
     status: nil,
+
     type: nil,
+    module: nil,
+
     editor: nil,
+
     name: nil,
     description: nil,
     note: nil,
+
     version: nil,
-    version_path: [],
-    sub_version_path: [],
-    parent_version: nil,
+    parent: nil,
+    revision: nil,
+
     tags: nil,
+
     vsn: @vsn
   ]
 

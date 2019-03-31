@@ -8,17 +8,10 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   use Noizu.Cms.V2.Database.IndexTable
   use Noizu.Cms.V2.Database.TagTable
   use Noizu.Cms.V2.Database.VersionTable
-  #use Noizu.Cms.V2.Database.VersionHistoryTable
 
   alias Noizu.Cms.V2.Database.IndexTable
   alias Noizu.Cms.V2.Database.TagTable
   alias Noizu.Cms.V2.Database.VersionTable
-  #alias Noizu.Cms.V2.Database.VersionHistoryTable
-
-  # @TODO use nested path versions instead of string versions, use matrix tree encoding and expose data structure for tracking next available version for parent version.
-  # @TODO implement
-  #alias Noizu.Cms.V2.VersionRepo
-  #alias Noizu.Cms.V2.VersionEntity
 
   @default_options %{
     expand: true,
@@ -297,25 +290,71 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
     entry
   end
 
-
-
   #---------------------------
   # Repo Callback Overrides
   #---------------------------
   def pre_create_callback(entity, context, options) do
-    if entity.identifier == nil do
+    entity = if entity.identifier == nil do
       %{entity| identifier: entity.__struct__.repo().generate_identifier()}
     else
       entity
     end
-  end
-  def pre_update_callback(entity, context, options), do: entity
-  def pre_delete_callback(entity, context, options), do: entity
-  def post_create_callback(entity, context, options), do: entity
-  def post_get_callback(entity, context, options), do: entity
-  def post_update_callback(entity, context, options), do: entity
-  def post_delete_callback(entity, context, options), do: entity
 
-  # @TODO provide hooks that can be called or overridden in repo's on_create/post_create, update, delete, etc. callbacks.
-  # @note, so caller must insure identifier obtained before on_create/on_update is called, then generate version book keeping records (since these are tied article ref).
+    article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
+                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
+                   |> put_in([Access.key(:created_on)], DateTime.utc_now())
+                   |> put_in([Access.key(:modified_on)], DateTime.utc_now())
+                   |> put_in([Access.key(:editor)], context.caller)
+                   |> update_in([Access.key(:status)], &(&1 || :pending))
+                   |> update_in([Access.key(:type)], &(&1 || Noizu.Cms.V2.Proto.type(entity, context, options)))
+
+    entity
+    |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
+    |> entity.__struct__.repo().create_version(context, options)
+  end
+
+
+  def pre_update_callback(entity, context, options) do
+    article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
+                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
+                   |> put_in([Access.key(:modified_on)], DateTime.utc_now())
+                   |> put_in([Access.key(:editor)], context.caller)
+                   |> update_in([Access.key(:status)], &(&1 || :pending))
+
+    # @todo default type, version data if not set.
+
+    # Create Version Record
+    # Create Revision Record
+
+    Noizu.Cms.V2.Proto.set_article_info(entity, article_info, context, options)
+  end
+
+  def pre_delete_callback(entity, context, options), do: entity
+
+
+  def post_create_callback(entity, context, options) do
+    # @TODO Update Tags
+    # @TODO Update Index
+    # . . .
+    entity
+  end
+
+  def post_get_callback(entity, context, options), do: entity
+
+  def post_update_callback(entity, context, options) do
+    # Update Tags
+    # Update Index
+    # . . .
+    entity
+  end
+
+
+  def post_delete_callback(entity, context, options) do
+    # delete versions
+    # delete tags
+    # delete revisions
+    # delete index
+
+    entity
+  end
 end

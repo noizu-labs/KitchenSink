@@ -24,16 +24,16 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   alias Noizu.Cms.V2.Database.ArticleTable
   alias Noizu.Cms.V2.Database.IndexTable
   alias Noizu.Cms.V2.Database.TagTable
-  alias Noizu.Cms.V2.Database.VersionEditTable
   alias Noizu.Cms.V2.Database.VersionSequencerTable
   alias Noizu.Cms.V2.Database.VersionTable
+  alias Noizu.Cms.V2.Database.Version.RevisionTable
 
   alias Noizu.Support.Cms.V2.Database.MockArticleTable
   alias Noizu.Support.Cms.V2.Database.MockIndexTable
   alias Noizu.Support.Cms.V2.Database.MockTagTable
-  alias Noizu.Support.Cms.V2.Database.MockVersionEditTable
   alias Noizu.Support.Cms.V2.Database.MockVersionSequencerTable
   alias Noizu.Support.Cms.V2.Database.MockVersionTable
+  alias Noizu.Support.Cms.V2.Database.Version.MockRevisionTable
 
   #----------------
   # Macros
@@ -251,9 +251,9 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
       {IndexTable, [:passthrough], MockIndexTable.strategy()},
       {TagTable, [:passthrough], MockTagTable.strategy()},
-      {VersionEditTable, [:passthrough], MockVersionEditTable.strategy()},
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
     ]) do
 
       post = %Noizu.Cms.V2.Article.PostEntity{
@@ -265,25 +265,32 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
 
-      IO.inspect post
-
       # Verify Identifier Created
-      # assert is_integer(post.identifier) == true
+      assert is_integer(post.identifier) == true
 
       # Verify article_info fleshed out.
-      # assert post.article_info.article == {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}
+      assert post.article_info.article == {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}
 
       # Verify Created On/Modified On dates.
+      assert post.article_info.created_on != nil
+      assert post.article_info.modified_on != nil
 
       # Verify Version Info
+      assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
+
+      # Verify Parent Info
+      assert post.article_info.parent == nil
+
+      # Verify Revision
+      assert post.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {post.article_info.version, 1}}
 
       # Verify Type  Set correctly
+      assert post.article_info.type == :post
 
-      # Verify Version Record Injected (spawn agent to track writes in mock).
-
-      # Verify Tag Records Injected (spawn agent to track writes in mock).
-
-      # Verify Version Edit Record Injected (spawn agent to track writes in mock).
+      # @TODO Verify Version Record Injected (spawn agent to track writes in mock).
+      # @TODO Verify Revision Record Injected (spawn agent to track writes in mock).
+      # @TODO Verify Tag Records Injected (spawn agent to track writes in mock).
+      # @TODO Verify Index Record Injected (spawn agent to track writes in mock).
     end
   end
 

@@ -19,48 +19,97 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   # version_sequencer/1
   #----------------------------------
   def version_sequencer(key) do
+    case Noizu.Cms.V2.Database.VersionSequencerTable.read(key) do
+      v = %Noizu.Cms.V2.Database.VersionSequencerTable{} ->
+        %Noizu.Cms.V2.Database.VersionSequencerTable{v| sequence: v.sequence + 1}
+        |> Noizu.Cms.V2.Database.VersionSequencerTable.write()
+        v.sequence + 1
+      nil ->
+        %Noizu.Cms.V2.Database.VersionSequencerTable{identifier: key, sequence: 1}
+        |> Noizu.Cms.V2.Database.VersionSequencerTable.write()
+        1
+    end
+  end
+
+
+  #----------------------------------
+  # version_sequencer!/1
+  #----------------------------------
+  def version_sequencer!(key) do
     Amnesia.transaction do
-      case Noizu.Cms.V2.Database.VersionSequencerTable.read(key) do
-        v = %Noizu.Cms.V2.Database.VersionSequencerTable{} ->
-          %Noizu.Cms.V2.Database.VersionSequencerTable{v| sequence: v.sequence + 1}
-          |> Noizu.Cms.V2.Database.VersionSequencerTable.write()
-          v.sequence + 1
-        nil ->
-          %Noizu.Cms.V2.Database.VersionSequencerTable{identifier: key, sequence: 1}
-          |> Noizu.Cms.V2.Database.VersionSequencerTable.write()
-          1
-      end
+      version_sequencer(key)
     end
   end
 
   #----------------------------------
   # create_version
   #----------------------------------
-  def create_version(entry, _context, _options \\ %{}) do
+  def create_version(entry, context, options \\ %{}) do
+    status = options[:status] || :pending
+    editor = options[:editor] || context.caller
+    current_time = options[:current_time] || DateTime.utc_now()
+    ref = Noizu.ERP.ref(entry)
+
     # 1. get current version.
-    #current_version = Noizu.Cms.V2.Proto.get_version(entry, context, options)
+    current_version = Noizu.Cms.V2.Proto.get_version(entry, context, options)
+    current_version_ref = current_version && Noizu.Cms.V2.VersionEntity.ref(current_version)
 
-    # 2. generate new version for article
-    #nv = version_sequencer({Noizu.ERP.ref(entry), current_version, :version})
-    #new_version = :wip
+    # 2. Determine version path we will be creating
+    version_path = cond do
+      current_version == nil -> {version_sequencer({ref, {}})}
+      true ->
+        {:ref, _, {_article, path}} = current_version_ref
+        List.to_tuple(Tuple.to_list(path) ++ [version_sequencer({ref, path})])
+    end
 
-    # 3. convert version nested tuple into list
-    # 4. append new version
-    # 5. convert version path to nested tuple  {1, {4, {3, :stop}}} = [1,4,3]
-    #  1 = {1, :stop},  1.2 = {1, {2, :stop}},  1.4.2.3 = {1, {4, {2, {3, :stop}}}}
+    # 3. Save New Revision Record
+    version_key = {ref, version_path}
+    version_ref = Noizu.Cms.V2.VersionEntity.ref(version_key)
+    revision_key = {version_ref, version_sequencer({:revision, version_key})}
+    revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision_key)
+    compressed_record = entry.__struct__.compress(entry, options)
 
-    # 6. Set new version
-    #entry = entry
-            #|> Noizu.Cms.V2.Proto.set_version(new_version, context, options)
-    # @TODO set subversion 1
-    # new_sub_version = version_sequencer({Noizu.ERP.ref(entry), current_version, :sub_version})
+    revision = %Noizu.Cms.V2.Version.RevisionEntity{
+                 identifier: revision_key,
+                 article: ref,
+                 version: version_ref,
+                 full_copy: true, # @todo compressed format support/delta support.
+                 created_on: current_time,
+                 editor: editor,
+                 status: status,
+                 record: compressed_record,
+               } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
 
-    # 5. Save Version
-    # 6. Save SubVersion
-    # 7. Save VersionHistory
-    # 7. Save SubVersionHistory
+    revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
+
+    # 4. Save New Version Record
+    version = %Noizu.Cms.V2.VersionEntity{
+                identifier: version_key,
+                article: ref,
+                parent: current_version_ref,
+                revision: revision_ref,
+                full_copy: true,
+                created_on: current_time,
+                modified_on: current_time,
+                editor: editor,
+                status: status,
+                record: compressed_record,
+              } |> Noizu.Cms.V2.VersionRepo.create(context)
+
+    new_version_ref = Noizu.Cms.V2.VersionEntity.ref(version)
+
+    # 5. Update entity with version/revision
     entry
+    |> Noizu.Cms.V2.Proto.set_version(new_version_ref, context, options)
+    |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
+    |> Noizu.Cms.V2.Proto.set_parent(current_version_ref, context, options)
   end
+
+
+  def create_version!(entry, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> create_version(entry, context, options) end)
+  end
+
 
   #----------------------------------
   # update_version
@@ -119,8 +168,8 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   def get_all_versions(entry, _context, _options \\ %{}) do
     if (ref = Noizu.ERP.ref(entry)) do
       _record = VersionTable.match([identifier: {ref, :_}])
-               |> Amnesia.Selection.values()
-               |> Enum.map(&(&1.entity))
+                |> Amnesia.Selection.values()
+                |> Enum.map(&(&1.entity))
     else
       []
     end

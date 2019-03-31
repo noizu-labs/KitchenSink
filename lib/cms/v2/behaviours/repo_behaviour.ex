@@ -4,9 +4,6 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.RepoBehaviour do
-
-  # todo required methods.
-
   defmacro __using__(options) do
     implementation_provider = Keyword.get(options, :implementation_provider,  Noizu.Cms.V2.Repo.DefaultImplementation)
     versioning_provider = Keyword.get(options, :versioning_provider,  Noizu.Cms.V2.VersioningProvider.DefaultImplementation)
@@ -34,6 +31,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       defdelegate get_by_modified_on(from, to, context, options), to: @default_implementation
       defdelegate get_by_modified_on!(from, to, context, options), to: @default_implementation
 
+
+      defdelegate create_version(entry, context, options), to: @versioning_provider
+      defdelegate create_version!(entry, context, options), to: @versioning_provider
 
       defdelegate get_version_history(entry, context, options), to: @versioning_provider
       defdelegate get_version_history!(entry, context, options), to: @versioning_provider
