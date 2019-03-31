@@ -14,13 +14,14 @@ defmodule Noizu.Support.Cms.V2.Database.MockIndexTable do
 
   defmodule DefaultStrategy do
     @stub %{}
+    @table Noizu.Cms.V2.Database.IndexTable
 
     def read(mock_settings, key) do
       read!(mock_settings, key)
     end
 
     def read!(_mock_settings, key) do
-      @stub[key]
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(@table, key, @stub[key])
     end
 
     def write(mock_settings, record) do
@@ -28,7 +29,7 @@ defmodule Noizu.Support.Cms.V2.Database.MockIndexTable do
     end
 
     def write!(_mock_settings, record) do
-      record
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.write(@table, record.article, record)
     end
 
     def match(mock_settings, selector) do

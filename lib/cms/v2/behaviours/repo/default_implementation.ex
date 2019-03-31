@@ -333,9 +333,38 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
 
 
   def post_create_callback(entity, context, options) do
-    # @TODO Update Tags
-    # @TODO Update Index
-    # . . .
+    ref = Noizu.ERP.ref(entity)
+    tags = Noizu.Cms.V2.Proto.tags(ref, context, options)
+
+    #--------------------
+    # Inject Tags
+    #--------------------
+
+    # erase any existing tags
+    Noizu.Cms.V2.Database.TagTable.delete(ref)
+
+    # insert new tags
+    Enum.map(tags, fn(tag) ->
+      %Noizu.Cms.V2.Database.TagTable{article: ref, tag: tag} |> Noizu.Cms.V2.Database.TagTable.write()
+    end)
+
+    #--------------------
+    # Inject Index
+    #--------------------
+    article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
+    # @todo nil check
+
+    %Noizu.Cms.V2.Database.IndexTable{
+      article: ref,
+      status: article_info.status,
+      module: entity.__struct__,
+      type: article_info.type,
+      editor: article_info.editor,
+      created_on: article_info.created_on,
+      modified_on: article_info.modified_on,
+      active_version: article_info.version,
+    } |> Noizu.Cms.V2.Database.IndexTable.write
+
     entity
   end
 

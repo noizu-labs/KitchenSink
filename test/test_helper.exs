@@ -6,6 +6,8 @@
 Application.load(:tzdata)
 {:ok, _} = Application.ensure_all_started(:tzdata)
 
+Noizu.Support.Cms.V2.Database.MnesiaEmulator.start_link()
+
 # Schema Setup
 #Amnesia.Schema.destroy()
 Amnesia.Schema.create()
