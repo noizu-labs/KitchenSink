@@ -35,6 +35,10 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       defdelegate create_version(entry, context, options), to: @versioning_provider
       defdelegate create_version!(entry, context, options), to: @versioning_provider
 
+      defdelegate create_revision(entry, context, options), to: @versioning_provider
+      defdelegate create_revision!(entry, context, options), to: @versioning_provider
+
+
       defdelegate get_version_history(entry, context, options), to: @versioning_provider
       defdelegate get_version_history!(entry, context, options), to: @versioning_provider
       defdelegate get_version(entry, version, context, options), to: @versioning_provider
@@ -90,7 +94,11 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         update_cms_master_table: 3,
         delete_cms_records: 3,
 
-        pre_create_callback: 3,
+        create_version: 3,
+        create_version!: 3,
+        create_revision: 3,
+        create_revision!: 3,
+                                                                                                                                                                                                                                                pre_create_callback: 3,
         pre_update_callback: 3,
         pre_delete_callback: 3,
         post_create_callback: 3,

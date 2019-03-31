@@ -294,51 +294,81 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   # Repo Callback Overrides
   #---------------------------
   def pre_create_callback(entity, context, options) do
-    entity = if entity.identifier == nil do
-      %{entity| identifier: entity.__struct__.repo().generate_identifier()}
-    else
-      entity
-    end
-
-    article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
-                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
-                   |> put_in([Access.key(:created_on)], DateTime.utc_now())
-                   |> put_in([Access.key(:modified_on)], DateTime.utc_now())
-                   |> put_in([Access.key(:editor)], context.caller)
-                   |> update_in([Access.key(:status)], &(&1 || :pending))
-                   |> update_in([Access.key(:type)], &(&1 || Noizu.Cms.V2.Proto.type(entity, context, options)))
-
+    entity = (entity.identifier == nil) && %{entity| identifier: entity.__struct__.repo().generate_identifier()} || entity
     entity
-    |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
+    |> prepare_article_info(context, options)
     |> entity.__struct__.repo().create_version(context, options)
   end
 
-
   def pre_update_callback(entity, context, options) do
-    article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
-                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
-                   |> put_in([Access.key(:modified_on)], DateTime.utc_now())
-                   |> put_in([Access.key(:editor)], context.caller)
-                   |> update_in([Access.key(:status)], &(&1 || :pending))
-
-    # @todo default type, version data if not set.
-
-    # Create Version Record
-    # Create Revision Record
-
-    Noizu.Cms.V2.Proto.set_article_info(entity, article_info, context, options)
+    entity
+    |> update_article_info(context, options)
+    |> entity.__struct__.repo().create_revision(context, options)
   end
 
   def pre_delete_callback(entity, context, options), do: entity
 
 
   def post_create_callback(entity, context, options) do
+    write_tags(entity, context, options)
+    write_index_entry(entity, context, options)
+    entity
+  end
+
+  def post_get_callback(entity, context, options), do: entity
+
+  def post_update_callback(entity, context, options) do
+    write_tags(entity, context, options)
+    write_index_entry(entity, context, options)
+    entity
+  end
+
+  def post_delete_callback(entity, context, options) do
+    # @todo delete versions
+    # @todo delete tags
+    # @todo delete revisions
+    # @todo delete index
+    entity
+  end
+
+  defp update_article_info(entity, context, options) do
+    current_time = options[:current_time] || DateTime.utc_now()
+    editor = options[:editor] || context.caller
+
+
+    article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
+
+    status = options[:status] || article_info.status || :pending
+
+    article_info = article_info
+                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
+                   |> put_in([Access.key(:modified_on)], current_time)
+                   |> put_in([Access.key(:editor)], context.caller)
+                   |> put_in([Access.key(:status)], status)
+
+    entity
+    |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
+  end
+
+  defp prepare_article_info(entity, context, options) do
+    current_time = options[:current_time] || DateTime.utc_now()
+    editor = options[:editor] || context.caller
+
+    article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
+                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
+                   |> put_in([Access.key(:created_on)], current_time)
+                   |> put_in([Access.key(:modified_on)], current_time)
+                   |> put_in([Access.key(:editor)], editor)
+                   |> update_in([Access.key(:status)], &(&1 || :pending))
+                   |> update_in([Access.key(:type)], &(&1 || Noizu.Cms.V2.Proto.type(entity, context, options)))
+
+    entity
+    |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
+  end
+
+  defp write_tags(entity, context, options) do
     ref = Noizu.ERP.ref(entity)
     tags = Noizu.Cms.V2.Proto.tags(ref, context, options)
-
-    #--------------------
-    # Inject Tags
-    #--------------------
 
     # erase any existing tags
     Noizu.Cms.V2.Database.TagTable.delete(ref)
@@ -347,43 +377,37 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
     Enum.map(tags, fn(tag) ->
       %Noizu.Cms.V2.Database.TagTable{article: ref, tag: tag} |> Noizu.Cms.V2.Database.TagTable.write()
     end)
+  end
 
-    #--------------------
-    # Inject Index
-    #--------------------
+  defp write_index_entry(entity, context, options) do
+    ref = Noizu.ERP.ref(entity)
     article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
-    # @todo nil check
-
-    %Noizu.Cms.V2.Database.IndexTable{
-      article: ref,
-      status: article_info.status,
-      module: entity.__struct__,
-      type: article_info.type,
-      editor: article_info.editor,
-      created_on: article_info.created_on,
-      modified_on: article_info.modified_on,
-      active_version: article_info.version,
-    } |> Noizu.Cms.V2.Database.IndexTable.write
-
-    entity
+    case Noizu.Cms.V2.Database.IndexTable.read(ref) do
+      index = %Noizu.Cms.V2.Database.IndexTable{} ->
+        if (article_info.version == index.active_version) do
+          %Noizu.Cms.V2.Database.IndexTable{index|
+            status: article_info.status,
+            module: entity.__struct__,
+            type: article_info.type,
+            editor: article_info.editor,
+            modified_on: article_info.modified_on,
+          } |> Noizu.Cms.V2.Database.IndexTable.write
+        else
+          # do not update master record if we are not editing the active version
+          index
+        end
+      _ ->
+        %Noizu.Cms.V2.Database.IndexTable{
+          article: ref,
+          status: article_info.status,
+          module: entity.__struct__,
+          type: article_info.type,
+          editor: article_info.editor,
+          created_on: article_info.created_on,
+          modified_on: article_info.modified_on,
+          active_version: article_info.version, # Should not always be modified (if already set)
+        } |> Noizu.Cms.V2.Database.IndexTable.write
+    end
   end
 
-  def post_get_callback(entity, context, options), do: entity
-
-  def post_update_callback(entity, context, options) do
-    # Update Tags
-    # Update Index
-    # . . .
-    entity
-  end
-
-
-  def post_delete_callback(entity, context, options) do
-    # delete versions
-    # delete tags
-    # delete revisions
-    # delete index
-
-    entity
-  end
 end

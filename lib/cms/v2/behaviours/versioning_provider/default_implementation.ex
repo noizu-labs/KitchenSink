@@ -112,6 +112,64 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
 
 
   #----------------------------------
+  # create_revision
+  #----------------------------------
+  def create_revision(entry, context, options \\ %{}) do
+    # 1. get current version.
+    current_version = Noizu.Cms.V2.Proto.get_version(entry, context, options)
+    current_version_ref = current_version && Noizu.Cms.V2.VersionEntity.ref(current_version)
+
+    # 2. Expand version
+    version = Noizu.Cms.V2.VersionEntity.entity(current_version)
+
+    if (version) do
+      status = options[:status] || version.status
+      editor = options[:editor] || context.caller
+      current_time = options[:current_time] || DateTime.utc_now()
+      ref = Noizu.ERP.ref(entry)
+
+      # 3. Save New Revision Record
+      version_key = Noizu.Cms.V2.VersionEntity.id(current_version)
+      revision_key = {current_version_ref, version_sequencer({:revision, version_key})}
+      revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision_key)
+      compressed_record = entry.__struct__.compress(entry, options)
+
+      revision = %Noizu.Cms.V2.Version.RevisionEntity{
+                   identifier: revision_key,
+                   article: ref,
+                   version: current_version_ref,
+                   full_copy: true, # @todo compressed format support/delta support.
+                   created_on: current_time,
+                   editor: editor,
+                   status: status,
+                   record: compressed_record,
+                 } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
+
+      revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
+
+      # 4. Save New Version Record
+      version = %Noizu.Cms.V2.VersionEntity{version|
+                  revision: revision_ref,
+                  modified_on: current_time,
+                  editor: editor,
+                  status: status,
+                  record: compressed_record,
+                } |> Noizu.Cms.V2.VersionRepo.create(context)
+
+
+      entry
+      |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
+    else
+      entry
+    end
+  end
+
+  def create_revision!(entry, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> create_revision(entry, context, options) end)
+  end
+
+
+  #----------------------------------
   # update_version
   #----------------------------------
   def update_version(entry, _context, _options \\ %{}) do

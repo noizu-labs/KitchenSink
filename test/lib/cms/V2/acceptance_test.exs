@@ -325,6 +325,91 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
 
+  @tag :cms_wip
+  @tag :cms
+  @tag :cms_built_in
+  test "Post Article Update" do
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test2", "apple2"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+
+      update = post
+               |> put_in([Access.key(:body)], %Noizu.MarkdownField{markdown: "My Edited Content"})
+               |> put_in([Access.key(:article_info), Access.key(:status)], :approved)
+               |> Noizu.Cms.V2.ArticleRepo.update!(@context)
+
+      # Verify Identifier Created
+      assert is_integer(update.identifier) == true
+
+      # Verify article_info fleshed out.
+      assert update.article_info.article == {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}
+
+      # Verify Created On/Modified On dates.
+      assert update.article_info.created_on != nil
+      assert update.article_info.modified_on != nil
+      assert update.article_info.modified_on != update.article_info.created_on
+
+      # Verify Version Info
+      assert update.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {update.article_info.article, {1}}}
+
+      # Verify Parent Info
+      assert update.article_info.parent == nil
+
+      # Verify Revision
+      assert update.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {update.article_info.version, 2}}
+
+      # Verify Type Set correctly
+      assert update.article_info.type == :post
+
+      # Verify Version Record
+      version_key = elem(update.article_info.version, 2)
+      version_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(VersionTable, version_key, :error)
+      assert version_record.entity.record.body.markdown == "My Edited Content"
+      assert version_record.entity.revision == update.article_info.revision
+      assert version_record.entity.parent == nil
+      assert version_record.entity.article == {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}
+
+      # Verify Revision Record
+      revision_key = elem(update.article_info.revision, 2)
+      revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
+      assert revision_record.entity.record.body.markdown == "My Edited Content"
+      assert revision_record.entity.version == update.article_info.version
+      assert revision_record.entity.article == {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}
+
+      # Verify Tags
+      tags = [tag, tag2] = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}, :error)
+      assert tag.tag != tag2.tag
+      assert (tag.tag == "apple2" || tag.tag == "test2")
+      assert (tag2.tag == "apple2" || tag2.tag == "test2")
+
+
+      # Verify Index Record
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}, :error)
+      assert index_record.article == {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}
+      assert index_record.active_version == update.article_info.version
+      assert index_record.created_on == update.article_info.created_on
+      assert index_record.modified_on == update.article_info.modified_on
+      assert index_record.module == Noizu.Cms.V2.Article.PostEntity
+      assert index_record.type == :post
+      assert index_record.status == :approved
+    end
+  end
+
+
   @tag :cms
   @tag :cms_built_in
   test "Image Article CRUD" do
