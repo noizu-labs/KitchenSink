@@ -324,10 +324,20 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   end
 
   def post_delete_callback(entity, context, options) do
-    # @todo delete versions
-    # @todo delete tags
-    # @todo delete revisions
-    # @todo delete index
+    ref = Noizu.ERP.ref(entity)
+
+    versions = Noizu.Cms.V2.VersionRepo.entity_versions(entity, context, options)
+    Enum.map(versions, fn(version) ->  Noizu.Cms.V2.VersionRepo.delete(version, context) end)
+
+    revisions = Noizu.Cms.V2.Version.RevisionRepo.entity_revisions(entity, context, options)
+    Enum.map(revisions, fn(revision) ->  Noizu.Cms.V2.Version.RevisionRepo.delete(revision, context) end)
+
+    # Delete Tags
+    Noizu.Cms.V2.Database.TagTable.delete(ref)
+
+    # Delete Index
+    Noizu.Cms.V2.Database.IndexTable.delete(ref)
+
     entity
   end
 

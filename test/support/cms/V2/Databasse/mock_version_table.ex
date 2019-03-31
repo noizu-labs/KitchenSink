@@ -7,6 +7,8 @@ defmodule Noizu.Support.Cms.V2.Database.MockVersionTable do
       read!: fn(key) -> mock_strategy.read!(mock_settings, key) end,
       write: fn(record) -> mock_strategy.write(mock_settings, record) end,
       write!: fn(record) -> mock_strategy.write!(mock_settings, record) end,
+      delete: fn(record) -> mock_strategy.delete(mock_settings, record) end,
+      delete!: fn(record) -> mock_strategy.delete!(mock_settings, record) end,
       match: fn(selector) -> mock_strategy.match(mock_settings, selector) end,
       match!: fn(selector) -> mock_strategy.match!(mock_settings, selector) end,
     ]
@@ -32,12 +34,20 @@ defmodule Noizu.Support.Cms.V2.Database.MockVersionTable do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.write(@table, record.identifier, record)
     end
 
+    def delete(mock_settings, record) do
+      delete!(mock_settings, record)
+    end
+
+    def delete!(_mock_settings, key) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.delete(@table, key)
+    end
+
     def match(mock_settings, selector) do
-      match(mock_settings, selector)
+      match!(mock_settings, selector)
     end
 
     def match!(_mock_settings, _selector) do
-      []
+      %Amnesia.Table.Select{values: [], coerce: @table}
     end
   end
 end

@@ -243,7 +243,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     assert true == true
   end
 
-  @tag :cms_wip
   @tag :cms
   @tag :cms_built_in
   test "Post Article Create" do
@@ -305,7 +304,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert revision_record.entity.article == {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}
 
       # Verify Tags
-      tags = [tag, tag2] = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}, :error)
+      _tags = [tag, tag2] = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}, :error)
       assert tag.tag != tag2.tag
       assert (tag.tag == "apple" || tag.tag == "test")
       assert (tag2.tag == "apple" || tag2.tag == "test")
@@ -324,8 +323,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     end
   end
 
-
-  @tag :cms_wip
   @tag :cms
   @tag :cms_built_in
   test "Post Article Update" do
@@ -391,7 +388,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert revision_record.entity.article == {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}
 
       # Verify Tags
-      tags = [tag, tag2] = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}, :error)
+      _tags = [tag, tag2] = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, update.identifier}, :error)
       assert tag.tag != tag2.tag
       assert (tag.tag == "apple2" || tag.tag == "test2")
       assert (tag2.tag == "apple2" || tag2.tag == "test2")
@@ -409,6 +406,48 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     end
   end
 
+  @tag :cms_wip
+  @tag :cms
+  @tag :cms_built_in
+  test "Post Article Delete" do
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test2", "apple2"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      Noizu.Cms.V2.ArticleRepo.delete!(post, @context)
+
+      # Verify Version Record (match emulation not functional)
+      #version_key = elem(post.article_info.version, 2)
+      #version_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(VersionTable, version_key, :error)
+      #assert version_record == nil
+
+      # Verify Revision Record (match emulation not functional)
+      #revision_key = elem(post.article_info.revision, 2)
+      #revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
+      #assert revision_record == nil
+
+      # Verify Tags
+      tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}, :error)
+      assert tags == nil
+
+      # Verify Index Record
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}, :error)
+      assert index_record == nil
+    end
+  end
 
   @tag :cms
   @tag :cms_built_in

@@ -8,4 +8,11 @@ defmodule Noizu.Cms.V2.Version.RevisionRepo do
         entity_module: Noizu.Cms.V2.Version.RevisionEntity,
         mnesia_table: Noizu.Cms.V2.Database.Version.RevisionTable
 
+  def entity_revisions(entity, _context, _options) do
+    ref = Noizu.ERP.ref(entity)
+    Noizu.Cms.V2.Database.Version.RevisionTable.match([identifier: {{:ref, Noizu.Cms.V2.VersionEntity, {ref, :_}}, :_}])
+    |> Amnesia.Selection.values()
+    |> Enum.map(&(&1.entity))
+  end
+
 end
