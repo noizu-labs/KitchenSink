@@ -2,7 +2,6 @@
 # Author: Keith Brings
 # Copyright (C) 2019 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
-
 defmodule Noizu.Cms.V2.Version.RevisionEntity do
   @vsn 1.0
   @type t :: %__MODULE__{

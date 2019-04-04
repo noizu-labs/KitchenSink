@@ -10,12 +10,10 @@ defmodule Noizu.Cms.V2.VersionEntity do
                article: Noizu.KitchenSink.Types.entity_reference,
                parent: Noizu.KitchenSink.Types.entity_reference,
                revision: Noizu.KitchenSink.Types.entity_reference,
-               full_copy: boolean,
                created_on: DateTime.t,
                modified_on: DateTime.t,
                editor: Noizu.KitchenSink.Types.entity_reference,
                status: any,
-               record: any,
                meta: Map.t,
                vsn: float
              }
@@ -25,12 +23,10 @@ defmodule Noizu.Cms.V2.VersionEntity do
     article: nil,
     parent: nil,
     revision: nil,
-    full_copy: nil,
     created_on: nil,
     modified_on: nil,
     editor: nil,
     status: nil,
-    record: nil,
     meta: %{},
     vsn: @vsn
   ]
