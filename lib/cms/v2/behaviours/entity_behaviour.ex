@@ -29,11 +29,11 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
       #-------------------------
       # Versioning Related.
       #-------------------------
-      defdelegate get_versions(entry, context, options), to: @versioning_provider
-      defdelegate get_versions!(entry, context, options), to: @versioning_provider
+      defdelegate get_versions(entry, context, options \\ %{}), to: @versioning_provider
+      defdelegate get_versions!(entry, context, options \\ %{}), to: @versioning_provider
 
-      defdelegate get_revisions(entry, context, options), to: @versioning_provider
-      defdelegate get_revisions!(entry, context, options), to: @versioning_provider
+      defdelegate get_revisions(entry, context, options \\ %{}), to: @versioning_provider
+      defdelegate get_revisions!(entry, context, options \\ %{}), to: @versioning_provider
 
       #-------------------------
       # Overridable

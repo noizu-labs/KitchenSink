@@ -45,8 +45,15 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
   @callback delete_index(any, any, any) :: any
   @callback delete_index!(any, any, any) :: any
 
-  # Repo Callback Overrides
 
+  # Versioning
+  @callback create_new_version(any, any, any) :: any
+  @callback create_new_version!(any, any, any) :: any
+
+  @callback create_new_revision(any, any, any) :: any
+  @callback create_new_revision!(any, any, any) :: any
+
+  # Misc
   @callback versioning_provider() :: any
 
   defmacro __using__(options) do
@@ -101,6 +108,16 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
       defdelegate delete_index(entry, context, options), to: @default_implementation
       defdelegate delete_index!(entry, context, options), to: @default_implementation
+
+
+      #-------------------------
+      # Versioning
+      #-------------------------
+      defdelegate create_new_version(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate create_new_version!(entity, context, options \\ %{}), to: @default_implementation
+
+      defdelegate create_new_revision(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate create_new_revision!(entity, context, options \\ %{}), to: @default_implementation
 
       #---------------------------
       # Repo Callback Overrides
@@ -157,6 +174,14 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
         delete_index: 3,
         delete_index!: 3,
+
+        #-------------------
+        # Versioning
+        #-------------------
+        create_new_version: 3,
+        create_new_version!: 3,
+        create_new_revision: 3,
+        create_new_revision!: 3,
 
         #-------------------
         # Call Back Overrides

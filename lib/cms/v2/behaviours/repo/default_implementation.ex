@@ -11,7 +11,7 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
 
   alias Noizu.Cms.V2.Database.IndexTable
   alias Noizu.Cms.V2.Database.TagTable
-  alias Noizu.Cms.V2.Database.VersionTable
+  #alias Noizu.Cms.V2.Database.VersionTable
 
   @default_options %{
     expand: true,
@@ -244,37 +244,63 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #=====================================================
   def update_tags(entity, context, options) do
     ref = Noizu.ERP.ref(entity)
-    tags = Noizu.Cms.V2.Proto.tags(ref, context, options)
 
-    # erase any existing tags
-    Noizu.Cms.V2.Database.TagTable.delete(ref)
 
-    # insert new tags
-    Enum.map(tags, fn(tag) ->
-      %Noizu.Cms.V2.Database.TagTable{article: ref, tag: tag} |> Noizu.Cms.V2.Database.TagTable.write()
-    end)
+    new_tags = case Noizu.Cms.V2.Proto.tags(ref, context, options) do
+      v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
+      v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+    end
+
+    existing_tags = case Noizu.Cms.V2.Database.TagTable.read(ref) do
+      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+      v -> {:error, v}
+    end
+
+    if (new_tags != existing_tags) do
+      # erase any existing tags
+      Noizu.Cms.V2.Database.TagTable.delete(ref)
+
+      # insert new tags
+      Enum.map(new_tags, fn(tag) ->
+        %Noizu.Cms.V2.Database.TagTable{article: ref, tag: tag} |> Noizu.Cms.V2.Database.TagTable.write()
+      end)
+    end
   end
 
   def update_tags!(entity, context, options) do
     ref = Noizu.ERP.ref(entity)
-    tags = Noizu.Cms.V2.Proto.tags!(ref, context, options)
+    new_tags = case Noizu.Cms.V2.Proto.tags!(ref, context, options) do
+      v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
+      v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+    end
 
-    # erase any existing tags
-    Noizu.Cms.V2.Database.TagTable.delete!(ref)
+    existing_tags = case Noizu.Cms.V2.Database.TagTable.read!(ref) do
+      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+      v -> {:error, v}
+    end
 
-    # insert new tags
-    Enum.map(tags, fn(tag) ->
-      %Noizu.Cms.V2.Database.TagTable{article: ref, tag: tag} |> Noizu.Cms.V2.Database.TagTable.write!()
-    end)
+    if (new_tags != existing_tags) do
+      # erase any existing tags
+      Noizu.Cms.V2.Database.TagTable.delete!(ref)
+
+      # insert new tags
+      Enum.map(new_tags, fn(tag) ->
+        %Noizu.Cms.V2.Database.TagTable{article: ref, tag: tag} |> Noizu.Cms.V2.Database.TagTable.write!()
+      end)
+    end
   end
 
-  def delete_tags(entity, context, options) do
+  def delete_tags(entity, _context, _options) do
     ref = Noizu.ERP.ref(entity)
     # erase any existing tags
     Noizu.Cms.V2.Database.TagTable.delete(ref)
   end
 
-  def delete_tags!(entity, context, options) do
+  def delete_tags!(entity, _context, _options) do
     ref = Noizu.ERP.ref(entity)
     # erase any existing tags
     Noizu.Cms.V2.Database.TagTable.delete!(ref)
@@ -347,55 +373,107 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
     end
   end
 
-  def delete_index(entity, context, options) do
+  def delete_index(entity, _context, _options) do
     ref = Noizu.ERP.ref(entity)
     Noizu.Cms.V2.Database.IndexTable.delete(ref)
   end
 
-  def delete_index!(entity, context, options) do
+  def delete_index!(entity, _context, _options) do
     ref = Noizu.ERP.ref(entity)
     Noizu.Cms.V2.Database.IndexTable.delete!(ref)
   end
+
+  #-----------------------------------
+  # Versioning convenience methods
+  #-----------------------------------
+  def create_new_version(entity, context, options \\ %{}) do
+    # @todo pri-0
+    # The current methodology should be tweaked.
+    # Depending on if our goal here is to provide CMS versioning of entities or simple versioning to allow later recovery.
+    #
+    # The currently persisted entity (if any) should always reflect the active version.
+    # Creating a new version therefore should only create new version entries but not update the base table unless flagged as make_active.
+    #  
+    # any crm libraries or functions should generally work with version/revisions. that contained nested entity structures.
+    # CRUD options should be heavily modified
+    options_a = options
+                |> put_in([:new_version], true)
+    entity.__struct__.repo().update(entity, context, options_a)
+  end
+
+  def create_new_version!(entity, context, options \\ %{}) do
+    options_a = options
+                |> put_in([:new_version], true)
+    entity.__struct__.repo().update!(entity, context, options_a)
+  end
+
+  def create_new_revision(entity, context, options \\ %{}) do
+    options_a = options
+                |> put_in([:new_revision], true)
+    entity.__struct__.repo().update(entity, context, options_a)
+  end
+
+  def create_new_revision!(entity, context, options \\ %{}) do
+    options_a = options
+                |> put_in([:new_revision], true)
+    entity.__struct__.repo().update!(entity, context, options_a)
+  end
+
   #---------------------------
   # Repo Callback Overrides
   #---------------------------
   def pre_create_callback(entity, context, options) do
-    # @todo explicitly call version/revision updates rather than incorporate in auto implementation.
-    # @todo detect if pre-existing entity.
-    ((entity.identifier == nil) && %{entity| identifier: entity.__struct__.repo().generate_identifier()} || entity)
-    |> prepare_article_info(context, options)
-    |> entity.__struct__.repo().versioning_provider().assign_new_version(context, options)
+    options = update_in(options, [:auto_version], &((&1 == nil && true) || &1 ))
+    entity = ((entity.identifier == nil) && %{entity| identifier: entity.__struct__.repo().generate_identifier()} || entity)
+             |> prepare_article_info(context, options)
+    cond do
+      options[:new_version] ->
+        entity.__struct__.repo().versioning_provider().assign_new_version(entity, context, options)
+      options[:new_revision] ->
+        # assign_new_revision will generate the appropriate version and revision record if not yet set.
+        entity.__struct__.repo().versioning_provider().assign_new_revision(entity, context, options)
+      true ->
+        # overwrite_revision will generate the appropriate version and revision record if not yet set.
+        entity.__struct__.repo().versioning_provider().overwrite_revision(entity, context, options)
+    end
   end
 
   def pre_update_callback(entity, context, options) do
-    # @todo logic to suppress creation of new revisions when not necessary.
-    # @todo logic to determine when we are simply updating the record after changing the active revision, version, etc.
-    # @todo explicitly call version/revision updates rather than incorporate in auto implementation.
-    entity
-    |> update_article_info(context, options)
-    |> entity.__struct__.repo().versioning_provider().assign_new_revision(context, options)
+    # Revision and Versioning logic controlled by input parameters.
+    # If call made with out specifying new version, new revision than existing values will simply be updated.
+    options = update_in(options, [:auto_version], &((&1 == nil && true) || &1 ))
+    entity = update_article_info(entity, context, options)
+    cond do
+      options[:new_version] ->
+        entity.__struct__.repo().versioning_provider().assign_new_version(entity, context, options)
+      options[:new_revision] ->
+        entity.__struct__.repo().versioning_provider().assign_new_revision(entity, context, options)
+      true ->
+        entity.__struct__.repo().versioning_provider().overwrite_revision(entity, context, options)
+    end
   end
 
-  def pre_delete_callback(entity, context, options), do: entity
-
+  def pre_delete_callback(entity, _context, _options), do: entity
 
   def post_create_callback(entity, context, options) do
-    update_tags(entity, context, options)
-    update_index(entity, context, options)
+    if options[:make_active] do
+      update_tags(entity, context, options)
+      update_index(entity, context, options)
+    end
     entity
   end
 
-  def post_get_callback(entity, context, options), do: entity
+  def post_get_callback(entity, _context, _options), do: entity
 
   def post_update_callback(entity, context, options) do
-    update_tags(entity, context, options)
-    update_index(entity, context, options)
+    if options[:make_active] do
+      update_tags(entity, context, options)
+      update_index(entity, context, options)
+    end
     entity
   end
 
   def post_delete_callback(entity, context, options) do
-    ref = Noizu.ERP.ref(entity)
-
     versions = Noizu.Cms.V2.VersionRepo.entity_versions(entity, context, options)
     Enum.map(versions, fn(version) ->  Noizu.Cms.V2.VersionRepo.delete(version, context) end)
 
@@ -405,39 +483,37 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
     # Delete Tags
     delete_tags(entity, context, options)
     delete_index(entity, context, options)
-
     entity
   end
 
   defp update_article_info(entity, context, options) do
     current_time = options[:current_time] || DateTime.utc_now()
-    editor = options[:editor] || context.caller
     article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
+    editor = options[:editor] || article_info.editor || context.caller
     status = options[:status] || article_info.status || :pending
     article_info = article_info
                    |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
                    |> update_in([Access.key(:module)], &(&1 || entity.__struct__))
                    |> put_in([Access.key(:modified_on)], current_time)
-                   |> put_in([Access.key(:editor)], context.caller)
+                   |> put_in([Access.key(:editor)], editor)
                    |> put_in([Access.key(:status)], status)
     entity
     |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
   end
 
   defp prepare_article_info(entity, context, options) do
-
     current_time = options[:current_time] || DateTime.utc_now()
-    editor = options[:editor] || context.caller
-
     article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
+    editor = options[:editor] || article_info.editor || context.caller
+    status = options[:status] || article_info.status || :pending
+    article_info = article_info
                    |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
-                   |> put_in([Access.key(:created_on)], current_time)
+                   |> update_in([Access.key(:created_on)], &(&1 || current_time))
                    |> put_in([Access.key(:modified_on)], current_time)
                    |> put_in([Access.key(:editor)], editor)
+                   |> put_in([Access.key(:status)], status)
                    |> update_in([Access.key(:module)], &(&1 || entity.__struct__))
-                   |> update_in([Access.key(:status)], &(&1 || :pending))
                    |> update_in([Access.key(:type)], &(&1 || Noizu.Cms.V2.Proto.type(entity, context, options)))
-
     entity
     |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
   end
