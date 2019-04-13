@@ -20,7 +20,7 @@ defdatabase Noizu.Cms.V2.Database do
   # @IndexTable
   #-----------------------------------------------------------------------------
   deftable IndexTable,
-           [:article, :status, :module, :type, :editor, :created_on, :modified_on, :active_version],
+           [:article, :status, :module, :type, :editor, :created_on, :modified_on, :active_version, :active_revision],
            type: :set,
            index: [:status, :module, :type, :editor, :created_on, :modified_on] do
     @type t :: %IndexTable{
@@ -32,6 +32,7 @@ defdatabase Noizu.Cms.V2.Database do
                  created_on: integer,
                  modified_on: integer,
                  active_version: any,
+                 active_revision: any,
                }
   end # end deftable
 

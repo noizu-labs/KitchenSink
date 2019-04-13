@@ -14,5 +14,4 @@ defmodule Noizu.Cms.V2.VersionRepo do
     |> Amnesia.Selection.values()
     |> Enum.map(&(&1.entity))
   end
-
 end

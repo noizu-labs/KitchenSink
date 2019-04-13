@@ -20,116 +20,38 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   # Implementation of Behaviour
   #===========================================================
 
-  #-----------------------------------
+  #------------------------
   #
-  #-----------------------------------
-
-  def assign_new_version(entry, context, options) do
-    case create_version(entry, context, options) do
-      version = %Noizu.Cms.V2.VersionEntity{} ->
-        entry
-        |> Noizu.Cms.V2.Proto.set_version(Noizu.Cms.V2.VersionEntity.ref(version), context, options)
-        |> Noizu.Cms.V2.Proto.set_revision(Noizu.Cms.V2.Version.RevisionEntity.ref(version.revision), context, options)
-        |> Noizu.Cms.V2.Proto.set_parent(Noizu.Cms.V2.VersionEntity.ref(version.parent), context, options)
-    end
-  end
-
-  def assign_new_version!(entry, context, options) do
-    Amnesia.Fragment.async(fn -> assign_new_version(entry, context, options) end)
-  end
-
-  #-----------------------------------
-  #
-  #-----------------------------------
-
-  def assign_new_revision(entry, context, options) do
-    # 1. get current version.
-    version = Noizu.Cms.V2.Proto.get_version(entry, context, options)
-              |> Noizu.Cms.V2.VersionEntity.entity()
-    article_ref = Noizu.ERP.ref(entry)
-    entry = Noizu.ERP.entity(entry)
-
-    # 2. create new revision
+  #------------------------
+  def get_versions(entity, context, options \\ %{}) do
+    article_ref = Noizu.Cms.V2.Proto.get_article(entity, context, options)
+              |> Noizu.ERP.ref()
     cond do
-      version == nil ->
-        if options[:auto_version] do
-          assign_new_version(entry, context, options)
-        else
-          {:error, :invalid_version}
-        end
-      version.article != article_ref -> {:error, :incorrect_article}
-      true ->
-        case create_revision(version, entry, context, options) do
-          revision = %Noizu.Cms.V2.Version.RevisionEntity{} ->
-
-            version = %Noizu.Cms.V2.VersionEntity{version|
-              revision: Noizu.Cms.V2.Version.RevisionEntity.ref(revision),
-              modified_on: revision.modified_on,
-              editor: revision.editor,
-              status: revision.status,
-            } |> Noizu.Cms.V2.VersionRepo.update(context, options)
-
-            entry
-            |> Noizu.Cms.V2.Proto.set_version!(Noizu.Cms.V2.VersionEntity.ref(version), context, options)
-            |> Noizu.Cms.V2.Proto.set_revision!(Noizu.Cms.V2.Version.RevisionEntity.ref(version.revision), context, options)
-            |> Noizu.Cms.V2.Proto.set_parent!(Noizu.Cms.V2.VersionEntity.ref(version.parent), context, options)
-        end
+      article_ref ->
+        Noizu.Cms.V2.Database.VersionTable.match([identifier: {article_ref, :_}])
+        |> Amnesia.Selection.values()
+        |> Enum.map(&(&1.entity))
+      true -> {:error, :article_unknown}
     end
   end
 
-  def assign_new_revision!(entry, context, options) do
-    Amnesia.Fragment.async(fn -> assign_new_revision(entry, context, options) end)
+  def get_versions!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> get_versions(entity, context, options) end)
   end
 
-  #-----------------------------------
-  # overwrite_revision
-  #-----------------------------------
-  def overwrite_revision(entry, context, options) do
-    #article_ref = Noizu.ERP.ref(entry)
-
-    version = Noizu.Cms.V2.Proto.get_version(entry, context, options)
-              |> Noizu.Cms.V2.VersionEntity.entity()
-
-    revision = Noizu.Cms.V2.Proto.get_revision(entry, context, options)
-               |> Noizu.Cms.V2.Version.RevisionEntity.entity()
-
-    revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
-    cond do
-      version == nil ->
-        assign_new_version(entry, context, options)
-      version && revision == nil ->
-        # unexpected state.
-        assign_new_revision(entry, context, options)
-      version.revision != revision_ref ->
-        # unexpected state, for now simply force new revision.
-        assign_new_revision(entry, context, options)
-      true ->
-        # todo error handling.
-        update_version(version, entry, context, options)
-        update_revision(revision, entry, context, options)
-        entry
-    end
-  end
-
-  def overwrite_revision!(entry, context, options) do
-    Amnesia.Fragment.async(fn -> overwrite_revision(entry, context, options) end)
-  end
-
-  #-----------------------------------
+  #------------------------
   #
-  #-----------------------------------
-  def create_version(entry, context, options) do
-    entry = Noizu.ERP.entity(entry)
-    article_ref = Noizu.ERP.ref(entry)
-    current_time = options[:current_time] || DateTime.utc_now()
-    article_info = Noizu.Cms.V2.Proto.get_article_info(entry, context, options)
+  #------------------------
+  def create_version(entity, context, options \\ %{}) do
+    article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
+    article_ref = Noizu.ERP.ref(article)
 
     # 1. get current version.
-    current_version = Noizu.Cms.V2.Proto.get_version(entry, context, options)
-    current_version_ref = current_version && Noizu.Cms.V2.VersionEntity.ref(current_version)
+    current_version = Noizu.Cms.V2.Proto.get_version(article, context, options)
+    current_version_ref = Noizu.Cms.V2.VersionEntity.ref(current_version)
 
     # 2. Determine version path we will be creating
-    version_path = cond do
+    new_version_path = cond do
       current_version == nil ->
         {version_sequencer({article_ref, {}})}
       true ->
@@ -138,159 +60,274 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
     end
 
     # 3. Create Version Stub
-    version_key = {article_ref, version_path}
-    version_ref = Noizu.Cms.V2.VersionEntity.ref(version_key)
+    new_version_key = {article_ref, new_version_path}
+    new_version_ref = Noizu.Cms.V2.VersionEntity.ref(new_version_key)
 
-    case create_revision(version_ref, entry, context, options) do
+    article = article
+              |> Noizu.Cms.V2.Proto.set_version(new_version_key, context, options)
+              |> Noizu.Cms.V2.Proto.set_parent(current_version_ref, context, options)
+              |> Noizu.Cms.V2.Proto.set_revision(nil, context, options)
+
+    case create_revision(article, context, options) do
       revision = %Noizu.Cms.V2.Version.RevisionEntity{} ->
+        revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
         %Noizu.Cms.V2.VersionEntity{
-          identifier: version_key,
+          identifier: new_version_key,
           article: article_ref,
           parent: current_version_ref,
-          revision: Noizu.Cms.V2.Version.RevisionEntity.ref(revision),
-          created_on: current_time,
-          modified_on: current_time,
-          editor: article_info.editor,
-          status: article_info.status,
+          revision: revision_ref,
+          article_info: revision.article_info,
+          created_on: revision.created_on,
+          modified_on: revision.modified_on,
+          editor: revision.article_info.editor,
+          status: revision.article_info.status,
         } |> Noizu.Cms.V2.VersionRepo.create(context, options)
+      {:error, e} -> {:error, {:creating_revision, e}}
+      e -> {:error, {:creating_revision, {:unknown, e}}}
     end
   end
 
-  def create_version!(entry, context, options) do
-    Amnesia.Fragment.async(fn ->
-      create_version(entry, context, options)
-    end)
+  def create_version!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> create_version(entity, context, options) end)
   end
 
-  #-----------------------------------
+  #------------------------
   #
-  #-----------------------------------
-  def update_version(version, entry, context, options) do
-    entry = Noizu.ERP.entity(entry)
-    #article_ref = Noizu.ERP.ref(entry)
+  #------------------------
+  def update_version(entity, context, options \\ %{}) do
+    # 1. get current version.
+    current_version = Noizu.Cms.V2.Proto.get_version(entity, context, options)
+                      |> Noizu.Cms.V2.VersionEntity.entity()
+    cond do
+      current_version == nil -> {:error, :invalid_version}
+      true ->
+        case update_revision(entity, context, options) do
+          revision = %Noizu.Cms.V2.Version.RevisionEntity{} ->
+            version = %Noizu.Cms.V2.VersionEntity{
+              current_version|
+              article_info: revision.article_info,
+              modified_on: revision.modified_on,
+              editor: revision.editor,
+              status: revision.status,
+            } |> Noizu.Cms.V2.VersionRepo.update(context, options)
+          _ -> {:error, :update_revision}
+        end
+    end
+  end
+  def update_version!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> update_version(entity, context, options) end)
+  end
+
+  #------------------------
+  #
+  #------------------------
+  def delete_version(entity, context, options \\ %{}) do
+    version_ref = Noizu.Cms.V2.Proto.get_version(entity, context, options)
+                  |> Noizu.ERP.ref()
+
+    # Active Revision Check
+    if options[:bookkeeping] != :disabled do
+      if cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options) do
+        if active_revision = cms_provider.get_active(entity, context, options) do
+          active_version = Noizu.Cms.V2.Proto.get_version(active_revision, context, options)
+                           |> Noizu.ERP.ref()
+          if (active_version && active_version == version_ref), do: throw :cannot_delete_active
+        end
+      end
+    end
+
+    cond do
+      version_ref ->
+        # Get revisions,
+        case get_revisions(entity, context, options) do
+          revisions when is_list(revisions) ->
+            # Delete Revisions
+            Enum.map(revisions, fn(revision) ->
+              # Bypass Repo, delete directly for performance reasons.
+              Noizu.Cms.V2.Database.Version.RevisionTable.delete(revision.identifier)
+            end)
+
+            # Delete Version
+            # Bypass Repo, delete directly for performance reasons.
+            identifier = Noizu.ERP.id(version_ref)
+            Noizu.Cms.V2.Database.VersionTable.delete(identifier)
+            :ok
+          _ -> {:error, :revision_lookup}
+        end
+      true -> {:error, :revision_not_set}
+    end
+  end
+  def delete_version!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> delete_version(entity, context, options) end)
+  end
+
+  #------------------------
+  #
+  #------------------------
+  def get_revisions(entity, context, options \\ %{}) do
+    version_ref = Noizu.Cms.V2.Proto.get_version(entity, context, options)
+              |> Noizu.ERP.ref()
+    cond do
+      version_ref ->
+        Noizu.Cms.V2.Database.Version.RevisionTable.match([identifier: {version_ref, :_}])
+        |> Amnesia.Selection.values()
+        |> Enum.map(&(&1.entity))
+      true -> {:error, :version_unknown}
+    end
+  end
+
+  def get_revisions!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> get_revisions(entity, context, options) end)
+  end
+
+  #------------------------
+  #
+  #------------------------
+  def create_revision(entity, context, options \\ %{}) do
+    article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
+    article_ref = Noizu.ERP.ref(article)
+    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
     current_time = options[:current_time] || DateTime.utc_now()
-    article_info = Noizu.Cms.V2.Proto.get_article_info(entry, context, options)
+    article_info = %Noizu.Cms.V2.Article.Info{article_info| modified_on: current_time, created_on: current_time}
+    article = Noizu.Cms.V2.Proto.set_article_info(article, article_info, context, options)
 
-    %Noizu.Cms.V2.VersionEntity{version|
-      modified_on: current_time,
-      editor: article_info.editor,
-      status: article_info.status,
-    } |> Noizu.Cms.V2.VersionRepo.update(context, options)
-  end
-
-  def update_version!(version, entry, context, options) do
-    Amnesia.Fragment.async(fn ->
-      update_version(version, entry, context, options)
-    end)
-  end
-
-  #-----------------------------------
-  #
-  #-----------------------------------
-  def delete_version(version, context, options) do
-    # @todo constraint check if entity relies on version.
-    Noizu.Cms.V2.VersionRepo.delete(version, context, options)
-  end
-
-  def delete_version!(version, context, options) do
-    Amnesia.Fragment.async(fn ->
-      delete_version(version, context, options)
-    end)
-  end
-
-
-
-  #-----------------------------------
-  #
-  #-----------------------------------
-  def create_revision(version, entry, context, options) do
-    entry = Noizu.ERP.entity(entry)
-    article_info = Noizu.Cms.V2.Proto.get_article_info(entry, context, options)
-    current_time = options[:current_time] || DateTime.utc_now()
-    article_ref = Noizu.ERP.ref(entry)
-
+    version = Noizu.Cms.V2.Proto.get_version(article, context, options)
     version_ref = Noizu.Cms.V2.VersionEntity.ref(version)
     version_key = Noizu.Cms.V2.VersionEntity.id(version)
-    revision_key = options[:revision_key] || {version_ref, version_sequencer({:revision, version_key})}
-    #revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision_key)
 
-    %Noizu.Cms.V2.Version.RevisionEntity{
-      identifier: revision_key,
-      article: article_ref,
-      version: version_ref,
-      full_copy: true,
-      created_on: current_time,
-      modified_on: current_time,
-      editor: article_info.editor,
-      status: article_info.status,
-      record: entry.__struct__.compress(entry, options),
-    } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
+    cond do
+      article == nil -> {:error, :invalid_record}
+      version == nil -> {:error, :no_version_provided}
+      true ->
+        revision_key = options[:revision_key] || {version_ref, version_sequencer({:revision, version_key})}
+        revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision_key)
+        article = article
+                  |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
+
+        article_info = %Noizu.Cms.V2.Article.Info{article_info|
+          revision: revision_key
+        }
+
+        {full_copy, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
+        %Noizu.Cms.V2.Version.RevisionEntity{
+          identifier: revision_key,
+          article: article_ref,
+          version: version_ref,
+          article_info: article_info,
+          created_on: article_info.created_on,
+          modified_on: article_info.modified_on,
+          editor: article_info.editor,
+          status: article_info.status,
+          full_copy: full_copy,
+          record: archive,
+        } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
+    end
+  end
+  def create_revision!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> create_revision(entity, context, options) end)
   end
 
-  def create_revision!(entry, version, context, options) do
-    Amnesia.Fragment.async(fn -> create_revision(version, entry, context, options) end)
-  end
-
-  #-----------------------------------
-  # update_revision
-  #-----------------------------------
-  def update_revision(revision, entry, context, options) do
-    article_ref = Noizu.ERP.ref(entry)
-    entry = Noizu.ERP.entity(entry)
-    article_info = Noizu.Cms.V2.Proto.get_article_info(entry, context, options)
+  #------------------------
+  #
+  #------------------------
+  def update_revision(entity, context, options \\ %{}) do
+    article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
+    article_ref = Noizu.ERP.ref(article)
+    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
     current_time = options[:current_time] || DateTime.utc_now()
+    article_info = %Noizu.Cms.V2.Article.Info{modified_on: current_time}
+    article = Noizu.Cms.V2.Proto.set_article_info(article, article_info, context, options)
 
-    if revision.article == article_ref do
-      %Noizu.Cms.V2.Version.RevisionEntity{revision|
-        full_copy: true,
-        modified_on: current_time,
-        editor: article_info.editor,
-        status: article_info.status,
-        record: entry.__struct__.compress(entry, options),
-      } |> Noizu.Cms.V2.Version.RevisionRepo.update(context)
-    else
-      {:error, :article_ref_mismatch}
+    version = Noizu.Cms.V2.Proto.get_version(article, context, options)
+    version_ref = Noizu.Cms.V2.VersionEntity.ref(version)
+    version_key = Noizu.Cms.V2.VersionEntity.id(version)
+
+    revision = Noizu.Cms.V2.Proto.get_revision(article, context, options)
+    revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(version)
+    revision_key = Noizu.Cms.V2.Version.RevisionEntity.id(version)
+
+    cond do
+      article == nil -> {:error, :invalid_record}
+      version == nil -> {:error, :no_version_provided}
+      revision == nil -> {:error, :no_revision_provided}
+      true ->
+        {full_copy, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
+
+        # @todo pri-1 if active then we must update tags/index.
+
+        # load existing record.
+        revision = if revision = Noizu.Cms.V2.Version.RevisionEntity.entity(revision) do
+          %Noizu.Cms.V2.Version.RevisionEntity{
+            revision|
+            article: article_ref,
+            version: version_ref,
+            article_info: article_info,
+            modified_on: article_info.modified_on,
+            editor: article_info.editor,
+            status: article_info.status,
+            full_copy: full_copy,
+            record: archive,
+          } |> Noizu.Cms.V2.Version.RevisionRepo.update(context)
+        else
+          %Noizu.Cms.V2.Version.RevisionEntity{
+            identifier: revision_key,
+            article: article_ref,
+            version: version_ref,
+            article_info: article_info,
+            created_on: current_time, # imprecise (may become out of sync with article)
+            modified_on: article_info.modified_on,
+            editor: article_info.editor,
+            status: article_info.status,
+            full_copy: full_copy,
+            record: archive,
+          } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
+        end
+
+        # Update Active if modifying active revision
+        if options[:bookkeeping] != :disabled do
+          if cms_provider = Noizu.Cms.V2.Proto.cms_provider(article, context, options) do
+            active_revision = cms_provider.get_active(article, context, options)
+                              |> Noizu.ERP.ref()
+            if (active_revision && active_revision == revision_ref), do: cms_provider.update_active(article, context, options)
+          end
+        end
+
+        # Return updated revision
+        revision
+    end
+  end
+  def update_revision!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> update_revision(entity, context, options) end)
+  end
+
+  #------------------------
+  #
+  #------------------------
+  def delete_revision(entity, context, options \\ %{}) do
+    revision_ref = Noizu.Cms.V2.Proto.get_revision(entity, context, options)
+                   |> Noizu.ERP.ref()
+
+    # Active Revision Check
+    if options[:bookkeeping] != :disabled do
+      if cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options) do
+        active_revision = cms_provider.get_active(entity, context, options)
+                          |> Noizu.ERP.ref()
+        if (active_revision && active_revision == revision_ref), do: throw :cannot_delete_active
+      end
+    end
+
+    cond do
+      revision_ref ->
+        # Bypass Repo, delete directly for performance reasons.
+        identifier = Noizu.ERP.id(revision_ref)
+        Noizu.Cms.V2.Database.Version.RevisionTable.delete(identifier)
+        :ok
+      true -> {:error, :revision_not_set}
     end
   end
 
-  def update_revision!(revision, entry, context, options) do
-    Amnesia.Fragment.async(fn -> update_revision(revision, entry, context, options) end)
-  end
-
-  #-----------------------------------
-  #
-  #-----------------------------------
-  def delete_revision(revision, context, options) do
-    # @todo - constraint check if version relies on revision.
-    Noizu.Cms.V2.VersionRepo.delete(revision, context, options)
-  end
-
-  def delete_revision!(revision, context, options) do
-    Amnesia.Fragment.async(fn ->
-      delete_revision(revision, context, options)
-    end)
-  end
-
-  #-----------------------------------
-  #
-  #-----------------------------------
-  def get_versions(_entry, _context, _options)do
-    {:error, :nyi}
-  end
-
-  def get_versions!(_entry, _context, _options)do
-    {:error, :nyi}
-  end
-
-  #-----------------------------------
-  #
-  #-----------------------------------
-  def get_revisions(_version, _context, _options)do
-    {:error, :nyi}
-  end
-
-  def get_revisions!(_version, _context, _options)do
-    {:error, :nyi}
+  def delete_revision!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> delete_revision(entity, context, options) end)
   end
 
   #===========================================================

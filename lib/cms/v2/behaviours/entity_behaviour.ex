@@ -4,15 +4,9 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.EntityBehaviour do
-
   @callback versioning_provider() :: any
   @callback implementation_provider() :: any
-
-  @callback get_versions() :: any
-  @callback get_versions!() :: any
-
-  @callback get_revisions() :: any
-  @callback get_revisions!() :: any
+  @callback cms_provider() :: any
 
   defmacro __using__(options) do
     implementation_provider = Keyword.get(options, :implementation_provider,  Noizu.Cms.V2.Repo.DefaultImplementation)
@@ -25,24 +19,13 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
 
       def versioning_provider(), do: @versioning_provider
       def implementation_provider(), do: @default_implementation
-
-      #-------------------------
-      # Versioning Related.
-      #-------------------------
-      defdelegate get_versions(entry, context, options \\ %{}), to: @versioning_provider
-      defdelegate get_versions!(entry, context, options \\ %{}), to: @versioning_provider
-
-      defdelegate get_revisions(entry, context, options \\ %{}), to: @versioning_provider
-      defdelegate get_revisions!(entry, context, options \\ %{}), to: @versioning_provider
+      def cms_provider(), do: @default_implementation.cms_provider(__MODULE__)
 
       #-------------------------
       # Overridable
       #-------------------------
       defoverridable [
-        get_versions: 3,
-        get_versions!: 3,
-        get_revisions: 3,
-        get_revisions!: 3,
+        cms_provider: 0
       ]
 
     end

@@ -47,11 +47,49 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
 
   # Versioning
-  @callback create_new_version(any, any, any) :: any
-  @callback create_new_version!(any, any, any) :: any
+  @callback make_active(any, any, any) :: any
+  @callback make_active!(any, any, any) :: any
 
-  @callback create_new_revision(any, any, any) :: any
-  @callback create_new_revision!(any, any, any) :: any
+  @callback get_active(any, any, any) :: any
+  @callback get_active!(any, any, any) :: any
+
+  @callback update_active(any, any, any) :: any
+  @callback update_active!(any, any, any) :: any
+
+  @callback remove_active(any, any, any) :: any
+  @callback remove_active!(any, any, any) :: any
+
+  # @todo approve/etc.
+
+  @callback init_article_info(any, any, any) :: any
+  @callback init_article_info!(any, any, any) :: any
+
+  @callback update_article_info(any, any, any) :: any
+  @callback update_article_info!(any, any, any) :: any
+
+  @callback get_versions(any, any, any) :: any
+  @callback get_versions!(any, any, any) :: any
+
+  @callback create_version(any, any, any) :: any
+  @callback create_version!(any, any, any) :: any
+
+  @callback update_version(any, any, any) :: any
+  @callback update_version!(any, any, any) :: any
+
+  @callback delete_version(any, any, any) :: any
+  @callback delete_version!(any, any, any) :: any
+
+  @callback get_revisions(any, any, any) :: any
+  @callback get_revisions!(any, any, any) :: any
+
+  @callback create_revision(any, any, any) :: any
+  @callback create_revision!(any, any, any) :: any
+
+  @callback update_revision(any, any, any) :: any
+  @callback update_revision!(any, any, any) :: any
+
+  @callback delete_revision(any, any, any) :: any
+  @callback delete_revision!(any, any, any) :: any
 
   # Misc
   @callback versioning_provider() :: any
@@ -109,29 +147,51 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       defdelegate delete_index(entry, context, options), to: @default_implementation
       defdelegate delete_index!(entry, context, options), to: @default_implementation
 
-
       #-------------------------
       # Versioning
       #-------------------------
-      defdelegate create_new_version(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate create_new_version!(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate make_active(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate make_active!(entity, context, options \\ %{}), to: @default_implementation
 
-      defdelegate create_new_revision(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate create_new_revision!(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate get_active(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate get_active!(entity, context, options \\ %{}), to: @default_implementation
 
-      #---------------------------
-      # Repo Callback Overrides
-      #---------------------------
-      defdelegate pre_create_callback(entity, context, options), to: @default_implementation
-      defdelegate post_create_callback(entity, context, options), to: @default_implementation
+      defdelegate update_active(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate update_active!(entity, context, options \\ %{}), to: @default_implementation
 
-      defdelegate post_get_callback(entity, context, options), to: @default_implementation
+      defdelegate remove_active(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate remove_active!(entity, context, options \\ %{}), to: @default_implementation
 
-      defdelegate pre_update_callback(entity, context, options), to: @default_implementation
-      defdelegate post_update_callback(entity, context, options), to: @default_implementation
 
-      defdelegate pre_delete_callback(entity, context, options), to: @default_implementation
-      defdelegate post_delete_callback(entity, context, options), to: @default_implementation
+      defdelegate init_article_info(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate init_article_info!(entity, context, options \\ %{}), to: @default_implementation
+
+      defdelegate update_article_info(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate update_article_info!(entity, context, options \\ %{}), to: @default_implementation
+
+      defdelegate get_versions(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate get_versions!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate get_revisions(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate get_revisions!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate create_version(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate create_version!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate update_version(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate update_version!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate delete_version(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate delete_version!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate create_revision(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate create_revision!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate update_revision(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate update_revision!(entity, context, options \\ %{}), to: @versioning_provider
+
+      defdelegate delete_revision(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate delete_revision!(entity, context, options \\ %{}), to: @versioning_provider
 
       defoverridable [
         versioning_provider: 0,
@@ -178,24 +238,47 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         #-------------------
         # Versioning
         #-------------------
-        create_new_version: 3,
-        create_new_version!: 3,
-        create_new_revision: 3,
-        create_new_revision!: 3,
+        make_active: 3,
+        make_active!: 3,
 
-        #-------------------
-        # Call Back Overrides
-        #-------------------
-        pre_create_callback: 3,
-        post_create_callback: 3,
+        update_active: 3,
+        update_active!: 3,
 
-        post_get_callback: 3,
+        get_active: 3,
+        get_active!: 3,
 
-        pre_update_callback: 3,
-        post_update_callback: 3,
+        remove_active: 3,
+        remove_active!: 3,
 
-        pre_delete_callback: 3,
-        post_delete_callback: 3,
+        init_article_info: 3,
+        init_article_info!: 3,
+
+        update_article_info: 3,
+        update_article_info!: 3,
+
+        get_versions: 3,
+        get_versions!: 3,
+
+        create_version: 3,
+        create_version!: 3,
+
+        update_version: 3,
+        update_version!: 3,
+
+        delete_version: 3,
+        delete_version!: 3,
+
+        get_revisions: 3,
+        get_revisions!: 3,
+
+        create_revision: 3,
+        create_revision!: 3,
+
+        update_revision: 3,
+        update_revision!: 3,
+
+        delete_revision: 3,
+        delete_revision!: 3,
       ]
 
     end
