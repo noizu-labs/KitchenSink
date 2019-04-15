@@ -28,7 +28,7 @@ defmodule Noizu.Cms.V2.ArticleEntity do
         Noizu.Cms.V2.Article.ImageEntity,
         Noizu.Cms.V2.Article.PostEntity,
       ]
-
+  use Noizu.Cms.V2.EntityBehaviour
   #=============================================================================
   # has_permission - cast|info
   #=============================================================================

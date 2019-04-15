@@ -20,6 +20,38 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   # Implementation of Behaviour
   #===========================================================
 
+  def initialize_versioning_records(entity, context, options \\ %{}) do
+    # Create Version Record
+    # Create Revision Record (@todo consider removing revision table, and depend on master table.)
+    # Use revision form identifier.
+
+    case create_version(entity, context, options) do
+      version = %{revision: revision, parent: parent} ->
+        entity = entity
+                 |> Noizu.Cms.V2.Proto.set_version(Noizu.ERP.ref(version), context, options)
+                 |> Noizu.Cms.V2.Proto.set_revision(revision && Noizu.ERP.ref(revision), context, options)
+                 |> Noizu.Cms.V2.Proto.set_parent(parent && Noizu.ERP.ref(parent), context, options)
+
+        v_id = Noizu.Cms.V2.Proto.versioned_identifier(entity, context, options)
+        entity = entity
+                 |> put_in([Access.key(:identifier)], v_id)
+
+
+        if cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options) do
+          cms_provider.update_tags(entity, context, options)
+          cms_provider.update_index(entity, context, options)
+        end
+        entity
+      _ -> throw "Create Version Error"
+    end
+  end
+
+  def populate_versioning_records(entity, context, options \\ %{}) do
+    # Create Version Record
+    # Create Revision Record (@todo consider removing revision table, and depend on master table.)
+    entity
+  end
+
   #------------------------
   #
   #------------------------
@@ -44,7 +76,7 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   #------------------------
   def create_version(entity, context, options \\ %{}) do
     article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
-    article_ref = Noizu.ERP.ref(article)
+    article_ref =  Noizu.Cms.V2.Proto.article_ref(article, context, options)
 
     # 1. get current version.
     current_version = Noizu.Cms.V2.Proto.get_version(article, context, options)
@@ -67,7 +99,7 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
               |> Noizu.Cms.V2.Proto.set_version(new_version_key, context, options)
               |> Noizu.Cms.V2.Proto.set_parent(current_version_ref, context, options)
               |> Noizu.Cms.V2.Proto.set_revision(nil, context, options)
-
+    
     case create_revision(article, context, options) do
       revision = %Noizu.Cms.V2.Version.RevisionEntity{} ->
         revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
@@ -185,7 +217,7 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   #------------------------
   def create_revision(entity, context, options \\ %{}) do
     article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
-    article_ref = Noizu.ERP.ref(article)
+    article_ref =  Noizu.Cms.V2.Proto.article_ref(article, context, options)
     article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
     current_time = options[:current_time] || DateTime.utc_now()
     article_info = %Noizu.Cms.V2.Article.Info{article_info| modified_on: current_time, created_on: current_time}

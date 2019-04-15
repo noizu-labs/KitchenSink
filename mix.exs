@@ -34,7 +34,7 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:amnesia, git: "https://github.com/noizu/amnesia.git", ref: "9266002", override: true}, # Mnesia Wrappeir
       {:noizu_core, github: "noizu/ElixirCore", tag: "1.0.6", override: true},
       {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.33", override: true},
-      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.40", override: true},
+      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.41", override: true},
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.9", override: true},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore

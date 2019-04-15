@@ -249,10 +249,8 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def update_tags(entity, context, options) do
-    ref = Noizu.ERP.ref(entity)
-
-
-    new_tags = case Noizu.Cms.V2.Proto.tags(ref, context, options) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    new_tags = case Noizu.Cms.V2.Proto.tags(entity, context, options) do
       v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
       v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
       nil -> []
@@ -276,8 +274,8 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   end
 
   def update_tags!(entity, context, options) do
-    ref = Noizu.ERP.ref(entity)
-    new_tags = case Noizu.Cms.V2.Proto.tags!(ref, context, options) do
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+    new_tags = case Noizu.Cms.V2.Proto.tags!(entity, context, options) do
       v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
       v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
       nil -> []
@@ -303,14 +301,14 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #-----------------------------
   #
   #-----------------------------
-  def delete_tags(entity, _context, _options) do
-    ref = Noizu.ERP.ref(entity)
+  def delete_tags(entity, context, options) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     # erase any existing tags
     Noizu.Cms.V2.Database.TagTable.delete(ref)
   end
 
-  def delete_tags!(entity, _context, _options) do
-    ref = Noizu.ERP.ref(entity)
+  def delete_tags!(entity, context, options) do
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
     # erase any existing tags
     Noizu.Cms.V2.Database.TagTable.delete!(ref)
   end
@@ -319,8 +317,8 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def update_index(entry, context, options) do
-    ref = Noizu.ERP.ref(entry)
     entity = Noizu.ERP.entity(entry)
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
     cond do
       article_info.version == nil -> {:error, :version_not_set}
@@ -355,8 +353,8 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
 
 
   def update_index!(entry, context, options) do
-    ref = Noizu.ERP.ref(entry)
     entity = Noizu.ERP.entity!(entry)
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
     article_info = Noizu.Cms.V2.Proto.get_article_info!(entity, context, options)
     cond do
       article_info.version == nil -> {:error, :version_not_set}
@@ -392,13 +390,13 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #-----------------------------
   #
   #-----------------------------
-  def delete_index(entity, _context, _options) do
-    ref = Noizu.ERP.ref(entity)
+  def delete_index(entity, context, options) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     Noizu.Cms.V2.Database.IndexTable.delete(ref)
   end
 
-  def delete_index!(entity, _context, _options) do
-    ref = Noizu.ERP.ref(entity)
+  def delete_index!(entity, context, options) do
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
     Noizu.Cms.V2.Database.IndexTable.delete!(ref)
   end
 
@@ -542,4 +540,136 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   end
 
 
+  #-----------------------------
+  # create/3
+  #-----------------------------
+  def create(entity, context, options) do
+    # @todo conditional logic to insure only revision records persisted.
+    module = entity.__struct__.repo()
+    entity
+    |> module.pre_create_callback(context, options)
+    |> module.inner_create_callback(context, options)
+    |> module.post_create_callback(context, options)
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def pre_create_callback(entity, context, options) do
+    repo = entity.__struct__.repo()
+    cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options)
+    is_versioning_record? = Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)
+    options_a = put_in(options, [:nested_create], true)
+
+    # AutoGenerate Identifier if not set, check for already existing record.
+    entity = cond do
+      #1. AutoIncrement
+      entity.identifier == nil -> %{entity| identifier: repo.generate_identifier()}
+
+      #2. Recursion Check
+      options[:nested_create] -> entity
+
+      #3. Check for existing records.
+      true ->
+        # @todo if !is_version_record? we should specifically scan for any matching revisions.
+        if repo.get(entity.identifier, Noizu.ElixirCore.CallingContext.system(context), options_a) do
+          throw "[Create Exception] Record Exists: #{Noizu.ERP.sref(entity)}"
+        else
+          entity
+        end
+    end
+
+    if is_versioning_record? do
+      entity
+      |> cms_provider.update_article_info(context, options)
+      |> cms_provider.cms_versioning_provider().populate_versioning_records(context, options_a)
+    else
+      # 5. Prepare Version and Revision, modify identifier.
+      entity
+      |> cms_provider.init_article_info(context, options)
+      |> cms_provider.cms_versioning_provider().initialize_versioning_records(context, options_a)
+    end
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def post_create_callback(entity, context, options) do
+    entity
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def get(module, identifier, context, options) do
+    module.inner_get_callback(identifier, context, options)
+    |> module.post_get_callback(context, options)
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def post_get_callback(entity, _context, _options) do
+    entity
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def update(entity, context, options) do
+    # @todo conditional logic to insure only revision records persisted.
+    module = entity.__struct__.repo()
+    entity
+    |>  module.pre_update_callback(context, options)
+    |>  module.inner_update_callback(context, options)
+    |>  module.post_update_callback(context, options)
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def pre_update_callback(entity, context, options) do
+    # - Insure versioning record, or throw.
+    # - If active force new revision creation unless option override.
+    # - If not active update existing version/revision, unless option override.
+    # - update article info.
+    entity
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def post_update_callback(entity, context, options) do
+    # 1. active revision and force update index, tags.
+    entity
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def delete(entity, context, options) do
+    # @todo conditional logic to insure only revision records persisted.
+    module = entity.__struct__.repo()
+    entity
+    |>  module.pre_delete_callback(context, options)
+    |>  module.inner_delete_callback(context, options)
+    |>  module.post_delete_callback(context, options)
+    true
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def pre_delete_callback(entity, context, options) do
+    # - throw if active revision (require special delete cms command)
+    # - throw if identifier not set.
+    entity
+  end
+
+  #-----------------------------
+  #
+  #-----------------------------
+  def post_delete_callback(entity, context, options) do
+    entity
+  end
 end

@@ -4,10 +4,8 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.RepoBehaviour do
-
-
-  @callback versioning_provider() :: any
-  @callback implementation_provider() :: any
+  @callback cms_versioning_provider() :: any
+  @callback cms_implementation_provider() :: any
 
   # Query
   @callback get_by_status(any, any, any) :: any
@@ -47,6 +45,10 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
 
   # Versioning
+
+  @callback initialize_versioning_records(any, any, any) :: any
+  @callback populate_versioning_records(any, any, any) :: any
+
   @callback make_active(any, any, any) :: any
   @callback make_active!(any, any, any) :: any
 
@@ -91,8 +93,6 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
   @callback delete_revision(any, any, any) :: any
   @callback delete_revision!(any, any, any) :: any
 
-  # Misc
-  @callback versioning_provider() :: any
 
   defmacro __using__(options) do
     implementation_provider = Keyword.get(options, :implementation_provider,  Noizu.Cms.V2.Repo.DefaultImplementation)
@@ -104,8 +104,8 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       @versioning_provider (unquote(versioning_provider))
 
 
-      def versioning_provider(), do: @versioning_provider
-      def implementation_provider(), do: @default_implementation
+      def cms_versioning_provider(), do: @versioning_provider
+      def cms_implementation_provider(), do: @default_implementation
 
       #-------------------------
       # Query
@@ -150,6 +150,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       #-------------------------
       # Versioning
       #-------------------------
+      defdelegate initialize_versioning_records(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate populate_versioning_records(entity, context, options \\ %{}), to: @versioning_provider
+
       defdelegate make_active(entity, context, options \\ %{}), to: @default_implementation
       defdelegate make_active!(entity, context, options \\ %{}), to: @default_implementation
 
@@ -168,6 +171,8 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
       defdelegate update_article_info(entity, context, options \\ %{}), to: @default_implementation
       defdelegate update_article_info!(entity, context, options \\ %{}), to: @default_implementation
+
+
 
       defdelegate get_versions(entity, context, options \\ %{}), to: @versioning_provider
       defdelegate get_versions!(entity, context, options \\ %{}), to: @versioning_provider
@@ -193,9 +198,25 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       defdelegate delete_revision(entity, context, options \\ %{}), to: @versioning_provider
       defdelegate delete_revision!(entity, context, options \\ %{}), to: @versioning_provider
 
-      defoverridable [
-        versioning_provider: 0,
+      #------------------
+      # Repo Overrides
+      #------------------
+      defdelegate create(entity, context, options), to: @default_implementation
+      defdelegate pre_create_callback(entity, context, options), to: @default_implementation
+      defdelegate post_create_callback(entity, context, options), to: @default_implementation
 
+      defdelegate _imp_get(module, entity, context, options), to: @default_implementation, as: :get
+      defdelegate post_get_callback(entity, context, options), to: @default_implementation
+
+      defdelegate update(entity, context, options), to: @default_implementation
+      defdelegate pre_update_callback(entity, context, options), to: @default_implementation
+      defdelegate post_update_callback(entity, context, options), to: @default_implementation
+
+      defdelegate delete(entity, context, options), to: @default_implementation
+      defdelegate pre_delete_callback(entity, context, options), to: @default_implementation
+      defdelegate post_delete_callback(entity, context, options), to: @default_implementation
+
+      defoverridable [
         #---------------
         # Query
         #---------------
@@ -238,6 +259,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         #-------------------
         # Versioning
         #-------------------
+        initialize_versioning_records: 3,
+        populate_versioning_records: 3,
+
         make_active: 3,
         make_active!: 3,
 
@@ -279,8 +303,25 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
         delete_revision: 3,
         delete_revision!: 3,
-      ]
 
+        #------------------
+        # Repo Behaviour
+        #------------------
+        create: 3,
+        pre_create_callback: 3,
+        post_create_callback: 3,
+
+        _imp_get: 4,
+        post_get_callback: 3,
+
+        update: 3,
+        pre_update_callback: 3,
+        post_update_callback: 3,
+
+        delete: 3,
+        pre_delete_callback: 3,
+        post_delete_callback: 3,
+      ]
     end
   end
 end

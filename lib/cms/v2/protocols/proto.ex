@@ -21,6 +21,18 @@ defprotocol Noizu.Cms.V2.Proto do
   def is_versioning_record?(ref, context, options)
   def is_versioning_record!(ref, context, options)
 
+  def versioned_identifier(ref, context, options)
+  def versioned_identifier!(ref, context, options)
+
+  def article_identifier(ref, context, options)
+  def article_identifier!(ref, context, options)
+
+  def versioned_ref(ref, context, options)
+  def versioned_ref!(ref, context, options)
+
+  def article_ref(ref, context, options)
+  def article_ref!(ref, context, options)
+
   def get_article(ref, context, options)
   def get_article!(ref, context, options)
 
@@ -108,6 +120,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
     case ref do
       {:ref, Noizu.Cms.V2.VersionEntity, _} -> true
       {:ref, Noizu.Cms.V2.Version.RevisionEntity, _} -> true
+      {:ref, _module, {:revision, {_identifier, _version, _revision}}} -> true
       _ ->
         if (entity = Noizu.ERP.entity(ref)) do
           Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)
@@ -121,6 +134,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
     case ref do
       {:ref, Noizu.Cms.V2.VersionEntity, _} -> true
       {:ref, Noizu.Cms.V2.Version.RevisionEntity, _} -> true
+      {:ref, _module, {:revision, {_identifier, _version, _revision}}} -> true
       _ ->
         if (entity = Noizu.ERP.entity!(ref)) do
           Noizu.Cms.V2.Proto.is_versioning_record!(entity, context, options)
@@ -129,6 +143,108 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
         end
     end
   end
+
+  #----------------------
+  #
+  #----------------------
+  def versioned_identifier(ref, context, options) do
+    case ref do
+      {:ref, _module, {:revision, {_identifier, _version, _revision}} = v_id} -> v_id
+      _ ->
+        if (entity = Noizu.ERP.entity(ref)) do
+          Noizu.Cms.V2.Proto.versioned_identifier(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
+  def versioned_identifier!(ref, context, options) do
+    case ref do
+      {:ref, _module, {:revision, {_identifier, _version, _revision}} = v_id} -> v_id
+      _ ->
+        if (entity = Noizu.ERP.entity!(ref)) do
+          Noizu.Cms.V2.Proto.versioned_identifier!(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
+  def article_identifier(ref, context, options) do
+    case ref do
+      {:ref, _module, {:revision, {identifier, _version, _revision}}} -> identifier
+      _ ->
+        if (entity = Noizu.ERP.entity(ref)) do
+          Noizu.Cms.V2.Proto.article_identifier(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
+  def article_identifier!(ref, context, options) do
+    case ref do
+      {:ref, _module, {:revision, {identifier, _version, _revision}}} -> identifier
+      _ ->
+        if (entity = Noizu.ERP.entity!(ref)) do
+          Noizu.Cms.V2.Proto.article_identifier!(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
+
+  def versioned_ref(ref, context, options) do
+    case ref do
+      v_ref = {:ref, _module, {:revision, {_identifier, _version, _revision}}} -> v_ref
+      _ ->
+        if (entity = Noizu.ERP.entity(ref)) do
+          Noizu.Cms.V2.Proto.versioned_ref(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+  def versioned_ref!(ref, context, options) do
+    case ref do
+      v_ref = {:ref, _module, {:revision, {_identifier, _version, _revision}}} -> v_ref
+      _ ->
+        if (entity = Noizu.ERP.entity!(ref)) do
+          Noizu.Cms.V2.Proto.versioned_ref!(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
+  def article_ref(ref, context, options) do
+    case ref do
+      v_ref = {:ref, m, {:revision, {identifier, _version, _revision}}} -> {:ref, m, identifier}
+      {:ref, _m, _id} -> ref
+      _ ->
+        if (entity = Noizu.ERP.entity(ref)) do
+          Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
+  def article_ref!(ref, context, options) do
+    case ref do
+      {:ref, m, {:revision, {identifier, _version, _revision}}} -> {:ref, m, identifier}
+      {:ref, _m, _id} -> ref
+      _ ->
+        if (entity = Noizu.ERP.entity!(ref)) do
+          Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+        else
+          throw "Invalid Entity"
+        end
+    end
+  end
+
 
   #----------------------
   #
@@ -329,9 +445,77 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def is_versioning_record?(ref, context, options), do: false
+  def is_versioning_record?(ref, context, options) do
+    case ref.identifier do
+      {:revision, {_identifier, _version, _revision}} -> true
+      _ -> false
+    end
+  end
 
-  def is_versioning_record!(ref, context, options), do: false
+  def is_versioning_record!(ref, context, options) do
+    case ref.identifier do
+      {:revision, {_identifier, _version, _revision}} -> true
+      _ -> false
+    end
+  end
+
+
+  #----------------------
+  #
+  #----------------------
+  def versioned_identifier(ref, context, options) do
+    if ref.article_info && ref.article_info.revision do
+      # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
+      {:ref, _, {{:ref, _v, {_article, version_path}}, revision_number}} = Noizu.ERP.ref(ref.article_info.revision)
+      case ref.identifier do
+        # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
+        {:revision, {identifier, _version, _revision}} -> {:revision, {identifier, version_path, revision_number}}
+        identifier -> {:revision, {identifier, version_path, revision_number}}
+      end
+    end
+  end
+
+  def versioned_identifier!(ref, context, options) do
+    versioned_identifier(ref, context, options)
+  end
+
+  #----------------------
+  #
+  #----------------------
+  def article_identifier(ref, context, options) do
+    case ref.identifier do
+      # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
+      {:revision, {identifier, _version, _revision}} -> identifier
+      identifier -> identifier
+    end
+  end
+  def article_identifier!(ref, context, options) do
+    article_identifier(ref, context, options)
+  end
+
+  def versioned_ref(ref, context, options) do
+    if ref.article_info && ref.article_info.revision do
+      # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
+      {:ref, _, {{:ref, _v, {{:ref, _a, identifier}, version_path}}, revision_number}} = Noizu.ERP.ref(ref.article_info.revision)
+      Noizu.ERP.ref(%{ref| identifier: {:revision, {identifier, version_path, revision_number}}})
+    end
+  end
+
+  def versioned_ref!(ref, context, options) do
+    versioned_ref(ref, context, options)
+  end
+
+  def article_ref(ref, context, options) do
+    case ref.identifier do
+      # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
+      {:revision, {identifier, _version, _revision}} -> Noizu.ERP.ref(%{ref| identifier: identifier})
+      identifier -> Noizu.ERP.ref(ref)
+    end
+  end
+
+  def article_ref!(ref, context, options) do
+    article_ref(ref, context, options)
+  end
 
   #----------------------
   #
@@ -481,6 +665,23 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.VersionEntity] do
   #----------------------
   #
   #----------------------
+  def versioned_identifier(_ref, _context, _options), do: throw :not_supported
+  def versioned_identifier!(_ref, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def article_identifier(_ref, _context, _options), do: throw :not_supported
+  def article_identifier!(_ref, _context, _options), do: throw :not_supported
+
+  def versioned_ref(_ref, _context, _options), do: throw :not_supported
+  def versioned_ref!(_ref, _context, _options), do: throw :not_supported
+
+  def article_ref(_ref, _context, _options), do: throw :not_supported
+  def article_ref!(_ref, _context, _options), do: throw :not_supported
+  #----------------------
+  #
+  #----------------------
   def compress_archive(ref, context, options) do
     # obtain revision, and call compress on it.
     if entity = Noizu.ERP.entity(ref.revision) do
@@ -589,6 +790,18 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Version.RevisionEntity] do
   #----------------------
   def is_versioning_record?(_ref, _context, _options), do: true
   def is_versioning_record!(_ref, _context, _options), do: true
+
+  #----------------------
+  #
+  #----------------------
+  def versioned_identifier(_ref, _context, _options), do: throw :not_supported
+  def versioned_identifier!(_ref, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def article_identifier(_ref, _context, _options), do: throw :not_supported
+  def article_identifier!(_ref, _context, _options), do: throw :not_supported
 
   #----------------------
   #

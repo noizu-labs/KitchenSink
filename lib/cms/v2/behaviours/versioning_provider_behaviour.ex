@@ -4,6 +4,9 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.VersioningProviderBehaviour do
+  @callback initialize_versioning_records(any, any, any) :: any
+  @callback populate_versioning_records(any, any, any) :: any
+
   @callback get_versions(any, any, any) :: any
   @callback get_versions!(any, any, any) :: any
 

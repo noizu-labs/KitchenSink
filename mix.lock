@@ -19,7 +19,7 @@
   "mock": {:hex, :mock, "0.3.3", "42a433794b1291a9cf1525c6d26b38e039e0d3a360732b5e467bfc77ef26c914", [:mix], [{:meck, "~> 0.8.13", [hex: :meck, repo: "hexpm", optional: false]}], "hexpm"},
   "noizu_core": {:git, "https://github.com/noizu/ElixirCore.git", "621a2f69ebfb53a8fe1717faf993a9a8e3977579", [tag: "1.0.6"]},
   "noizu_mnesia_versioning": {:git, "https://github.com/noizu/MnesiaVersioning.git", "c295e3465801974c9ec4bb6d2769a1b551832370", [tag: "0.1.9"]},
-  "noizu_scaffolding": {:git, "https://github.com/noizu/ElixirScaffolding.git", "9f9e9123977505a4d62e89f42321f5c4afa9a2ff", [tag: "1.1.40"]},
+  "noizu_scaffolding": {:git, "https://github.com/noizu/ElixirScaffolding.git", "37aaa77fe73840ced6835cf33cfe230ec885a42d", [tag: "1.1.41"]},
   "noizu_simple_pool": {:git, "https://github.com/noizu/SimplePool.git", "888c87062f8fd553957d3ff544a9c40f66d12a39", [tag: "1.3.33"]},
   "parse_trans": {:hex, :parse_trans, "3.3.0", "09765507a3c7590a784615cfd421d101aec25098d50b89d7aa1d66646bc571c1", [:rebar3], [], "hexpm"},
   "phoenix": {:hex, :phoenix, "1.3.1", "dc9fb380bd9afd002882c960aa066098d44bdb93094cf09db38173b933e462b6", [], [{:cowboy, "~> 1.0", [hex: :cowboy, repo: "hexpm", optional: true]}, {:phoenix_pubsub, "~> 1.0", [hex: :phoenix_pubsub, repo: "hexpm", optional: false]}, {:plug, "~> 1.3.3 or ~> 1.4", [hex: :plug, repo: "hexpm", optional: false]}, {:poison, "~> 2.2 or ~> 3.0", [hex: :poison, repo: "hexpm", optional: false]}], "hexpm"},
