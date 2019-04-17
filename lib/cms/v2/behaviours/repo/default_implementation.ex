@@ -545,12 +545,16 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   # create/3
   #-----------------------------
   def create(entity, context, options) do
+    try do
     # @todo conditional logic to insure only revision records persisted.
     module = entity.__struct__.repo()
     entity
     |> module.pre_create_callback(context, options)
     |> module.inner_create_callback(context, options)
     |> module.post_create_callback(context, options)
+    rescue e -> {:error, e}
+    catch e -> {:error, e}
+    end
   end
 
   #-----------------------------
@@ -603,6 +607,7 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def get(module, identifier, context, options) do
+    try do
     # @todo, this belongs in the version provider, this module shouldn't know the versioning formats.
     identifier = case identifier do
       {:revision, {i, v, r}} -> identifier
@@ -636,6 +641,10 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
       module.inner_get_callback(identifier, context, options)
       |> module.post_get_callback(context, options)
     end
+    rescue e -> {:error, e}
+    catch e -> {:error, e}
+    end
+
   end
 
   #-----------------------------
@@ -649,11 +658,15 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def update(entity, context, options) do
+    try do
     module = entity.__struct__.repo()
     entity
     |>  module.pre_update_callback(context, options)
     |>  module.inner_update_callback(context, options)
     |>  module.post_update_callback(context, options)
+    rescue e -> {:error, e}
+    catch e -> {:error, e}
+    end
   end
 
   #-----------------------------
@@ -683,20 +696,48 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #-----------------------------
   def delete(entity, context, options) do
     # @todo conditional logic to insure only revision records persisted.
-    module = entity.__struct__.repo()
-    entity
-    |>  module.pre_delete_callback(context, options)
-    |>  module.inner_delete_callback(context, options)
-    |>  module.post_delete_callback(context, options)
-    true
+    try do
+      module = entity.__struct__.repo()
+      entity
+      |>  module.pre_delete_callback(context, options)
+      |>  module.inner_delete_callback(context, options)
+      |>  module.post_delete_callback(context, options)
+      true
+    rescue e -> {:error, e}
+    catch e -> {:error, e}
+    end
   end
 
   #-----------------------------
   #
   #-----------------------------
   def pre_delete_callback(entity, context, options) do
-    # - throw if active revision (require special delete cms command)
-    # - throw if identifier not set.
+    if entity.identifier == nil, do: throw :identifier_not_set
+    # Active Revision Check
+    if options[:bookkeeping] != :disabled do
+      if cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options) do
+        # @todo this module should not have such specific knowledge of versioning formats.
+        # setup an active version check in version provider.
+        article_revision = Noizu.Cms.V2.Proto.get_revision(entity, context, options)
+                          |> Noizu.Cms.V2.Version.RevisionEntity.ref()
+
+        if article_revision do
+          if article_revision == cms_provider.get_active(entity, context, options) do
+            throw :active_version
+          end
+
+          case article_revision do
+            {:ref, _, {article_version, _revision}} ->
+              case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(article_version) do
+                %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: active_revision} ->
+                  if active_revision == article_revision, do: throw :active_revision
+                _ -> nil
+              end
+            _ -> nil
+          end
+        end
+      end
+    end
     entity
   end
 

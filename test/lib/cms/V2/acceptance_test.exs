@@ -589,40 +589,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
   @tag :cms
   @tag :cms_built_in
-  test "Article - Delete Active Revision" do
-    with_mocks([
-      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
-      {IndexTable, [:passthrough], MockIndexTable.strategy()},
-      {TagTable, [:passthrough], MockTagTable.strategy()},
-      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
-      {VersionTable, [:passthrough], MockVersionTable.strategy()},
-      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
-      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
-    ]) do
-      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
-
-    end
-  end
-
-  @tag :cms
-  @tag :cms_built_in
-  test "Article - Delete Inactive Revision" do
-    with_mocks([
-      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
-      {IndexTable, [:passthrough], MockIndexTable.strategy()},
-      {TagTable, [:passthrough], MockTagTable.strategy()},
-      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
-      {VersionTable, [:passthrough], MockVersionTable.strategy()},
-      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
-      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
-    ]) do
-      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
-
-    end
-  end
-
-  @tag :cms
-  @tag :cms_built_in
   test "Article - Delete Active Version" do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
@@ -646,8 +612,45 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {:revision, {aid, _version, _revision}} = post.identifier
       _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
-      _delete = Noizu.Cms.V2.ArticleRepo.delete!(post, @context)
-      #assert delete == false
+      delete = Noizu.Cms.V2.ArticleRepo.delete!(post, @context)
+      assert delete == {:error, :active_version}
+    end
+  end
+
+
+  @tag :cms
+  @tag :cms_built_in
+  test "Article - Delete Version Active Revision" do
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+      post_v2 = Noizu.Cms.V2.ArticleRepo.new_version!(post, @context)
+      post_v3 = Noizu.Cms.V2.ArticleRepo.new_revision!(post_v2, @context)
+
+      delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v3, @context)
+      assert delete == true
+
+      delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v2, @context)
+      assert delete == {:error, :active_revision}
     end
   end
 
@@ -723,7 +726,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
   @tag :cms
   @tag :cms_built_in
-  @tag :cms_warg
   test "Article - Expand Version Ref" do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
@@ -755,7 +757,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
   @tag :cms
   @tag :cms_built_in
-  @tag :cms_warg
   test "Article - Expand Bare Ref" do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
