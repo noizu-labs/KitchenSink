@@ -28,7 +28,7 @@ defmodule Noizu.KitchenSink.Mixfile do
   defp deps do
     [
       {:ex_doc, "~> 0.16.2", only: [:dev], optional: true}, # Documentation Provider
-      {:markdown, github: "devinus/markdown", only: [:dev], optional: true}, # Markdown processor for ex_doc
+      {:markdown, github: "devinus/markdown", optional: false}, # Markdown processor for ex_doc
       {:uuid, "~> 1.1" },
       {:exquisite, git: "https://github.com/noizu/exquisite.git", ref: "7a4a03d", override: true},
       {:amnesia, git: "https://github.com/noizu/amnesia.git", ref: "9266002", override: true}, # Mnesia Wrappeir

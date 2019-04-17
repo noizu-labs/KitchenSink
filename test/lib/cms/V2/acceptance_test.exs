@@ -190,7 +190,10 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   @tag :cms
   @tag :markdown
   test "Render Markdown record" do
-    assert true == true
+    m = %Noizu.MarkdownField{
+      markdown: "# Hello World"
+    } |> Noizu.MarkdownField.render([])
+    assert m.render == "<h1>Hello World</h1>\n"
   end
 
 
