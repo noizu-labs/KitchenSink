@@ -522,12 +522,12 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def compress_archive(ref, _context, options) do
-    {true, ref.__struct__.compress(ref, options)}
+  def compress_archive(ref, context, options) do
+    {:ref, Noizu.Cms.V2.Proto.versioned_ref(ref, context, options)}
   end
 
-  def compress_archive!(ref, _context, options) do
-    {true, ref.__struct__.compress(ref, options)}
+  def compress_archive!(ref, context, options) do
+    {:ref, Noizu.Cms.V2.Proto.versioned_ref!(ref, context, options)}
   end
 
   #----------------------

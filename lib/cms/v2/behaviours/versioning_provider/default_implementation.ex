@@ -305,19 +305,10 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
         revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision_key)
         article = article
                   |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
-        versioned_ref = Noizu.Cms.V2.Proto.versioned_ref(article, context, options)
+
+        {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
 
         revision = %Noizu.Cms.V2.Version.RevisionEntity{
-                     identifier: nil,
-                     article: nil,
-                     version: nil,
-                     created_on: nil,
-                     modified_on: nil,
-                     editor: nil,
-                     status: nil,
-                     archive_type: nil,
-                     archive: nil,
-
           identifier: revision_key,
           article: article_ref,
           version: version_ref,
@@ -325,8 +316,8 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
           modified_on: article_info.modified_on,
           editor: article_info.editor,
           status: article_info.status,
-          archive_type: :ref,
-          archive: versioned_ref,
+          archive_type: archive_type,
+          archive: archive,
         } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
 
         case revision do
@@ -382,10 +373,10 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
         else
 
           # insure ref,version correctly set before obtained qualified (Versioned) ref.
-          versioned_ref = Noizu.Cms.V2.Proto.get_article(entity, context, options)
-                        |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
-                        |> Noizu.Cms.V2.Proto.set_version(version_ref, context, options)
-                        |> Noizu.Cms.V2.Proto.versioned_ref(context, options)
+          article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
+                    |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
+                    |> Noizu.Cms.V2.Proto.set_version(version_ref, context, options)
+          {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
 
           %Noizu.Cms.V2.Version.RevisionEntity{
             identifier: revision_key,
@@ -395,8 +386,8 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
             modified_on: article_info.modified_on,
             editor: article_info.editor,
             status: article_info.status,
-            archive_type: :ref,
-            archive: versioned_ref,
+            archive_type: archive_type,
+            archive: archive,
           } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
         end
 
