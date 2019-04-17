@@ -245,7 +245,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
   @tag :cms
   @tag :cms_built_in
-  test "Article - Create" do
+  test "Article - Create Should Populate Version, Revision, Index and Tag Tables." do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
       {IndexTable, [:passthrough], MockIndexTable.strategy()},
@@ -267,13 +267,13 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
 
       # Verify Identifier Created
-      {:revision, {aid, v_path, revision}} = post.identifier
+      {:revision, {aid, _version, _revision}} = post.identifier
       assert is_integer(aid) == true
-      assert v_path == {1}
-      assert revision == 1
+      assert post.identifier == {:revision, {aid, {1}, 1}}
 
       # Verify article_info fleshed out.
-      assert post.article_info.article == {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      assert post.article_info.article == article_ref
 
       # Verify Created On/Modified On dates.
       assert post.article_info.created_on != nil
@@ -297,24 +297,23 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       #assert version_record.entity.record.body.markdown == "My Post Contents"
       assert version_record.entity.revision == post.article_info.revision
       assert version_record.entity.parent == nil
-      assert version_record.entity.article == {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      assert version_record.entity.article == article_ref
 
       # Verify Revision Record
       revision_key = elem(post.article_info.revision, 2)
       revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
       assert revision_record.entity.record.body.markdown == "My Post Contents"
       assert revision_record.entity.version == post.article_info.version
-      assert revision_record.entity.article == {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      assert revision_record.entity.article == article_ref
 
       # Verify Tags
-      _tags = [tag, tag2] = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, {:ref, Noizu.Cms.V2.ArticleEntity, aid}, :error)
-      assert tag.tag != tag2.tag
-      assert (tag.tag == "apple" || tag.tag == "test")
-      assert (tag2.tag == "apple" || tag2.tag == "test")
-
+      tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, article_ref, [])
+            |> Enum.map(&(&1.tag))
+      assert Enum.member?(tags, "apple") == true
+      assert Enum.member?(tags, "test") == true
 
       # Verify Index Record
-      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, {:ref, Noizu.Cms.V2.ArticleEntity, aid}, :error)
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
       assert index_record.article == {:ref, Noizu.Cms.V2.ArticleEntity, aid}
       assert index_record.active_version == post.article_info.version
       assert index_record.created_on == post.article_info.created_on
@@ -322,13 +321,12 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert index_record.module == Noizu.Cms.V2.Article.PostEntity
       assert index_record.type == :post
       assert index_record.status == :pending
-
     end
   end
 
   @tag :cms
   @tag :cms_built_in
-  test "Article - Create Revision" do
+  test "Article - Updating an active record should cause the Index and Tag table to update as well." do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
       {IndexTable, [:passthrough], MockIndexTable.strategy()},
@@ -339,13 +337,46 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
+      assert index_record != :error
+
+      _revised_post = %Noizu.Cms.V2.Article.PostEntity{post|
+        title: %Noizu.MarkdownField{markdown: "My Updated Post"},
+        body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
+      } |> Noizu.Cms.V2.ArticleRepo.update!(@context)
+
+      revised_index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
+
+      # Verify Index Updated
+      assert revised_index_record.editor == :test
+
+      # Verify Tag Update.
+      tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, article_ref, [])
+             |> Enum.map(&(&1.tag))
+
+      assert Enum.member?(tags, "hello") == true
+      assert Enum.member?(tags, "steve") == true
+      assert Enum.member?(tags, "apple") == false
+      assert Enum.member?(tags, "test") == false
+
     end
   end
 
-
   @tag :cms
   @tag :cms_built_in
-  test "Article - Update Active Revision" do
+  test "Article - User should be able to create new revisions." do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
       {IndexTable, [:passthrough], MockIndexTable.strategy()},
@@ -356,13 +387,55 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+
+      post_v2 = %Noizu.Cms.V2.Article.PostEntity{post|
+                       title: %Noizu.MarkdownField{markdown: "My Updated Post"},
+                       body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
+                       attributes: %{},
+                       article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
+                     } |> Noizu.Cms.V2.ArticleRepo.new_revision!(@context)
+
+      # Verify New Revision Created.
+      revision_key = elem(post_v2.article_info.revision, 2)
+      revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
+      revision = revision_record.entity
+      assert revision.editor == :test
+      assert revision.status == :approved
+      assert revision.identifier ==  {{:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1}}}, 2}
+
+      # Verify Version Correct in post_v2
+      assert post_v2.article_info.version == post.article_info.version
+
+
+      # Verify Index Not Updated
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
+      assert index_record.editor != :test
+
+      # Verify Tag Not Updated.
+      tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, article_ref, [])
+             |> Enum.map(&(&1.tag))
+      assert Enum.member?(tags, "hello") == false
+      assert Enum.member?(tags, "steve") == false
+      assert Enum.member?(tags, "apple") == true
+      assert Enum.member?(tags, "test") == true
     end
   end
 
 
   @tag :cms
   @tag :cms_built_in
-  test "Article - Update Inactive Revision" do
+  test "Article - User should be able to create new versions." do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
       {IndexTable, [:passthrough], MockIndexTable.strategy()},
@@ -373,9 +446,130 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+
+      post_v2 = %Noizu.Cms.V2.Article.PostEntity{post|
+                  title: %Noizu.MarkdownField{markdown: "My Updated Post"},
+                  body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
+                  attributes: %{},
+                  article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
+                } |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+
+      # Verify New Revision Created.
+      revision_key = elem(post_v2.article_info.revision, 2)
+      revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
+      revision = revision_record.entity
+      assert revision.editor == :test
+      assert revision.status == :approved
+      assert revision.identifier ==  {{:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 1}}}, 1}
+
+      # Verify parent and version updated.
+      # Verify Version Correct in post_v2
+      assert post_v2.article_info.parent == post.article_info.version
+      assert post_v2.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 1}}}
+
+      # Verify Index Not Updated
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
+      assert index_record.editor != :test
+
+      # Verify Tag Not Updated.
+      tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, article_ref, [])
+             |> Enum.map(&(&1.tag))
+      assert Enum.member?(tags, "hello") == false
+      assert Enum.member?(tags, "steve") == false
+      assert Enum.member?(tags, "apple") == true
+      assert Enum.member?(tags, "test") == true
     end
   end
 
+
+  @tag :cms
+  @tag :cms_built_in
+  test "Article - User should be able to create multiple versions based on a single parent." do
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+
+      post_v2 = %Noizu.Cms.V2.Article.PostEntity{post|
+                  title: %Noizu.MarkdownField{markdown: "My Updated Post"},
+                  body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
+                  attributes: %{},
+                  article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
+                } |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+
+      post_v3 = %Noizu.Cms.V2.Article.PostEntity{post|
+                  title: %Noizu.MarkdownField{markdown: "My Alternative Updated Post"},
+                  body: %Noizu.MarkdownField{markdown: "My Alternative Updated Contents"},
+                  attributes: %{},
+                  article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test2}
+                } |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+
+      # Verify New Revisions
+      revision_key = elem(post_v2.article_info.revision, 2)
+      revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
+      revision = revision_record.entity
+      assert revision.editor == :test
+      assert revision.status == :approved
+      assert revision.identifier ==  {{:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 1}}}, 1}
+
+      revision_key = elem(post_v3.article_info.revision, 2)
+      revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
+      revision = revision_record.entity
+      assert revision.editor == :test2
+      assert revision.status == :approved
+      assert revision.identifier ==  {{:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 2}}}, 1}
+
+
+
+      # Verify parent and version updated.
+      # Verify Version Correct in post_v2
+      assert post_v2.article_info.parent == post.article_info.version
+      assert post_v2.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 1}}}
+
+      assert post_v3.article_info.parent == post.article_info.version
+      assert post_v3.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 2}}}
+
+      # Verify Index Not Updated
+      index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
+      assert index_record.editor != :test
+
+      # Verify Tag Not Updated.
+      tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, article_ref, [])
+             |> Enum.map(&(&1.tag))
+      assert Enum.member?(tags, "hello") == false
+      assert Enum.member?(tags, "steve") == false
+      assert Enum.member?(tags, "apple") == true
+      assert Enum.member?(tags, "test") == true
+    end
+  end
 
   @tag :cms
   @tag :cms_built_in
@@ -393,7 +587,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     end
   end
 
-
   @tag :cms
   @tag :cms_built_in
   test "Article - Delete Inactive Revision" do
@@ -410,7 +603,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     end
   end
 
-
   @tag :cms
   @tag :cms_built_in
   test "Article - Delete Active Version" do
@@ -423,10 +615,8 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
-
     end
   end
-
 
   @tag :cms
   @tag :cms_built_in
@@ -466,11 +656,9 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     assert true == true
   end
 
-
   @tag :cms
   @tag :cms_built_in
   test "File Article CRUD" do
     assert true == true
   end
-
 end

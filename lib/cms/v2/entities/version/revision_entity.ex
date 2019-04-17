@@ -37,7 +37,7 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
   use Noizu.Cms.V2.Database
   use Noizu.Scaffolding.V2.EntityBehaviour,
       sref_module: "cms-revision-v2",
-      mnesia_table: Noizu.Cms.V2.Database.VersionTable
+      mnesia_table: Noizu.Cms.V2.Database.Version.RevisionTable
 
 
   #------------

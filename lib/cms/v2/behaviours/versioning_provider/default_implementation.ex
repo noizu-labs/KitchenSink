@@ -19,6 +19,49 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   #===========================================================
   # Implementation of Behaviour
   #===========================================================
+  def new_version(entity, context, options \\ %{}) do
+
+    case create_version(entity, context, options) do
+      version = %Noizu.Cms.V2.VersionEntity{} ->
+        version_ref = Noizu.Cms.V2.VersionEntity.ref(version)
+        repo = entity.__struct__.repo()
+        options_a = put_in(options, [:nested_versioning], true)
+        entity
+        |> Noizu.Cms.V2.Proto.set_revision(version.revision, context, options_a) # @todo this step will change.
+        |> Noizu.Cms.V2.Proto.set_version(version_ref, context, options_a)
+        |> Noizu.Cms.V2.Proto.set_parent(version.parent, context, options_a)
+        |> repo.update(context, options_a)
+      {:error, e} -> throw {:error, {:creating_revision, e}}
+      e -> throw {:error, {:creating_revision, {:unknown, e}}}
+    end
+  end
+
+  def new_version!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> new_version(entity, context, options) end)
+  end
+
+  def new_revision(entity, context, options \\ %{}) do
+    # @todo note we will modify versions to no longer track revisions,
+    # @todo we will instead have a look up table active_revisions to determine which revision is the default for a version record.
+    case create_revision(entity, context, options) do
+      revision = %Noizu.Cms.V2.Version.RevisionEntity{} ->
+        revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
+        repo = entity.__struct__.repo()
+        options_a = put_in(options, [:nested_versioning], true)
+        entity
+        |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options_a)
+        |> repo.update(context, options_a)
+      {:error, e} -> throw {:error, {:creating_revision, e}}
+      e -> throw {:error, {:creating_revision, {:unknown, e}}}
+    end
+  end
+
+  def new_revision!(entity, context, options \\ %{}) do
+    Amnesia.Fragment.async(fn -> new_revision(entity, context, options) end)
+  end
+
+
+
 
   def initialize_versioning_records(entity, context, options \\ %{}) do
     # Create Version Record
@@ -42,14 +85,22 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
           cms_provider.update_index(entity, context, options)
         end
         entity
-      _ -> throw "Create Version Error"
+      e -> throw "initialize_versioning_records error: #{inspect e}"
     end
   end
 
   def populate_versioning_records(entity, context, options \\ %{}) do
-    # Create Version Record
-    # Create Revision Record (@todo consider removing revision table, and depend on master table.)
-    entity
+    if options[:nested_versioning] do
+      entity
+    else
+      # Call update_version which will also call update revision.
+      # update_revision will additionally check if updating the active revision
+      # and hook into the calls for updating the index and tag entries.
+      case update_version(entity, context, options) do
+        %Noizu.Cms.V2.VersionEntity{} -> entity
+        e -> throw "populate_versioning_records error: #{inspect e}"
+      end
+    end
   end
 
   #------------------------
@@ -130,6 +181,7 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
     # 1. get current version.
     current_version = Noizu.Cms.V2.Proto.get_version(entity, context, options)
                       |> Noizu.Cms.V2.VersionEntity.entity()
+
     cond do
       current_version == nil -> {:error, :invalid_version}
       true ->
@@ -263,27 +315,23 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
   #
   #------------------------
   def update_revision(entity, context, options \\ %{}) do
-    article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
-    article_ref = Noizu.ERP.ref(article)
-    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
-    current_time = options[:current_time] || DateTime.utc_now()
-    article_info = %Noizu.Cms.V2.Article.Info{modified_on: current_time}
-    article = Noizu.Cms.V2.Proto.set_article_info(article, article_info, context, options)
+    article_ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
 
-    version = Noizu.Cms.V2.Proto.get_version(article, context, options)
+    version = Noizu.Cms.V2.Proto.get_version(entity, context, options)
     version_ref = Noizu.Cms.V2.VersionEntity.ref(version)
     version_key = Noizu.Cms.V2.VersionEntity.id(version)
 
-    revision = Noizu.Cms.V2.Proto.get_revision(article, context, options)
-    revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(version)
-    revision_key = Noizu.Cms.V2.Version.RevisionEntity.id(version)
+    revision = Noizu.Cms.V2.Proto.get_revision(entity, context, options)
+    revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
+    revision_key = Noizu.Cms.V2.Version.RevisionEntity.id(revision)
 
     cond do
-      article == nil -> {:error, :invalid_record}
+      article_ref == nil -> {:error, :invalid_record}
       version == nil -> {:error, :no_version_provided}
       revision == nil -> {:error, :no_revision_provided}
       true ->
-        {full_copy, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
+        {full_copy, archive} = Noizu.Cms.V2.Proto.compress_archive(entity, context, options)
 
         # @todo pri-1 if active then we must update tags/index.
 
@@ -306,7 +354,7 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
             article: article_ref,
             version: version_ref,
             article_info: article_info,
-            created_on: current_time, # imprecise (may become out of sync with article)
+            created_on: article_info.created_on,
             modified_on: article_info.modified_on,
             editor: article_info.editor,
             status: article_info.status,
@@ -317,13 +365,12 @@ defmodule Noizu.Cms.V2.VersioningProvider.DefaultImplementation do
 
         # Update Active if modifying active revision
         if options[:bookkeeping] != :disabled do
-          if cms_provider = Noizu.Cms.V2.Proto.cms_provider(article, context, options) do
-            active_revision = cms_provider.get_active(article, context, options)
-                              |> Noizu.ERP.ref()
-            if (active_revision && active_revision == revision_ref), do: cms_provider.update_active(article, context, options)
+          if cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options) do
+            active_revision = cms_provider.get_active(entity, context, options)
+            active_revision = active_revision && Noizu.ERP.ref(active_revision)
+            if (active_revision && active_revision == revision_ref), do: cms_provider.update_active(entity, context, options)
           end
         end
-
         # Return updated revision
         revision
     end

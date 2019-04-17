@@ -477,7 +477,7 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def get_active(entity, context, options \\ %{}) do
-    ref = Noizu.ERP.ref(entity)
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     case Noizu.Cms.V2.Database.IndexTable.read(ref) do
       index = %Noizu.Cms.V2.Database.IndexTable{} ->
         index.active_revision
@@ -485,7 +485,7 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
     end
   end
   def get_active!(entity, context, options \\ %{}) do
-    ref = Noizu.ERP.ref(entity)
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
     case Noizu.Cms.V2.Database.IndexTable.read!(ref) do
       index = %Noizu.Cms.V2.Database.IndexTable{} ->
         index.active_revision
@@ -522,11 +522,12 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #-----------------------------
   def update_article_info(entity, context, options) do
     current_time = options[:current_time] || DateTime.utc_now()
+    article_ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
     editor = options[:editor] || article_info.editor || context.caller
     status = options[:status] || article_info.status || :pending
     article_info = article_info
-                   |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
+                   |> update_in([Access.key(:article)], &(&1 || article_ref))
                    |> update_in([Access.key(:module)], &(&1 || entity.__struct__))
                    |> put_in([Access.key(:modified_on)], current_time)
                    |> put_in([Access.key(:editor)], editor)
@@ -617,7 +618,6 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def update(entity, context, options) do
-    # @todo conditional logic to insure only revision records persisted.
     module = entity.__struct__.repo()
     entity
     |>  module.pre_update_callback(context, options)
@@ -629,18 +629,21 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def pre_update_callback(entity, context, options) do
-    # - Insure versioning record, or throw.
-    # - If active force new revision creation unless option override.
-    # - If not active update existing version/revision, unless option override.
-    # - update article info.
+    if (entity.identifier == nil), do: throw "Identifier not set"
+    if (!Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)), do: throw "#{entity.__struct__} entities may only be persisted using cms revision ids"
+
+    options_a = put_in(options, [:nested_update], true)
+    cms_provider = Noizu.Cms.V2.Proto.cms_provider(entity, context, options)
+
     entity
+    |> cms_provider.update_article_info(context, options)
+    |> cms_provider.cms_versioning_provider().populate_versioning_records(context, options_a)
   end
 
   #-----------------------------
   #
   #-----------------------------
   def post_update_callback(entity, context, options) do
-    # 1. active revision and force update index, tags.
     entity
   end
 

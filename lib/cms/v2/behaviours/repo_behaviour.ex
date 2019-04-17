@@ -43,9 +43,7 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
   @callback delete_index(any, any, any) :: any
   @callback delete_index!(any, any, any) :: any
 
-
   # Versioning
-
   @callback initialize_versioning_records(any, any, any) :: any
   @callback populate_versioning_records(any, any, any) :: any
 
@@ -72,27 +70,11 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
   @callback get_versions(any, any, any) :: any
   @callback get_versions!(any, any, any) :: any
 
-  @callback create_version(any, any, any) :: any
-  @callback create_version!(any, any, any) :: any
+  @callback new_version(any, any, any) :: any
+  @callback new_version!(any, any, any) :: any
 
-  @callback update_version(any, any, any) :: any
-  @callback update_version!(any, any, any) :: any
-
-  @callback delete_version(any, any, any) :: any
-  @callback delete_version!(any, any, any) :: any
-
-  @callback get_revisions(any, any, any) :: any
-  @callback get_revisions!(any, any, any) :: any
-
-  @callback create_revision(any, any, any) :: any
-  @callback create_revision!(any, any, any) :: any
-
-  @callback update_revision(any, any, any) :: any
-  @callback update_revision!(any, any, any) :: any
-
-  @callback delete_revision(any, any, any) :: any
-  @callback delete_revision!(any, any, any) :: any
-
+  @callback new_revision(any, any, any) :: any
+  @callback new_revision!(any, any, any) :: any
 
   defmacro __using__(options) do
     implementation_provider = Keyword.get(options, :implementation_provider,  Noizu.Cms.V2.Repo.DefaultImplementation)
@@ -172,31 +154,17 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       defdelegate update_article_info(entity, context, options \\ %{}), to: @default_implementation
       defdelegate update_article_info!(entity, context, options \\ %{}), to: @default_implementation
 
-
-
       defdelegate get_versions(entity, context, options \\ %{}), to: @versioning_provider
       defdelegate get_versions!(entity, context, options \\ %{}), to: @versioning_provider
 
       defdelegate get_revisions(entity, context, options \\ %{}), to: @versioning_provider
       defdelegate get_revisions!(entity, context, options \\ %{}), to: @versioning_provider
 
-      defdelegate create_version(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate create_version!(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate new_version(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate new_version!(entity, context, options \\ %{}), to: @versioning_provider
 
-      defdelegate update_version(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate update_version!(entity, context, options \\ %{}), to: @versioning_provider
-
-      defdelegate delete_version(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate delete_version!(entity, context, options \\ %{}), to: @versioning_provider
-
-      defdelegate create_revision(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate create_revision!(entity, context, options \\ %{}), to: @versioning_provider
-
-      defdelegate update_revision(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate update_revision!(entity, context, options \\ %{}), to: @versioning_provider
-
-      defdelegate delete_revision(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate delete_revision!(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate new_revision(entity, context, options \\ %{}), to: @versioning_provider
+      defdelegate new_revision!(entity, context, options \\ %{}), to: @versioning_provider
 
       #------------------
       # Repo Overrides
@@ -283,26 +251,11 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         get_versions: 3,
         get_versions!: 3,
 
-        create_version: 3,
-        create_version!: 3,
+        new_version: 3,
+        new_version!: 3,
 
-        update_version: 3,
-        update_version!: 3,
-
-        delete_version: 3,
-        delete_version!: 3,
-
-        get_revisions: 3,
-        get_revisions!: 3,
-
-        create_revision: 3,
-        create_revision!: 3,
-
-        update_revision: 3,
-        update_revision!: 3,
-
-        delete_revision: 3,
-        delete_revision!: 3,
+        new_revision: 3,
+        new_revision!: 3,
 
         #------------------
         # Repo Behaviour
