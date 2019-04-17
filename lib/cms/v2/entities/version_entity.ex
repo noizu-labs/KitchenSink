@@ -32,7 +32,11 @@ defmodule Noizu.Cms.V2.VersionEntity do
   use Noizu.Cms.V2.Database
   use Noizu.Scaffolding.V2.EntityBehaviour,
       sref_module: "cms-version-v2",
-      mnesia_table: Noizu.Cms.V2.Database.VersionTable
+      mnesia_table: Noizu.Cms.V2.Database.VersionTable,
+      as_record_options: %{
+        additional_fields: [:editor, :status,  :created_on, :modified_on]
+      }
+
 
   #------------
   #

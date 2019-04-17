@@ -320,8 +320,8 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
       assert index_record.article == {:ref, Noizu.Cms.V2.ArticleEntity, aid}
       assert index_record.active_version == post.article_info.version
-      assert index_record.created_on == post.article_info.created_on
-      assert index_record.modified_on == post.article_info.modified_on
+      assert index_record.created_on == DateTime.to_unix(post.article_info.created_on)
+      assert index_record.modified_on == DateTime.to_unix(post.article_info.modified_on)
       assert index_record.module == Noizu.Cms.V2.Article.PostEntity
       assert index_record.type == :post
       assert index_record.status == :pending

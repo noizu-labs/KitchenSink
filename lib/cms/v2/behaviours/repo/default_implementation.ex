@@ -331,7 +331,7 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
               module: article_info.module,
               type: article_info.type,
               editor: article_info.editor,
-              modified_on: article_info.modified_on,
+              modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
               active_version: article_info.version,
               active_revision: article_info.revision,
             } |> Noizu.Cms.V2.Database.IndexTable.write
@@ -342,8 +342,8 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
               module: article_info.module,
               type: article_info.type,
               editor: article_info.editor,
-              created_on: article_info.created_on,
-              modified_on: article_info.modified_on,
+              created_on: article_info.created_on && DateTime.to_unix(article_info.created_on),
+              modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
               active_version: article_info.version,
               active_revision: article_info.revision,
             } |> Noizu.Cms.V2.Database.IndexTable.write
