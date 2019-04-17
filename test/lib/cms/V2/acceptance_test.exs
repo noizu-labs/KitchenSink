@@ -178,13 +178,19 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   @tag :cms
   @tag :markdown
   test "Compress Markdown Record" do
-    assert true == true
+    m = %Noizu.MarkdownField{
+          markdown: "# Hello World"
+        } |> Noizu.MarkdownField.render([])
+          |> Noizu.MarkdownField.compress()
+
+    assert m = {:markdown, "# Hello World"}
   end
 
   @tag :cms
   @tag :markdown
   test "Expand Markdown Record" do
-    assert true == true
+    m = Noizu.MarkdownField.expand({:markdown, "# Hello World"})
+    assert m.markdown == "# Hello World"
   end
 
   @tag :cms
