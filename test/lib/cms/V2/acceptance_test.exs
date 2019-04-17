@@ -626,6 +626,20 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+      delete = Noizu.Cms.V2.ArticleRepo.delete!(post, @context)
+      #assert delete == false
     end
   end
 
@@ -643,6 +657,27 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, _version, _revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+
+      post_v2 = %Noizu.Cms.V2.Article.PostEntity{post|
+                  title: %Noizu.MarkdownField{markdown: "My Updated Post"},
+                  body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
+                  attributes: %{},
+                  article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
+                } |> Noizu.Cms.V2.ArticleRepo.new_revision!(@context)
+
+      delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v2, @context)
+      assert delete == true
     end
   end
 
@@ -661,6 +696,24 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
     end
+  end
+
+  @tag :cms
+  test "Extended ERP Revision Support - sref to ref" do
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2.1-432")
+    assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, 432}}}
+
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234")
+    assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, 1234}
+  end
+
+  @tag :cms
+  test "Extended ERP Revision Support - ref to sref" do
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, 432}}})
+    assert sref == "ref.cms-entry.1234@1.2.1-432"
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, 1234})
+    assert sref == "ref.cms-entry.1234"
   end
 
   @tag :cms
