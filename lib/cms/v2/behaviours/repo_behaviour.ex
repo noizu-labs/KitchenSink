@@ -147,6 +147,21 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       defdelegate remove_active(entity, context, options \\ %{}), to: @default_implementation
       defdelegate remove_active!(entity, context, options \\ %{}), to: @default_implementation
 
+      #defdelegate make_version_default(entity, context, options \\ %{}), to: @default_implementation
+      #defdelegate make_version_default!(entity, context, options \\ %{}), to: @default_implementation
+
+      #defdelegate get_version_default(entity, context, options \\ %{}), to: @default_implementation
+      #defdelegate get_version_default!(entity, context, options \\ %{}), to: @default_implementation
+
+      #defdelegate approve_revision(entity, context, options \\ %{}), to: @default_implementation
+      #defdelegate approve_revision!(entity, context, options \\ %{}), to: @default_implementation
+
+      #defdelegate reject_revision(entity, context, options \\ %{}), to: @default_implementation
+      #defdelegate reject_revision!(entity, context, options \\ %{}), to: @default_implementation
+
+      # @todo json marshalling logic (mix of protocol and scaffolding methods).
+      # @todo setup permission system
+      # @todo setup plug / controller routes
 
       defdelegate init_article_info(entity, context, options \\ %{}), to: @default_implementation
       defdelegate init_article_info!(entity, context, options \\ %{}), to: @default_implementation
