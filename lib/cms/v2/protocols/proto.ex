@@ -121,6 +121,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
       {:ref, Noizu.Cms.V2.VersionEntity, _} -> true
       {:ref, Noizu.Cms.V2.Version.RevisionEntity, _} -> true
       {:ref, _module, {:revision, {_identifier, _version, _revision}}} -> true
+      {:ref, _module, {:version, {_identifier, _version}}} -> true
       _ ->
         if (entity = Noizu.ERP.entity(ref)) do
           Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)
@@ -135,6 +136,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
       {:ref, Noizu.Cms.V2.VersionEntity, _} -> true
       {:ref, Noizu.Cms.V2.Version.RevisionEntity, _} -> true
       {:ref, _module, {:revision, {_identifier, _version, _revision}}} -> true
+      {:ref, _module, {:version, {_identifier, _version}}} -> true
       _ ->
         if (entity = Noizu.ERP.entity!(ref)) do
           Noizu.Cms.V2.Proto.is_versioning_record!(entity, context, options)

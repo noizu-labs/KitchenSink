@@ -636,9 +636,9 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       }
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
       {:revision, {aid, _version, _revision}} = post.identifier
-      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
-      delete = Noizu.Cms.V2.ArticleRepo.delete!(post, @context)
+      _delete = Noizu.Cms.V2.ArticleRepo.delete!(post, @context)
       #assert delete == false
     end
   end
@@ -666,7 +666,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       }
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
       {:revision, {aid, _version, _revision}} = post.identifier
-      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+      _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
 
       post_v2 = %Noizu.Cms.V2.Article.PostEntity{post|
@@ -699,22 +699,143 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
-  test "Extended ERP Revision Support - sref to ref" do
+  test "Extended ERP Revision Support - sref to ref happy path" do
     ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2.1-432")
     assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, 432}}}
+
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2.1-Tiger")
+    assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, "Tiger"}}}
+
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2.Omega")
+    assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1, 2, "Omega"}}}}
 
     ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234")
     assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, 1234}
   end
 
   @tag :cms
-  test "Extended ERP Revision Support - ref to sref" do
+  test "Extended ERP Revision Support - negative cases" do
+    # improperly formatted
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2-.1-432")
+    assert ref == nil
+
+    # invalid ref
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ef.cms-entry.1234@1.2.1")
+    assert ref == nil
+
+    # root path
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1-2")
+    assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, 2}}}
+
+    # blank revision
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1-")
+    assert ref == nil
+
+    # blank path
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@-5")
+    assert ref == nil
+
+    # blank identifier
+    ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.@1.2.3-5")
+    assert ref == nil
+  end
+
+  @tag :cms
+  test "Extended ERP Revision Support - ref to sref happy path" do
     sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, 432}}})
     assert sref == "ref.cms-entry.1234@1.2.1-432"
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, "apple"}}})
+    assert sref == "ref.cms-entry.1234@1.2.1-apple"
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1, 2, 1}}}})
+    assert sref == "ref.cms-entry.1234@1.2.1"
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1, 2, "Tiger"}}}})
+    assert sref == "ref.cms-entry.1234@1.2.Tiger"
 
     sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, 1234})
     assert sref == "ref.cms-entry.1234"
   end
+
+  @tag :cms
+  test "Extended ERP Revision Support - ref to sref negative cases" do
+    # Invalid identifier
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:unsupported, {1234, {1, 2, 1}, 432}}})
+    assert sref == nil
+
+    # Blank identifier
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {nil, {1, 2, 1}, 432}}})
+    assert sref == nil
+
+    # Nil path entry
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, nil, 1}, 432}}})
+    assert sref == nil
+
+    # Nil path
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, nil, 432}}})
+    assert sref == nil
+
+    # Empty path
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {}, 432}}})
+    assert sref == nil
+
+    # Invalid Path (contains '-')
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1,2,-5}}}})
+    assert sref == nil
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1,2,"-5"}}}})
+    assert sref == nil
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1,2,:"-5"}}}})
+    assert sref == nil
+
+    # Version - Blank identifier
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {nil, {1, 2, 1}}}})
+    assert sref == nil
+
+    # Version - Nil path entry
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1, nil, 1}}}})
+    assert sref == nil
+
+    # Version - Nil path
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, nil}}})
+    assert sref == nil
+
+    #  Version - Empty path
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {}}}})
+    assert sref == nil
+
+    #  Version - Invalid Path (contains '-')
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1,2,-5}}}})
+    assert sref == nil
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1,2,"-5"}}}})
+    assert sref == nil
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {1234, {1,2,:"-5"}}}})
+    assert sref == nil
+
+
+    # Nil Revision
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, nil}}})
+    assert sref == nil
+
+    # Invalid Revision
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, {1}}}})
+    assert sref == nil
+
+    # Invalid Revision
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, [1]}}})
+    assert sref == nil
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, "1234-1234"}}})
+    assert sref == nil
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, -1234}}})
+    assert sref == nil
+
+    sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1}, :"1234@1234"}}})
+    assert sref == nil
+
+  end
+
 
   @tag :cms
   @tag :cms_built_in

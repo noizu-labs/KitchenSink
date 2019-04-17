@@ -27,6 +27,10 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
       defdelegate article_string_to_id(identifier), to: @default_implementation
       defdelegate article_id_to_string(identifier), to: @default_implementation
 
+      # @todo we need to modify entity/entity! to do a index lookup if only the raw id is exposed.
+      # @todo we should add support here and elsewhere for {:version, {id, version}} references that like the above will perform active revision lookup to get the underlying entity.
+
+
       #-------------------------
       # Overridable
       #-------------------------
