@@ -8,13 +8,12 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
                identifier: tuple,
                article: Noizu.KitchenSink.Types.entity_reference,
                version: Noizu.KitchenSink.Types.entity_reference,
-               article_info: any,
                created_on: DateTime.t,
                modified_on: DateTime.t,
                editor: Noizu.KitchenSink.Types.entity_reference,
                status: any,
-               full_copy: boolean,
-               record: any,
+               archive_type: atom,
+               archive: any,
                meta: Map.t,
                vsn: float
              }
@@ -23,13 +22,12 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
     identifier: nil,
     article: nil,
     version: nil,
-    article_info: nil,
     created_on: nil,
     modified_on: nil,
     editor: nil,
     status: nil,
-    full_copy: nil,
-    record: nil,
+    archive_type: nil,
+    archive: nil,
     meta: %{},
     vsn: @vsn
   ]

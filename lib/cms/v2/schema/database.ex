@@ -65,12 +65,13 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @VersionTable
   #-----------------------------------------------------------------------------
-  deftable VersionTable, [:identifier, :created_on, :modified_on, :editor, :entity], type: :set, index: [:created_on, :modified_on, :editor] do
+  deftable VersionTable, [:identifier, :editor, :status,  :created_on, :modified_on, :entity], type: :set, index: [:editor, :status, :created_on, :modified_on] do
     @type t :: %VersionTable{
                  identifier: any, # {article ref, path tuple}
+                 editor: any,
+                 status: any,
                  created_on: integer,
                  modified_on: integer,
-                 editor: tuple,
                  entity: any, # VersionEntity
                }
   end # end deftable
@@ -78,11 +79,24 @@ defdatabase Noizu.Cms.V2.Database do
   #-----------------------------------------------------------------------------
   # @RevisionTable
   #-----------------------------------------------------------------------------
-  deftable Version.RevisionTable, [:identifier, :created_on, :entity], type: :set, index: [:created_on] do
+  deftable Version.RevisionTable, [:identifier, :editor, :status, :created_on, :modified_on, :entity], type: :set, index: [:editor, :status, :created_on, :modified_on] do
     @type t :: %Version.RevisionTable{
                  identifier: any, # { {article, version}, revision}
+                 editor: any,
+                 status: any,
                  created_on: any,
+                 modified_on: any,
                  entity: any,
+               }
+  end # end deftable
+
+  #-----------------------------------------------------------------------------
+  # @RevisionTable
+  #-----------------------------------------------------------------------------
+  deftable Version.ActiveRevisionTable, [:version, :revision], type: :set, index: [] do
+    @type t :: %Version.ActiveRevisionTable{
+                 version: any,
+                 revision: any,
                }
   end # end deftable
 

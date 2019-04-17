@@ -741,8 +741,8 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.VersionEntity] do
   #----------------------
   #
   #----------------------
-  def get_article_info(ref, _context, _options), do: ref.article_info
-  def get_article_info!(ref, _context, _options), do: ref.article_info
+  def get_article_info(_ref, _context, _options), do: throw :not_supported
+  def get_article_info!(_ref, _context, _options), do: throw :not_supported
 
   #----------------------
   #
@@ -859,8 +859,8 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Version.RevisionEntity] do
   #----------------------
   #
   #----------------------
-  def get_article_info(ref, _context, _options), do: ref.article_info
-  def get_article_info!(ref, _context, _options), do: ref.article_info
+  def get_article_info(_ref, _context, _options), do: throw :not_supported
+  def get_article_info!(_ref, _context, _options), do: throw :not_supported
 
   #----------------------
   #

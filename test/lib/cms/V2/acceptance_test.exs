@@ -27,6 +27,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   alias Noizu.Cms.V2.Database.VersionSequencerTable
   alias Noizu.Cms.V2.Database.VersionTable
   alias Noizu.Cms.V2.Database.Version.RevisionTable
+  alias Noizu.Cms.V2.Database.Version.ActiveRevisionTable
 
   alias Noizu.Support.Cms.V2.Database.MockArticleTable
   alias Noizu.Support.Cms.V2.Database.MockIndexTable
@@ -34,7 +35,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   alias Noizu.Support.Cms.V2.Database.MockVersionSequencerTable
   alias Noizu.Support.Cms.V2.Database.MockVersionTable
   alias Noizu.Support.Cms.V2.Database.Version.MockRevisionTable
-
+  alias Noizu.Support.Cms.V2.Database.MockVersionActiveRevisionTable
   #----------------
   # Macros
   #----------------
@@ -253,6 +254,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
 
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
@@ -294,17 +296,19 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       # Verify Version Record
       version_key = elem(post.article_info.version, 2)
       version_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(VersionTable, version_key, :error)
-      #assert version_record.entity.record.body.markdown == "My Post Contents"
-      assert version_record.entity.revision == post.article_info.revision
       assert version_record.entity.parent == nil
       assert version_record.entity.article == article_ref
 
       # Verify Revision Record
       revision_key = elem(post.article_info.revision, 2)
       revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(RevisionTable, revision_key, :error)
-      assert revision_record.entity.record.body.markdown == "My Post Contents"
-      assert revision_record.entity.version == post.article_info.version
+      assert revision_record.entity.archive_type == :ref
+      assert revision_record.entity.archive == {:ref, Noizu.Cms.V2.ArticleEntity, post.identifier}
       assert revision_record.entity.article == article_ref
+
+      # Verify Active Revision Record written
+      revision_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(ActiveRevisionTable, post.article_info.version, :error)
+      assert revision_record.revision == post.article_info.revision
 
       # Verify Tags
       tags = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(TagTable, article_ref, [])
@@ -334,6 +338,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -384,6 +389,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -443,6 +449,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -503,6 +510,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -581,6 +589,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -597,6 +606,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -613,6 +623,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
     end
@@ -628,6 +639,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
@@ -644,6 +656,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
       {VersionTable, [:passthrough], MockVersionTable.strategy()},
       {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
 
