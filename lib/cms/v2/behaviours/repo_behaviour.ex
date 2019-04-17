@@ -169,20 +169,22 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       #------------------
       # Repo Overrides
       #------------------
-      defdelegate create(entity, context, options), to: @default_implementation
-      defdelegate pre_create_callback(entity, context, options), to: @default_implementation
-      defdelegate post_create_callback(entity, context, options), to: @default_implementation
+      defdelegate create(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate pre_create_callback(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate post_create_callback(entity, context, options \\ %{}), to: @default_implementation
 
-      defdelegate _imp_get(module, entity, context, options), to: @default_implementation, as: :get
-      defdelegate post_get_callback(entity, context, options), to: @default_implementation
+      def get(entity, context, options \\ %{}), do: get_strategy(__MODULE__, entity, context, options)
+      defdelegate get_strategy(m, entity, context, options \\ %{}), to: @default_implementation, as: :get
 
-      defdelegate update(entity, context, options), to: @default_implementation
-      defdelegate pre_update_callback(entity, context, options), to: @default_implementation
-      defdelegate post_update_callback(entity, context, options), to: @default_implementation
+      defdelegate post_get_callback(entity, context, options \\ %{}), to: @default_implementation
 
-      defdelegate delete(entity, context, options), to: @default_implementation
-      defdelegate pre_delete_callback(entity, context, options), to: @default_implementation
-      defdelegate post_delete_callback(entity, context, options), to: @default_implementation
+      defdelegate update(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate pre_update_callback(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate post_update_callback(entity, context, options \\ %{}), to: @default_implementation
+
+      defdelegate delete(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate pre_delete_callback(entity, context, options \\ %{}), to: @default_implementation
+      defdelegate post_delete_callback(entity, context, options \\ %{}), to: @default_implementation
 
       defoverridable [
         #---------------
@@ -264,7 +266,8 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         pre_create_callback: 3,
         post_create_callback: 3,
 
-        _imp_get: 4,
+        get: 3,
+        get_strategy: 4,
         post_get_callback: 3,
 
         update: 3,

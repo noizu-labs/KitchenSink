@@ -603,8 +603,39 @@ defmodule Noizu.Cms.V2.Repo.DefaultImplementation do
   #
   #-----------------------------
   def get(module, identifier, context, options) do
-    module.inner_get_callback(identifier, context, options)
-    |> module.post_get_callback(context, options)
+    # @todo, this belongs in the version provider, this module shouldn't know the versioning formats.
+    identifier = case identifier do
+      {:revision, {i, v, r}} -> identifier
+      {:version, {i, v}} ->
+        version_ref = Noizu.Cms.V2.VersionEntity.ref({module.entity_module().ref(i), v})
+        case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(version_ref) do
+          %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: r} ->
+            case Noizu.Cms.V2.Version.RevisionEntity.id(r) do
+              {{:ref, Noizu.Cms.V2.VersionEntity, _}, revision} -> {:revision, {i, v, revision}}
+              _ -> nil
+            end
+          _ -> nil
+        end
+      _ ->
+        case Noizu.Cms.V2.Database.IndexTable.read(module.entity_module().ref(identifier)) do
+          %Noizu.Cms.V2.Database.IndexTable{active_version: av, active_revision: ar} ->
+            version = case Noizu.Cms.V2.VersionEntity.id(av) do
+              {_, version} -> version
+              _ -> nil
+            end
+            revision = case Noizu.Cms.V2.Version.RevisionEntity.id(ar) do
+              {{:ref, Noizu.Cms.V2.VersionEntity, _}, revision} -> revision
+              _ -> nil
+            end
+            version && revision && {:revision, {identifier, version, revision}}
+          _ -> nil
+        end
+    end
+
+    if identifier do
+      module.inner_get_callback(identifier, context, options)
+      |> module.post_get_callback(context, options)
+    end
   end
 
   #-----------------------------

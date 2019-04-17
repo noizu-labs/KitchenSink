@@ -182,7 +182,6 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
           markdown: "# Hello World"
         } |> Noizu.MarkdownField.render([])
           |> Noizu.MarkdownField.compress()
-
     assert m = {:markdown, "# Hello World"}
   end
 
@@ -692,7 +691,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
   @tag :cms
   @tag :cms_built_in
-  test "Article - Expand from Revision" do
+  test "Article - Expand Revision Ref" do
     with_mocks([
       {ArticleTable, [:passthrough], MockArticleTable.strategy()},
       {IndexTable, [:passthrough], MockIndexTable.strategy()},
@@ -703,6 +702,87 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
     ]) do
       Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, version, revision}} = post.identifier
+      _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+      sut = Noizu.Cms.V2.Article.PostEntity.entity!({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {aid, version, revision}}})
+      assert sut != nil
+      assert sut.identifier == post.identifier
+    end
+  end
+
+
+  @tag :cms
+  @tag :cms_built_in
+  @tag :cms_warg
+  test "Article - Expand Version Ref" do
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, version, revision}} = post.identifier
+      _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+      sut = Noizu.Cms.V2.Article.PostEntity.entity!({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {aid, version}}})
+      assert sut != nil
+      assert sut.identifier == post.identifier
+    end
+  end
+
+  @tag :cms
+  @tag :cms_built_in
+  @tag :cms_warg
+  test "Article - Expand Bare Ref" do
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = %Noizu.Cms.V2.Article.PostEntity{
+        title: %Noizu.MarkdownField{markdown: "My Post"},
+        body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+        attributes: %{},
+        article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+      }
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      {:revision, {aid, version, revision}} = post.identifier
+      article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
+
+      sut = Noizu.Cms.V2.Article.PostEntity.entity!(article_ref)
+      assert sut != nil
+      assert sut.identifier == post.identifier
+
 
     end
   end
