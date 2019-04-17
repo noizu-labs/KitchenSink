@@ -30,8 +30,8 @@ defmodule Noizu.Cms.V2.ChangeSet do
                   create_table(Noizu.Cms.V2.Database.IndexTable, [disk: neighbors])
                   create_table(Noizu.Cms.V2.Database.TagTable, [disk: neighbors])
                   create_table(Noizu.Cms.V2.Database.VersionSequencerTable, [disk: neighbors])
-                  create_table(Noizu.Cms.V2.Database.VersionTable, [disk: neighbors])
-                  create_table(Noizu.Cms.V2.Database.VersionEditTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.Version.RevisionTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.Version.ActiveRevisionTable, [disk: neighbors])
                   :success
         end,
         rollback: fn() ->
@@ -40,7 +40,8 @@ defmodule Noizu.Cms.V2.ChangeSet do
           destroy_table(Noizu.Cms.V2.Database.TagTable)
           destroy_table(Noizu.Cms.V2.Database.VersionSequencerTable)
           destroy_table(Noizu.Cms.V2.Database.VersionTable)
-          destroy_table(Noizu.Cms.V2.Database.VersionEditTable)
+          destroy_table(Noizu.Cms.V2.Database.Version.RevisionTable)
+          destroy_table(Noizu.Cms.V2.Database.Version.ActiveRevisionTable)
           :removed
         end
       }
