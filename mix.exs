@@ -3,7 +3,7 @@ defmodule Noizu.KitchenSink.Mixfile do
 
   def project do
     [app: :noizu_kitchen_sink,
-     version: "0.1.9",
+     version: "0.2.0",
      elixir: "~> 1.4",
      package: package(),
      deps: deps(),
@@ -32,13 +32,14 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:uuid, "~> 1.1" },
       {:exquisite, git: "https://github.com/noizu/exquisite.git", ref: "7a4a03d", override: true},
       {:amnesia, git: "https://github.com/noizu/amnesia.git", ref: "9266002", override: true}, # Mnesia Wrappeir
-      {:noizu_core, github: "noizu/ElixirCore", tag: "1.0.6", override: true},
-      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "1.3.33", override: true},
-      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.41", override: true},
+      {:noizu_core, github: "noizu/ElixirCore", tag: "1.0.7", override: true},
+      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "2.0.6", override: true},
+      {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.42", override: true},
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.9", override: true},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
-      {:timex, "~> 3.4.2"}, # Date/Time library
+      {:tzdata, github: "noizu/tzdata", tag: "opt_exp", override: true},
+      {:timex, github: "noizu/timex", ref: "7e3c887", override: true},
       {:sendgrid, github: "SolaceClub/sendgrid_elixir", tag: "v1.8.0-templates"}, # Derived from Sendgrid Api Wrapper (https://github.com/alexgaribay/sendgrid_elixir)
       {:mock, "~> 0.3.1", optional: true},
     ]

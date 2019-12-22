@@ -3,6 +3,8 @@
 # Copyright (C) 2018 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
+{:ok, _} = Application.ensure_all_started(:semaphore)
+
 Application.load(:tzdata)
 {:ok, _} = Application.ensure_all_started(:tzdata)
 
