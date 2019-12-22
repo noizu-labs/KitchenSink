@@ -41,6 +41,13 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   #----------------
   @context Noizu.ElixirCore.CallingContext.admin()
 
+  @cms_post  %Noizu.Cms.V2.Article.PostEntity{
+    title: %Noizu.MarkdownField{markdown: "My Post"},
+    body: %Noizu.MarkdownField{markdown: "My Post Contents"},
+    attributes: %{},
+    article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
+  }
+
   #==============================================
   # Acceptance Tests
   #==============================================
@@ -51,13 +58,74 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   @tag :cms
   @tag :cms_version_provider
   test "Create Version" do
-    assert true == true
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = @cms_post
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      article = post.article_info.article
+
+      # Verify Version Info
+      assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
+
+      # Create new Versions
+      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+      post_1v2 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 2"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+      post_1v1v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v1| body: %Noizu.MarkdownField{markdown: "My Updated Contents 3"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+      post_1v2v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v2| body: %Noizu.MarkdownField{markdown: "My Updated Contents 4"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+
+      # Verify Version Info
+      assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
+      assert post_1v2.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,2}}}
+      assert post_1v1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1,1}}}
+      assert post_1v2v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,2,1}}}
+    end
   end
 
   @tag :cms
   @tag :cms_version_provider
+  @tag :cms_wip
   test "Edit Version" do
-    assert true == true
+    with_mocks([
+      {ArticleTable, [:passthrough], MockArticleTable.strategy()},
+      {IndexTable, [:passthrough], MockIndexTable.strategy()},
+      {TagTable, [:passthrough], MockTagTable.strategy()},
+      {VersionSequencerTable, [:passthrough], MockVersionSequencerTable.strategy()},
+      {VersionTable, [:passthrough], MockVersionTable.strategy()},
+      {RevisionTable, [:passthrough], MockRevisionTable.strategy()},
+      {ActiveRevisionTable, [:passthrough], MockVersionActiveRevisionTable.strategy()},
+    ]) do
+      Noizu.Support.Cms.V2.Database.MnesiaEmulator.reset()
+
+      # Setup Article
+      post = @cms_post
+      post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
+      article = post.article_info.article
+
+      # Verify Version Info
+      assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
+
+      # Create new Versions
+      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+
+      post_1v1_b = %Noizu.Cms.V2.Article.PostEntity{post_1v1|
+        title: %Noizu.MarkdownField{markdown: "My New Title"},
+      }  |> Noizu.Cms.V2.ArticleRepo.new_revision!(@context)
+
+      assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
+      assert post_1v1.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {{:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}, 1}}
+      assert post_1v1_b.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
+      assert post_1v1_b.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {{:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}, 2}}
+    end
   end
 
   @tag :cms
