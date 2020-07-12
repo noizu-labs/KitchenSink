@@ -21,11 +21,12 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
       def implementation_provider(), do: @default_implementation
       def cms_provider(), do: __MODULE__.repo() # @note provider may not always be repo.
 
-      defdelegate string_to_id(identifier), to: @default_implementation
-      defdelegate id_to_string(identifier), to: @default_implementation
+      def version_path_to_string(version_path), do: @default_implementation.version_path_to_string(version_path, __MODULE__)
+      def string_to_id(identifier), do: @default_implementation.string_to_id(identifier, __MODULE__)
+      def id_to_string(identifier), do: @default_implementation.id_to_string(identifier, __MODULE__)
 
-      defdelegate article_string_to_id(identifier), to: @default_implementation
-      defdelegate article_id_to_string(identifier), to: @default_implementation
+      def article_string_to_id(identifier), do: @default_implementation.article_string_to_id(identifier, __MODULE__)
+      def article_id_to_string(identifier), do: @default_implementation.article_id_to_string(identifier, __MODULE__)
 
       # @todo we need to modify entity/entity! to do a index lookup if only the raw id is exposed.
       # @todo we should add support here and elsewhere for {:version, {id, version}} references that like the above will perform active revision lookup to get the underlying entity.
@@ -35,7 +36,10 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
       # Overridable
       #-------------------------
       defoverridable [
+        versioning_provider: 0,
+        implementation_provider: 0,
         cms_provider: 0,
+        version_path_to_string: 1,
         string_to_id: 1,
         id_to_string: 1,
         article_string_to_id: 1,

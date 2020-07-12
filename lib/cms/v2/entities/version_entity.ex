@@ -59,14 +59,14 @@ defmodule Noizu.Cms.V2.VersionEntity do
   #------------
   #
   #------------
-  def string_to_id(identifier) do
+  def string_to_id(_identifier) do
     {:ok, :wip}
   end
 
   #------------
   #
   #------------
-  def id_to_string(identifier) do
+  def id_to_string(_identifier) do
     {:ok, "wip"}
   end
 

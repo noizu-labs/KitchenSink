@@ -128,7 +128,7 @@ defmodule Noizu.UserSettings.AcceptanceTest do
 
   @tag :user_settings
   @tag :inspect
-  test "Inspect (500)" do
+  test "Inspect (501)" do
     sut = %Settings{}
           |> Settings.insert(:get, :schiwfty, 1000)
           |> Settings.insert(:foo_setting, :bibbity, 100)
@@ -136,7 +136,36 @@ defmodule Noizu.UserSettings.AcceptanceTest do
           |> Settings.insert(:foo_setting, :bop, [:parents_parent], 400)
           |> Settings.insert(:foo_setting, :booppity, [:parent, :parents_parent], 300)
     expected = "#Settings<[#Setting(:foo_setting)<%{[] => %{effective: :bibbity, entries: 1}, [:parent, :parents_parent] => %{effective: :bop, entries: 1}, [:parents_parent] => %{effective: :bop, entries: 1}, [:top, :parent, :parents_parent] => %{effective: :bop, entries: 1}}>, #Setting(:get)<%{[] => %{effective: :schiwfty, entries: 1}}>]>"
+    actual = "#{inspect sut, limit: 501}"
+    assert actual == expected
+  end
+
+  @tag :user_settings
+  @tag :inspect
+  test "Inspect (500)" do
+    sut = %Settings{}
+          |> Settings.insert(:get, :schiwfty, 1000)
+          |> Settings.insert(:foo_setting, :bibbity, 100)
+          |> Settings.insert(:foo_setting, :bobbity, [:top, :parent, :parents_parent], 200)
+          |> Settings.insert(:foo_setting, :bop, [:parents_parent], 400)
+          |> Settings.insert(:foo_setting, :booppity, [:parent, :parents_parent], 300)
+    # Limit is decreased for each entry, so our second element renders in reduced form.
+    expected = "#Settings<[#Setting(:foo_setting)<%{[] => %{effective: :bibbity, entries: 1}, [:parent, :parents_parent] => %{effective: :bop, entries: 1}, [:parents_parent] => %{effective: :bop, entries: 1}, [:top, :parent, :parents_parent] => %{effective: :bop, entries: 1}}>, #Setting(:get)<%{[] => 1}>]>"
     actual = "#{inspect sut, limit: 500}"
+    assert actual == expected
+  end
+
+  @tag :user_settings
+  @tag :inspect
+  test "Inspect (101)" do
+    sut = %Settings{}
+          |> Settings.insert(:get, :schiwfty, 1000)
+          |> Settings.insert(:foo_setting, :bibbity, 100)
+          |> Settings.insert(:foo_setting, :bobbity, [:top, :parent, :parents_parent], 200)
+          |> Settings.insert(:foo_setting, :bop, [:parents_parent], 400)
+          |> Settings.insert(:foo_setting, :booppity, [:parent, :parents_parent], 300)
+    expected = "#Settings<[#Setting(:foo_setting)<%{[] => 1, [:parent, :parents_parent] => 1, [:parents_parent] => 1, [:top, :parent, :parents_parent] => 1}>, #Setting(:get)<%{[] => 1}>]>"
+    actual = "#{inspect sut, limit: 101}"
     assert actual == expected
   end
 
@@ -149,7 +178,8 @@ defmodule Noizu.UserSettings.AcceptanceTest do
           |> Settings.insert(:foo_setting, :bobbity, [:top, :parent, :parents_parent], 200)
           |> Settings.insert(:foo_setting, :bop, [:parents_parent], 400)
           |> Settings.insert(:foo_setting, :booppity, [:parent, :parents_parent], 300)
-    expected = "#Settings<[#Setting(:foo_setting)<%{[] => 1, [:parent, :parents_parent] => 1, [:parents_parent] => 1, [:top, :parent, :parents_parent] => 1}>, #Setting(:get)<%{[] => 1}>]>"
+    # Limit is decreased for each entry, so our second element renders in reduced form.
+    expected = "#Settings<[#Setting(:foo_setting)<%{[] => 1, [:parent, :parents_parent] => 1, [:parents_parent] => 1, [:top, :parent, :parents_parent] => 1}>, #Setting(:get)<1>]>"
     actual = "#{inspect sut, limit: 100}"
     assert actual == expected
   end

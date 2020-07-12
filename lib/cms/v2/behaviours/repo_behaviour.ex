@@ -85,123 +85,180 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       @default_implementation (unquote(implementation_provider))
       @versioning_provider (unquote(versioning_provider))
 
-
       def cms_versioning_provider(), do: @versioning_provider
       def cms_implementation_provider(), do: @default_implementation
+
+
+
+
+
+      #----------------------------------
+      # expand_records/3
+      #----------------------------------
+      def expand_records(records, context, options), do: @default_implementation.expand_records(records, context, options, __MODULE__)
+
+      #----------------------------------
+      # expand_records!/3
+      #----------------------------------
+      def expand_records!(records, context, options), do: @default_implementation.expand_records!(records, context, options, __MODULE__)
+
+      #----------------------------------
+      # match_records/3
+      #----------------------------------
+      def match_records(filter, context, options), do: @default_implementation.match_records(filter, context, options, __MODULE__)
+
+      #----------------------------------
+      # match_records!/3
+      #----------------------------------
+      def match_records!(filter, context, options), do: @default_implementation.match_records!(filter, context, options, __MODULE__)
+
+      #----------------------------------
+      # filter_records/3
+      #----------------------------------
+      def filter_records(records, context, options), do: @default_implementation.filter_records(records, context, options, __MODULE__)
+
+
+
+
+
+
 
       #-------------------------
       # Query
       #-------------------------
-      defdelegate get_by_status(status, context, options) , to: @default_implementation
-      defdelegate get_by_status!(status, context, options), to: @default_implementation
+      def get_by_status(status, context, options), do: @default_implementation.get_by_status(status, context, options, __MODULE__)
+      def get_by_status!(status, context, options), do: @default_implementation.get_by_status!(status, context, options, __MODULE__)
 
-      defdelegate get_by_type(type, context, options), to: @default_implementation
-      defdelegate get_by_type!(type, context, options), to: @default_implementation
+      def get_by_type(type, context, options), do: @default_implementation.get_by_type(type, context, options, __MODULE__)
+      def get_by_type!(type, context, options), do: @default_implementation.get_by_type!(type, context, options, __MODULE__)
 
-      defdelegate get_by_module(module, context, options), to: @default_implementation
-      defdelegate get_by_module!(module, context, options), to: @default_implementation
+      def get_by_module(module, context, options), do: @default_implementation.get_by_module(module, context, options, __MODULE__)
+      def get_by_module!(module, context, options), do: @default_implementation.get_by_module!(module, context, options, __MODULE__)
 
-      defdelegate get_by_editor(editor, context, options), to: @default_implementation
-      defdelegate get_by_editor!(editor, context, options), to: @default_implementation
+      def get_by_editor(editor, context, options), do: @default_implementation.get_by_editor(editor, context, options, __MODULE__)
+      def get_by_editor!(editor, context, options), do: @default_implementation.get_by_editor!(editor, context, options, __MODULE__)
 
-      defdelegate get_by_tag(tag, context, options), to: @default_implementation
-      defdelegate get_by_tag!(tag, context, options), to: @default_implementation
+      def get_by_tag(tag, context, options), do: @default_implementation.get_by_tag(tag, context, options, __MODULE__)
+      def get_by_tag!(tag, context, options), do: @default_implementation.get_by_tag!(tag, context, options, __MODULE__)
 
-      defdelegate get_by_created_on(from, to, context, options), to: @default_implementation
-      defdelegate get_by_created_on!(from, to, context, options), to: @default_implementation
+      def get_by_created_on(from, to, context, options), do: @default_implementation.get_by_created_on(from, to, context, options, __MODULE__)
+      def get_by_created_on!(from, to, context, options), do: @default_implementation.get_by_created_on!(from, to, context, options, __MODULE__)
 
-      defdelegate get_by_modified_on(from, to, context, options), to: @default_implementation
-      defdelegate get_by_modified_on!(from, to, context, options), to: @default_implementation
+      def get_by_modified_on(from, to, context, options), do: @default_implementation.get_by_modified_on(from, to, context, options, __MODULE__)
+      def get_by_modified_on!(from, to, context, options), do: @default_implementation.get_by_modified_on!(from, to, context, options, __MODULE__)
 
 
       #-------------------------
       # Book Keeping
       #-------------------------
-      defdelegate update_tags(entry, context, options), to: @default_implementation
-      defdelegate update_tags!(entry, context, options), to: @default_implementation
+      def update_tags(entry, context, options), do: @default_implementation.update_tags(entry, context, options, __MODULE__)
+      def update_tags!(entry, context, options), do: @default_implementation.update_tags!(entry, context, options, __MODULE__)
 
-      defdelegate delete_tags(entry, context, options), to: @default_implementation
-      defdelegate delete_tags!(entry, context, options), to: @default_implementation
+      def delete_tags(entry, context, options), do: @default_implementation.delete_tags(entry, context, options, __MODULE__)
+      def delete_tags!(entry, context, options), do: @default_implementation.delete_tags!(entry, context, options, __MODULE__)
 
-      defdelegate update_index(entry, context, options), to: @default_implementation
-      defdelegate update_index!(entry, context, options), to: @default_implementation
+      def update_index(entry, context, options), do: @default_implementation.update_index(entry, context, options, __MODULE__)
+      def update_index!(entry, context, options), do: @default_implementation.update_index!(entry, context, options, __MODULE__)
 
-      defdelegate delete_index(entry, context, options), to: @default_implementation
-      defdelegate delete_index!(entry, context, options), to: @default_implementation
+      def delete_index(entry, context, options), do: @default_implementation.delete_index(entry, context, options, __MODULE__)
+      def delete_index!(entry, context, options), do: @default_implementation.delete_index!(entry, context, options, __MODULE__)
 
       #-------------------------
       # Versioning
       #-------------------------
-      defdelegate initialize_versioning_records(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate populate_versioning_records(entity, context, options \\ %{}), to: @versioning_provider
+      def initialize_versioning_records(entity, context, options \\ %{}), do: @versioning_provider.initialize_versioning_records(entity, context, options, __MODULE__)
+      def populate_versioning_records(entity, context, options \\ %{}), do: @versioning_provider.populate_versioning_records(entity, context, options, __MODULE__)
 
-      defdelegate make_active(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate make_active!(entity, context, options \\ %{}), to: @default_implementation
+      def make_active(entity, context, options \\ %{}), do: @default_implementation.make_active(entity, context, options, __MODULE__)
+      def make_active!(entity, context, options \\ %{}), do: @default_implementation.make_active!(entity, context, options, __MODULE__)
 
-      defdelegate get_active(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate get_active!(entity, context, options \\ %{}), to: @default_implementation
+      def get_active(entity, context, options \\ %{}), do: @default_implementation.get_active(entity, context, options, __MODULE__)
+      def get_active!(entity, context, options \\ %{}), do: @default_implementation.get_active!(entity, context, options, __MODULE__)
 
-      defdelegate update_active(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate update_active!(entity, context, options \\ %{}), to: @default_implementation
+      def update_active(entity, context, options \\ %{}), do: @default_implementation.update_active(entity, context, options, __MODULE__)
+      def update_active!(entity, context, options \\ %{}), do: @default_implementation.update_active!(entity, context, options, __MODULE__)
 
-      defdelegate remove_active(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate remove_active!(entity, context, options \\ %{}), to: @default_implementation
+      def remove_active(entity, context, options \\ %{}), do: @default_implementation.remove_active(entity, context, options, __MODULE__)
+      def remove_active!(entity, context, options \\ %{}), do: @default_implementation.remove_active!(entity, context, options, __MODULE__)
 
-      #defdelegate make_version_default(entity, context, options \\ %{}), to: @default_implementation
-      #defdelegate make_version_default!(entity, context, options \\ %{}), to: @default_implementation
+      #def make_version_default(entity, context, options \\ %{}), do: @default_implementation.make_version_default(entity, context, options, __MODULE__)
+      #def make_version_default!(entity, context, options \\ %{}), do: @default_implementation.make_version_default!(entity, context, options, __MODULE__)
 
-      #defdelegate get_version_default(entity, context, options \\ %{}), to: @default_implementation
-      #defdelegate get_version_default!(entity, context, options \\ %{}), to: @default_implementation
+      #def get_version_default(entity, context, options \\ %{}), do: @default_implementation.get_version_default(entity, context, options, __MODULE__)
+      #def get_version_default!(entity, context, options \\ %{}), do: @default_implementation.get_version_default!(entity, context, options, __MODULE__)
 
-      #defdelegate approve_revision(entity, context, options \\ %{}), to: @default_implementation
-      #defdelegate approve_revision!(entity, context, options \\ %{}), to: @default_implementation
+      #def approve_revision(entity, context, options \\ %{}), do: @default_implementation.approve_revision(entity, context, options, __MODULE__)
+      #def approve_revision!(entity, context, options \\ %{}), do: @default_implementation.approve_revision!(entity, context, options, __MODULE__)
 
-      #defdelegate reject_revision(entity, context, options \\ %{}), to: @default_implementation
-      #defdelegate reject_revision!(entity, context, options \\ %{}), to: @default_implementation
+      #def reject_revision(entity, context, options \\ %{}), do: @default_implementation.reject_revision(entity, context, options, __MODULE__)
+      #def reject_revision!(entity, context, options \\ %{}), do: @default_implementation.reject_revision!(entity, context, options, __MODULE__)
 
       # @todo json marshalling logic (mix of protocol and scaffolding methods).
       # @todo setup permission system
       # @todo setup plug / controller routes
 
-      defdelegate init_article_info(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate init_article_info!(entity, context, options \\ %{}), to: @default_implementation
+      def init_article_info(entity, context, options \\ %{}), do: @default_implementation.init_article_info(entity, context, options, __MODULE__)
+      def init_article_info!(entity, context, options \\ %{}), do: @default_implementation.init_article_info!(entity, context, options, __MODULE__)
 
-      defdelegate update_article_info(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate update_article_info!(entity, context, options \\ %{}), to: @default_implementation
+      def update_article_info(entity, context, options \\ %{}), do: @default_implementation.update_article_info(entity, context, options, __MODULE__)
+      def update_article_info!(entity, context, options \\ %{}), do: @default_implementation.update_article_info!(entity, context, options, __MODULE__)
 
-      defdelegate get_versions(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate get_versions!(entity, context, options \\ %{}), to: @versioning_provider
+      def get_versions(entity, context, options \\ %{}), do: @versioning_provider.get_versions(entity, context, options, __MODULE__)
+      def get_versions!(entity, context, options \\ %{}), do: @versioning_provider.get_versions!(entity, context, options, __MODULE__)
 
-      defdelegate get_revisions(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate get_revisions!(entity, context, options \\ %{}), to: @versioning_provider
+      def create_version(entity, context, options \\ %{}), do: @versioning_provider.create_version(entity, context, options, __MODULE__)
+      def create_version!(entity, context, options \\ %{}), do: @versioning_provider.create_version!(entity, context, options, __MODULE__)
 
-      defdelegate new_version(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate new_version!(entity, context, options \\ %{}), to: @versioning_provider
+      def update_version(entity, context, options \\ %{}), do: @versioning_provider.update_version(entity, context, options, __MODULE__)
+      def update_version!(entity, context, options \\ %{}), do: @versioning_provider.update_version!(entity, context, options, __MODULE__)
 
-      defdelegate new_revision(entity, context, options \\ %{}), to: @versioning_provider
-      defdelegate new_revision!(entity, context, options \\ %{}), to: @versioning_provider
+      def delete_version(entity, context, options \\ %{}), do: @versioning_provider.delete_version(entity, context, options, __MODULE__)
+      def delete_version!(entity, context, options \\ %{}), do: @versioning_provider.delete_version!(entity, context, options, __MODULE__)
+
+      def get_revisions(entity, context, options \\ %{}), do: @versioning_provider.get_revisions(entity, context, options, __MODULE__)
+      def get_revisions!(entity, context, options \\ %{}), do: @versioning_provider.get_revisions!(entity, context, options, __MODULE__)
+
+
+      def create_revision(entity, context, options \\ %{}), do: @versioning_provider.create_revision(entity, context, options, __MODULE__)
+      def create_revision!(entity, context, options \\ %{}), do: @versioning_provider.create_revision!(entity, context, options, __MODULE__)
+
+      def update_revision(entity, context, options \\ %{}), do: @versioning_provider.update_revision(entity, context, options, __MODULE__)
+      def update_revision!(entity, context, options \\ %{}), do: @versioning_provider.update_revision!(entity, context, options, __MODULE__)
+
+      def delete_revision(entity, context, options \\ %{}), do: @versioning_provider.delete_revision(entity, context, options, __MODULE__)
+      def delete_revision!(entity, context, options \\ %{}), do: @versioning_provider.delete_revision!(entity, context, options, __MODULE__)
+
+
+      def new_version(entity, context, options \\ %{}), do: @versioning_provider.new_version(entity, context, options, __MODULE__)
+      def new_version!(entity, context, options \\ %{}), do: @versioning_provider.new_version!(entity, context, options, __MODULE__)
+
+      def new_revision(entity, context, options \\ %{}), do: @versioning_provider.new_revision(entity, context, options, __MODULE__)
+      def new_revision!(entity, context, options \\ %{}), do: @versioning_provider.new_revision!(entity, context, options, __MODULE__)
 
       #------------------
       # Repo Overrides
       #------------------
-      defdelegate create(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate pre_create_callback(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate post_create_callback(entity, context, options \\ %{}), to: @default_implementation
+      def create(entity, context, options \\ %{}), do: @default_implementation.create(entity, context, options, __MODULE__)
+      def pre_create_callback(entity, context, options \\ %{}), do: @default_implementation.pre_create_callback(entity, context, options, __MODULE__)
+      def post_create_callback(entity, context, options \\ %{}), do: @default_implementation.post_create_callback(entity, context, options, __MODULE__)
 
-      def get(entity, context, options \\ %{}), do: get_strategy(__MODULE__, entity, context, options)
-      defdelegate get_strategy(m, entity, context, options \\ %{}), to: @default_implementation, as: :get
+      def get(entity, context, options \\ %{}), do: @default_implementation.get(entity, context, options, __MODULE__)
+      def post_get_callback(entity, context, options \\ %{}), do: @default_implementation.post_get_callback(entity, context, options, __MODULE__)
 
-      defdelegate post_get_callback(entity, context, options \\ %{}), to: @default_implementation
+      def update(entity, context, options \\ %{}), do: @default_implementation.update(entity, context, options, __MODULE__)
+      def pre_update_callback(entity, context, options \\ %{}), do: @default_implementation.pre_update_callback(entity, context, options, __MODULE__)
+      def post_update_callback(entity, context, options \\ %{}), do: @default_implementation.post_update_callback(entity, context, options, __MODULE__)
 
-      defdelegate update(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate pre_update_callback(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate post_update_callback(entity, context, options \\ %{}), to: @default_implementation
-
-      defdelegate delete(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate pre_delete_callback(entity, context, options \\ %{}), to: @default_implementation
-      defdelegate post_delete_callback(entity, context, options \\ %{}), to: @default_implementation
+      def delete(entity, context, options \\ %{}), do: @default_implementation.delete(entity, context, options, __MODULE__)
+      def pre_delete_callback(entity, context, options \\ %{}), do: @default_implementation.pre_delete_callback(entity, context, options, __MODULE__)
+      def post_delete_callback(entity, context, options \\ %{}), do: @default_implementation.post_delete_callback(entity, context, options, __MODULE__)
 
       defoverridable [
+
+        cms_versioning_provider: 0,
+        cms_implementation_provider: 0,
+
+
         #---------------
         # Query
         #---------------
@@ -244,53 +301,145 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         #-------------------
         # Versioning
         #-------------------
+        initialize_versioning_records: 2,
         initialize_versioning_records: 3,
+
+        populate_versioning_records: 2,
         populate_versioning_records: 3,
 
+        make_active: 2,
         make_active: 3,
+
+        make_active!: 2,
         make_active!: 3,
 
+        update_active: 2,
         update_active: 3,
+
+        update_active!: 2,
         update_active!: 3,
 
+        get_active: 2,
         get_active: 3,
+
+        get_active!: 2,
         get_active!: 3,
 
+        remove_active: 2,
         remove_active: 3,
+
+        remove_active!: 2,
         remove_active!: 3,
 
+        init_article_info: 2,
         init_article_info: 3,
+
+        init_article_info!: 2,
         init_article_info!: 3,
 
+        update_article_info: 2,
         update_article_info: 3,
+
+        update_article_info!: 2,
         update_article_info!: 3,
 
+        get_versions: 2,
         get_versions: 3,
+
+        get_versions!: 2,
         get_versions!: 3,
 
+        get_revisions: 2,
+        get_revisions: 3,
+
+        get_revisions!: 2,
+        get_revisions!: 3,
+
+        create_version: 2,
+        create_version: 3,
+
+        create_version!: 2,
+        create_version!: 3,
+
+        update_version: 2,
+        update_version: 3,
+
+        update_version!: 2,
+        update_version!: 3,
+
+        delete_version: 2,
+        delete_version: 3,
+
+        delete_version!: 2,
+        delete_version!: 3,
+
+
+
+        create_revision: 2,
+        create_revision: 3,
+
+        create_revision!: 2,
+        create_revision!: 3,
+
+        update_revision: 2,
+        update_revision: 3,
+
+        update_revision!: 2,
+        update_revision!: 3,
+
+        delete_revision: 2,
+        delete_revision: 3,
+
+        delete_revision!: 2,
+        delete_revision!: 3,
+
+
+        new_version: 2,
         new_version: 3,
+
+        new_version!: 2,
         new_version!: 3,
 
+        new_revision: 2,
         new_revision: 3,
+
+        new_revision!: 2,
         new_revision!: 3,
 
         #------------------
         # Repo Behaviour
         #------------------
+        create: 2,
         create: 3,
+
+        pre_create_callback: 2,
         pre_create_callback: 3,
+
+        post_create_callback: 2,
         post_create_callback: 3,
 
+        get: 2,
         get: 3,
-        get_strategy: 4,
+
+        post_get_callback: 2,
         post_get_callback: 3,
 
+        update: 2,
         update: 3,
+
+        pre_update_callback: 2,
         pre_update_callback: 3,
+
+        post_update_callback: 2,
         post_update_callback: 3,
 
+        delete: 2,
         delete: 3,
+
+        pre_delete_callback: 2,
         pre_delete_callback: 3,
+
+        post_delete_callback: 2,
         post_delete_callback: 3,
       ]
     end

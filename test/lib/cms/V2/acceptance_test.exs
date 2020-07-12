@@ -250,7 +250,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
           markdown: "# Hello World"
         } |> Noizu.MarkdownField.render([])
           |> Noizu.MarkdownField.compress()
-    assert m = {:markdown, "# Hello World"}
+    assert m == {:markdown, "# Hello World"}
   end
 
   @tag :cms
@@ -814,7 +814,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
         article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
       }
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
-      {:revision, {aid, version, revision}} = post.identifier
+      {:revision, {aid, version, _revision}} = post.identifier
       _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
       sut = Noizu.Cms.V2.Article.PostEntity.entity!({:ref, Noizu.Cms.V2.ArticleEntity, {:version, {aid, version}}})
@@ -845,7 +845,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
         article_info: %Noizu.Cms.V2.Article.Info{tags: MapSet.new(["test", "apple"])}
       }
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
-      {:revision, {aid, version, revision}} = post.identifier
+      {:revision, {aid, _version, _revision}} = post.identifier
       article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
       sut = Noizu.Cms.V2.Article.PostEntity.entity!(article_ref)
