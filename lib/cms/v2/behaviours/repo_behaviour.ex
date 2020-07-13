@@ -4,408 +4,280 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.RepoBehaviour do
-  @callback cms_versioning_provider() :: any
-  @callback cms_implementation_provider() :: any
+  defmodule Default do
+    use Amnesia
 
-  # Query
-  @callback get_by_status(any, any, any) :: any
-  @callback get_by_status!(any, any, any) :: any
+    alias Noizu.Cms.V2.Database.IndexTable
+    #alias Noizu.Cms.V2.Database.VersionTable
+    #alias Noizu.Cms.V2.Database.TagTable
 
-  @callback get_by_type(any, any, any) :: any
-  @callback get_by_type!(any, any, any) :: any
-
-  @callback get_by_module(any, any, any) :: any
-  @callback get_by_module!(any, any, any) :: any
-
-  @callback get_by_editor(any, any, any) :: any
-  @callback get_by_editor!(any, any, any) :: any
-
-  @callback get_by_tag(any, any, any) :: any
-  @callback get_by_tag!(any, any, any) :: any
-
-  @callback get_by_created_on(any, any, any, any) :: any
-  @callback get_by_created_on!(any, any, any, any) :: any
-
-  @callback get_by_modified_on(any, any, any, any) :: any
-  @callback get_by_modified_on!(any, any, any, any) :: any
+    use Noizu.Cms.V2.Database.IndexTable
+    use Noizu.Cms.V2.Database.VersionTable
+    use Noizu.Cms.V2.Database.TagTable
 
 
-  # Book Keeping
-  @callback update_tags(any, any, any) :: any
-  @callback update_tags!(any, any, any) :: any
+    alias Noizu.ElixirCore.OptionSettings
+    alias Noizu.ElixirCore.OptionValue
+    #alias Noizu.ElixirCore.OptionList
 
-  @callback delete_tags(any, any, any) :: any
-  @callback delete_tags!(any, any, any) :: any
+    def prepare_options(options) do
+      settings = %OptionSettings{
+        option_settings: %{
+          verbose: %OptionValue{option: :verbose, default: false},
+          cms_module: %OptionValue{option: :cms_module, default: Noizu.Cms.V2.CmsBehaviour},
+          cms_module_options: %OptionValue{option: :cms_module_options, default: []},
 
-  @callback update_index(any, any, any) :: any
-  @callback update_index!(any, any, any) :: any
+          # Tag Provider
+          # Index Provider
+          # Version Provider
+        }
+      }
+      OptionSettings.expand(settings, options)
+    end
 
-  @callback delete_index(any, any, any) :: any
-  @callback delete_index!(any, any, any) :: any
+    #------------------
+    # Repo Overrides
+    #------------------
 
-  # Versioning
-  @callback initialize_versioning_records(any, any, any) :: any
-  @callback populate_versioning_records(any, any, any) :: any
+    #-----------------------------
+    # create/4
+    #-----------------------------
+    def create(entity, context, options, caller) do
+      try do
+        # @todo conditional logic to insure only revision records persisted.
+        entity
+        |> caller.pre_create_callback(context, options)
+        |> caller.inner_create_callback(context, options)
+        |> caller.post_create_callback(context, options)
+      rescue e -> {:error, e}
+      catch e -> {:error, e}
+      end
+    end
 
-  @callback make_active(any, any, any) :: any
-  @callback make_active!(any, any, any) :: any
+    #-----------------------------
+    # pre_create_callback/4
+    #-----------------------------
+    def pre_create_callback(entity, context, options, caller) do
+      is_versioning_record? = Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)
+      options_a = put_in(options, [:nested_create], true)
 
-  @callback get_active(any, any, any) :: any
-  @callback get_active!(any, any, any) :: any
+      # AutoGenerate Identifier if not set, check for already existing record.
+      entity = cond do
+        #1. AutoIncrement
+        entity.identifier == nil -> %{entity| identifier: caller.generate_identifier()}
 
-  @callback update_active(any, any, any) :: any
-  @callback update_active!(any, any, any) :: any
+        #2. Recursion Check
+        options[:nested_create] -> entity
 
-  @callback remove_active(any, any, any) :: any
-  @callback remove_active!(any, any, any) :: any
+        #3. Check for existing records.
+        true ->
+          # @todo if !is_version_record? we should specifically scan for any matching revisions.
+          if caller.get(entity.identifier, Noizu.ElixirCore.CallingContext.system(context), options_a) do
+            throw "[Create Exception] Record Exists: #{Noizu.ERP.sref(entity)}"
+          else
+            entity
+          end
+      end
 
-  # @todo approve/etc.
+      if is_versioning_record? do
+        entity
+        |> caller.cms().update_article_info(context, options)
+        |> caller.cms().populate_versioning_records(context, options_a)
+      else
+        # 5. Prepare Version and Revision, modify identifier.
+        entity
+        |> caller.cms().init_article_info(context, options)
+        |> caller.cms().initialize_versioning_records(context, options_a)
+      end
+    end
 
-  @callback init_article_info(any, any, any) :: any
-  @callback init_article_info!(any, any, any) :: any
+    #-----------------------------
+    # post_create_callback/4
+    #-----------------------------
+    def post_create_callback(entity, _context, _options, _caller) do
+      entity
+    end
 
-  @callback update_article_info(any, any, any) :: any
-  @callback update_article_info!(any, any, any) :: any
+    #-----------------------------
+    # get/4
+    #-----------------------------
+    def get(identifier, context, options, caller) do
+      try do
+        # @todo, this belongs in the version provider, this module shouldn't know the versioning formats.
+        identifier = case identifier do
+          {:revision, {_i, _v, _r}} -> identifier
+          {:version, {i, v}} ->
+            version_ref = Noizu.Cms.V2.VersionEntity.ref({caller.entity_module().ref(i), v})
+            case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(version_ref) do
+              %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: r} ->
+                case Noizu.Cms.V2.Version.RevisionEntity.id(r) do
+                  {{:ref, Noizu.Cms.V2.VersionEntity, _}, revision} -> {:revision, {i, v, revision}}
+                  _ -> nil
+                end
+              _ -> nil
+            end
+          _ ->
+            case IndexTable.read(caller.entity_module().ref(identifier)) do
+              %IndexTable{active_version: av, active_revision: ar} ->
+                version = case Noizu.Cms.V2.VersionEntity.id(av) do
+                  {_, version} -> version
+                  _ -> nil
+                end
+                revision = case Noizu.Cms.V2.Version.RevisionEntity.id(ar) do
+                  {{:ref, Noizu.Cms.V2.VersionEntity, _}, revision} -> revision
+                  _ -> nil
+                end
+                version && revision && {:revision, {identifier, version, revision}}
+              _ -> nil
+            end
+        end
 
-  @callback get_versions(any, any, any) :: any
-  @callback get_versions!(any, any, any) :: any
+        if identifier do
+          caller.inner_get_callback(identifier, context, options)
+          |> caller.post_get_callback(context, options)
+        end
+      rescue e -> {:error, e}
+      catch e -> {:error, e}
+      end
 
-  @callback new_version(any, any, any) :: any
-  @callback new_version!(any, any, any) :: any
+    end
 
-  @callback new_revision(any, any, any) :: any
-  @callback new_revision!(any, any, any) :: any
+    #-----------------------------
+    # post_get_callback/4
+    #-----------------------------
+    def post_get_callback(entity, _context, _options, _caller) do
+      entity
+    end
+
+    #-----------------------------
+    # update/4
+    #-----------------------------
+    def update(entity, context, options, caller) do
+      try do
+        entity
+        |>  caller.pre_update_callback(context, options)
+        |>  caller.inner_update_callback(context, options)
+        |>  caller.post_update_callback(context, options)
+      rescue e -> {:error, e}
+      catch e -> {:error, e}
+      end
+    end
+
+    #-----------------------------
+    # pre_update_callback/4
+    #-----------------------------
+    def pre_update_callback(entity, context, options, caller) do
+      if (entity.identifier == nil), do: throw "Identifier not set"
+      if (!Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)), do: throw "#{entity.__struct__} entities may only be persisted using cms revision ids"
+
+      options_a = put_in(options, [:nested_update], true)
+
+      entity
+      |> caller.cms().update_article_info(context, options)
+      |> caller.cms().populate_versioning_records(context, options_a)
+    end
+
+    #-----------------------------
+    # post_update_callback/4
+    #-----------------------------
+    def post_update_callback(entity, _context, _options, _caller) do
+      entity
+    end
+
+    #-----------------------------
+    # delete/4
+    #-----------------------------
+    def delete(entity, context, options, caller) do
+      # @todo conditional logic to insure only revision records persisted.
+      try do
+        entity
+        |>  caller.pre_delete_callback(context, options)
+        |>  caller.inner_delete_callback(context, options)
+        |>  caller.post_delete_callback(context, options)
+        true
+      rescue e -> {:error, e}
+      catch e -> {:error, e}
+      end
+    end
+
+    #-----------------------------
+    # pre_delete_callback/4
+    #-----------------------------
+    def pre_delete_callback(entity, context, options, caller) do
+      if entity.identifier == nil, do: throw :identifier_not_set
+      # Active Revision Check
+      if options[:bookkeeping] != :disabled do
+
+        # @todo this module should not have such specific knowledge of versioning formats.
+        # setup an active version check in version provider.
+        article_revision = Noizu.Cms.V2.Proto.get_revision(entity, context, options)
+                           |> Noizu.Cms.V2.Version.RevisionEntity.ref()
+
+        if article_revision do
+          if article_revision == caller.cms().get_active(entity, context, options) do
+            throw :active_version
+          end
+
+          case article_revision do
+            {:ref, _, {article_version, _revision}} ->
+              case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(article_version) do
+                %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: active_revision} ->
+                  if active_revision == article_revision, do: throw :active_revision
+                _ -> nil
+              end
+            _ -> nil
+          end
+        end
+
+      end
+      entity
+    end
+
+    #-----------------------------
+    # post_delete_callback/4
+    #-----------------------------
+    def post_delete_callback(entity, _context, _options, _caller) do
+      entity
+    end
+  end
 
   defmacro __using__(options) do
-    implementation_provider = Keyword.get(options, :implementation_provider,  Noizu.Cms.V2.Repo.DefaultImplementation)
-    versioning_provider = Keyword.get(options, :versioning_provider,  Noizu.Cms.V2.VersioningProvider.DefaultImplementation)
+    cms_implementation = Keyword.get(options || [], :implementation, Noizu.Cms.V2.RepoBehaviour.Default)
+    cms_option_settings = cms_implementation.prepare_options(options)
+    cms_options = cms_option_settings.effective_options
+    cms_module = cms_options.cms_module
 
     quote do
-      @behaviour Noizu.Cms.V2.RepoBehaviour
-      @default_implementation (unquote(implementation_provider))
-      @versioning_provider (unquote(versioning_provider))
+      import unquote(__MODULE__)
+      require Logger
+      @cms_implementation unquote(cms_implementation)
+      use Noizu.Cms.V2.SettingsBehaviour.RepoSettings, unquote([option_settings: cms_option_settings])
 
-      def cms_versioning_provider(), do: @versioning_provider
-      def cms_implementation_provider(), do: @default_implementation
-
-
-
-
-
-      #----------------------------------
-      # expand_records/3
-      #----------------------------------
-      def expand_records(records, context, options), do: @default_implementation.expand_records(records, context, options, __MODULE__)
+      if (unquote(cms_module)) do
+        defmodule CMS do
+          use unquote(cms_module), unquote(cms_options.cms_module_options)
+        end
+      end
 
       #----------------------------------
-      # expand_records!/3
-      #----------------------------------
-      def expand_records!(records, context, options), do: @default_implementation.expand_records!(records, context, options, __MODULE__)
-
-      #----------------------------------
-      # match_records/3
-      #----------------------------------
-      def match_records(filter, context, options), do: @default_implementation.match_records(filter, context, options, __MODULE__)
-
-      #----------------------------------
-      # match_records!/3
-      #----------------------------------
-      def match_records!(filter, context, options), do: @default_implementation.match_records!(filter, context, options, __MODULE__)
-
-      #----------------------------------
-      # filter_records/3
-      #----------------------------------
-      def filter_records(records, context, options), do: @default_implementation.filter_records(records, context, options, __MODULE__)
-
-
-
-
-
-
-
-      #-------------------------
-      # Query
-      #-------------------------
-      def get_by_status(status, context, options), do: @default_implementation.get_by_status(status, context, options, __MODULE__)
-      def get_by_status!(status, context, options), do: @default_implementation.get_by_status!(status, context, options, __MODULE__)
-
-      def get_by_type(type, context, options), do: @default_implementation.get_by_type(type, context, options, __MODULE__)
-      def get_by_type!(type, context, options), do: @default_implementation.get_by_type!(type, context, options, __MODULE__)
-
-      def get_by_module(module, context, options), do: @default_implementation.get_by_module(module, context, options, __MODULE__)
-      def get_by_module!(module, context, options), do: @default_implementation.get_by_module!(module, context, options, __MODULE__)
-
-      def get_by_editor(editor, context, options), do: @default_implementation.get_by_editor(editor, context, options, __MODULE__)
-      def get_by_editor!(editor, context, options), do: @default_implementation.get_by_editor!(editor, context, options, __MODULE__)
-
-      def get_by_tag(tag, context, options), do: @default_implementation.get_by_tag(tag, context, options, __MODULE__)
-      def get_by_tag!(tag, context, options), do: @default_implementation.get_by_tag!(tag, context, options, __MODULE__)
-
-      def get_by_created_on(from, to, context, options), do: @default_implementation.get_by_created_on(from, to, context, options, __MODULE__)
-      def get_by_created_on!(from, to, context, options), do: @default_implementation.get_by_created_on!(from, to, context, options, __MODULE__)
-
-      def get_by_modified_on(from, to, context, options), do: @default_implementation.get_by_modified_on(from, to, context, options, __MODULE__)
-      def get_by_modified_on!(from, to, context, options), do: @default_implementation.get_by_modified_on!(from, to, context, options, __MODULE__)
-
-
-      #-------------------------
-      # Book Keeping
-      #-------------------------
-      def update_tags(entry, context, options), do: @default_implementation.update_tags(entry, context, options, __MODULE__)
-      def update_tags!(entry, context, options), do: @default_implementation.update_tags!(entry, context, options, __MODULE__)
-
-      def delete_tags(entry, context, options), do: @default_implementation.delete_tags(entry, context, options, __MODULE__)
-      def delete_tags!(entry, context, options), do: @default_implementation.delete_tags!(entry, context, options, __MODULE__)
-
-      def update_index(entry, context, options), do: @default_implementation.update_index(entry, context, options, __MODULE__)
-      def update_index!(entry, context, options), do: @default_implementation.update_index!(entry, context, options, __MODULE__)
-
-      def delete_index(entry, context, options), do: @default_implementation.delete_index(entry, context, options, __MODULE__)
-      def delete_index!(entry, context, options), do: @default_implementation.delete_index!(entry, context, options, __MODULE__)
-
-      #-------------------------
-      # Versioning
-      #-------------------------
-      def initialize_versioning_records(entity, context, options \\ %{}), do: @versioning_provider.initialize_versioning_records(entity, context, options, __MODULE__)
-      def populate_versioning_records(entity, context, options \\ %{}), do: @versioning_provider.populate_versioning_records(entity, context, options, __MODULE__)
-
-      def make_active(entity, context, options \\ %{}), do: @default_implementation.make_active(entity, context, options, __MODULE__)
-      def make_active!(entity, context, options \\ %{}), do: @default_implementation.make_active!(entity, context, options, __MODULE__)
-
-      def get_active(entity, context, options \\ %{}), do: @default_implementation.get_active(entity, context, options, __MODULE__)
-      def get_active!(entity, context, options \\ %{}), do: @default_implementation.get_active!(entity, context, options, __MODULE__)
-
-      def update_active(entity, context, options \\ %{}), do: @default_implementation.update_active(entity, context, options, __MODULE__)
-      def update_active!(entity, context, options \\ %{}), do: @default_implementation.update_active!(entity, context, options, __MODULE__)
-
-      def remove_active(entity, context, options \\ %{}), do: @default_implementation.remove_active(entity, context, options, __MODULE__)
-      def remove_active!(entity, context, options \\ %{}), do: @default_implementation.remove_active!(entity, context, options, __MODULE__)
-
-      #def make_version_default(entity, context, options \\ %{}), do: @default_implementation.make_version_default(entity, context, options, __MODULE__)
-      #def make_version_default!(entity, context, options \\ %{}), do: @default_implementation.make_version_default!(entity, context, options, __MODULE__)
-
-      #def get_version_default(entity, context, options \\ %{}), do: @default_implementation.get_version_default(entity, context, options, __MODULE__)
-      #def get_version_default!(entity, context, options \\ %{}), do: @default_implementation.get_version_default!(entity, context, options, __MODULE__)
-
-      #def approve_revision(entity, context, options \\ %{}), do: @default_implementation.approve_revision(entity, context, options, __MODULE__)
-      #def approve_revision!(entity, context, options \\ %{}), do: @default_implementation.approve_revision!(entity, context, options, __MODULE__)
-
-      #def reject_revision(entity, context, options \\ %{}), do: @default_implementation.reject_revision(entity, context, options, __MODULE__)
-      #def reject_revision!(entity, context, options \\ %{}), do: @default_implementation.reject_revision!(entity, context, options, __MODULE__)
-
-      # @todo json marshalling logic (mix of protocol and scaffolding methods).
-      # @todo setup permission system
-      # @todo setup plug / controller routes
-
-      def init_article_info(entity, context, options \\ %{}), do: @default_implementation.init_article_info(entity, context, options, __MODULE__)
-      def init_article_info!(entity, context, options \\ %{}), do: @default_implementation.init_article_info!(entity, context, options, __MODULE__)
-
-      def update_article_info(entity, context, options \\ %{}), do: @default_implementation.update_article_info(entity, context, options, __MODULE__)
-      def update_article_info!(entity, context, options \\ %{}), do: @default_implementation.update_article_info!(entity, context, options, __MODULE__)
-
-      def get_versions(entity, context, options \\ %{}), do: @versioning_provider.get_versions(entity, context, options, __MODULE__)
-      def get_versions!(entity, context, options \\ %{}), do: @versioning_provider.get_versions!(entity, context, options, __MODULE__)
-
-      def create_version(entity, context, options \\ %{}), do: @versioning_provider.create_version(entity, context, options, __MODULE__)
-      def create_version!(entity, context, options \\ %{}), do: @versioning_provider.create_version!(entity, context, options, __MODULE__)
-
-      def update_version(entity, context, options \\ %{}), do: @versioning_provider.update_version(entity, context, options, __MODULE__)
-      def update_version!(entity, context, options \\ %{}), do: @versioning_provider.update_version!(entity, context, options, __MODULE__)
-
-      def delete_version(entity, context, options \\ %{}), do: @versioning_provider.delete_version(entity, context, options, __MODULE__)
-      def delete_version!(entity, context, options \\ %{}), do: @versioning_provider.delete_version!(entity, context, options, __MODULE__)
-
-      def get_revisions(entity, context, options \\ %{}), do: @versioning_provider.get_revisions(entity, context, options, __MODULE__)
-      def get_revisions!(entity, context, options \\ %{}), do: @versioning_provider.get_revisions!(entity, context, options, __MODULE__)
-
-
-      def create_revision(entity, context, options \\ %{}), do: @versioning_provider.create_revision(entity, context, options, __MODULE__)
-      def create_revision!(entity, context, options \\ %{}), do: @versioning_provider.create_revision!(entity, context, options, __MODULE__)
-
-      def update_revision(entity, context, options \\ %{}), do: @versioning_provider.update_revision(entity, context, options, __MODULE__)
-      def update_revision!(entity, context, options \\ %{}), do: @versioning_provider.update_revision!(entity, context, options, __MODULE__)
-
-      def delete_revision(entity, context, options \\ %{}), do: @versioning_provider.delete_revision(entity, context, options, __MODULE__)
-      def delete_revision!(entity, context, options \\ %{}), do: @versioning_provider.delete_revision!(entity, context, options, __MODULE__)
-
-
-      def new_version(entity, context, options \\ %{}), do: @versioning_provider.new_version(entity, context, options, __MODULE__)
-      def new_version!(entity, context, options \\ %{}), do: @versioning_provider.new_version!(entity, context, options, __MODULE__)
-
-      def new_revision(entity, context, options \\ %{}), do: @versioning_provider.new_revision(entity, context, options, __MODULE__)
-      def new_revision!(entity, context, options \\ %{}), do: @versioning_provider.new_revision!(entity, context, options, __MODULE__)
-
-      #------------------
       # Repo Overrides
-      #------------------
-      def create(entity, context, options \\ %{}), do: @default_implementation.create(entity, context, options, __MODULE__)
-      def pre_create_callback(entity, context, options \\ %{}), do: @default_implementation.pre_create_callback(entity, context, options, __MODULE__)
-      def post_create_callback(entity, context, options \\ %{}), do: @default_implementation.post_create_callback(entity, context, options, __MODULE__)
+      #----------------------------------
+      def create(entity, context, options \\ %{}), do: @cms_implementation.create(entity, context, options, cms_base())
+      def pre_create_callback(entity, context, options \\ %{}), do: @cms_implementation.pre_create_callback(entity, context, options, cms_base())
+      def post_create_callback(entity, context, options \\ %{}), do: @cms_implementation.post_create_callback(entity, context, options, cms_base())
 
-      def get(entity, context, options \\ %{}), do: @default_implementation.get(entity, context, options, __MODULE__)
-      def post_get_callback(entity, context, options \\ %{}), do: @default_implementation.post_get_callback(entity, context, options, __MODULE__)
+      def get(entity, context, options \\ %{}), do: @cms_implementation.get(entity, context, options, cms_base())
+      def post_get_callback(entity, context, options \\ %{}), do: @cms_implementation.post_get_callback(entity, context, options, cms_base())
 
-      def update(entity, context, options \\ %{}), do: @default_implementation.update(entity, context, options, __MODULE__)
-      def pre_update_callback(entity, context, options \\ %{}), do: @default_implementation.pre_update_callback(entity, context, options, __MODULE__)
-      def post_update_callback(entity, context, options \\ %{}), do: @default_implementation.post_update_callback(entity, context, options, __MODULE__)
+      def update(entity, context, options \\ %{}), do: @cms_implementation.update(entity, context, options, cms_base())
+      def pre_update_callback(entity, context, options \\ %{}), do: @cms_implementation.pre_update_callback(entity, context, options, cms_base())
+      def post_update_callback(entity, context, options \\ %{}), do: @cms_implementation.post_update_callback(entity, context, options, cms_base())
 
-      def delete(entity, context, options \\ %{}), do: @default_implementation.delete(entity, context, options, __MODULE__)
-      def pre_delete_callback(entity, context, options \\ %{}), do: @default_implementation.pre_delete_callback(entity, context, options, __MODULE__)
-      def post_delete_callback(entity, context, options \\ %{}), do: @default_implementation.post_delete_callback(entity, context, options, __MODULE__)
+      def delete(entity, context, options \\ %{}), do: @cms_implementation.delete(entity, context, options, cms_base())
+      def pre_delete_callback(entity, context, options \\ %{}), do: @cms_implementation.pre_delete_callback(entity, context, options, cms_base())
+      def post_delete_callback(entity, context, options \\ %{}), do: @cms_implementation.post_delete_callback(entity, context, options, cms_base())
 
       defoverridable [
-
-        cms_versioning_provider: 0,
-        cms_implementation_provider: 0,
-
-
-        #---------------
-        # Query
-        #---------------
-        get_by_status: 3,
-        get_by_status!: 3,
-
-        get_by_type: 3,
-        get_by_type!: 3,
-
-        get_by_module: 3,
-        get_by_module!: 3,
-
-        get_by_editor: 3,
-        get_by_editor!: 3,
-
-        get_by_tag: 3,
-        get_by_tag!: 3,
-
-        get_by_created_on: 4,
-        get_by_created_on!: 4,
-
-        get_by_modified_on: 4,
-        get_by_modified_on!: 4,
-
-        #-------------------
-        # Book Keeping
-        #-------------------
-        update_tags: 3,
-        update_tags!: 3,
-
-        delete_tags: 3,
-        delete_tags!: 3,
-
-        update_index: 3,
-        update_index!: 3,
-
-        delete_index: 3,
-        delete_index!: 3,
-
-        #-------------------
-        # Versioning
-        #-------------------
-        initialize_versioning_records: 2,
-        initialize_versioning_records: 3,
-
-        populate_versioning_records: 2,
-        populate_versioning_records: 3,
-
-        make_active: 2,
-        make_active: 3,
-
-        make_active!: 2,
-        make_active!: 3,
-
-        update_active: 2,
-        update_active: 3,
-
-        update_active!: 2,
-        update_active!: 3,
-
-        get_active: 2,
-        get_active: 3,
-
-        get_active!: 2,
-        get_active!: 3,
-
-        remove_active: 2,
-        remove_active: 3,
-
-        remove_active!: 2,
-        remove_active!: 3,
-
-        init_article_info: 2,
-        init_article_info: 3,
-
-        init_article_info!: 2,
-        init_article_info!: 3,
-
-        update_article_info: 2,
-        update_article_info: 3,
-
-        update_article_info!: 2,
-        update_article_info!: 3,
-
-        get_versions: 2,
-        get_versions: 3,
-
-        get_versions!: 2,
-        get_versions!: 3,
-
-        get_revisions: 2,
-        get_revisions: 3,
-
-        get_revisions!: 2,
-        get_revisions!: 3,
-
-        create_version: 2,
-        create_version: 3,
-
-        create_version!: 2,
-        create_version!: 3,
-
-        update_version: 2,
-        update_version: 3,
-
-        update_version!: 2,
-        update_version!: 3,
-
-        delete_version: 2,
-        delete_version: 3,
-
-        delete_version!: 2,
-        delete_version!: 3,
-
-
-
-        create_revision: 2,
-        create_revision: 3,
-
-        create_revision!: 2,
-        create_revision!: 3,
-
-        update_revision: 2,
-        update_revision: 3,
-
-        update_revision!: 2,
-        update_revision!: 3,
-
-        delete_revision: 2,
-        delete_revision: 3,
-
-        delete_revision!: 2,
-        delete_revision!: 3,
-
-
-        new_version: 2,
-        new_version: 3,
-
-        new_version!: 2,
-        new_version!: 3,
-
-        new_revision: 2,
-        new_revision: 3,
-
-        new_revision!: 2,
-        new_revision!: 3,
-
         #------------------
         # Repo Behaviour
         #------------------

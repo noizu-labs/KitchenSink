@@ -56,6 +56,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   # Default Version Provider
   #----------------------------------------
   @tag :cms
+  @tag :cms_v2
   @tag :cms_version_provider
   test "Create Version" do
     with_mocks([
@@ -78,10 +79,10 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
 
       # Create new Versions
-      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
-      post_1v2 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 2"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
-      post_1v1v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v1| body: %Noizu.MarkdownField{markdown: "My Updated Contents 3"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
-      post_1v2v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v2| body: %Noizu.MarkdownField{markdown: "My Updated Contents 4"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+      post_1v2 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 2"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+      post_1v1v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v1| body: %Noizu.MarkdownField{markdown: "My Updated Contents 3"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+      post_1v2v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v2| body: %Noizu.MarkdownField{markdown: "My Updated Contents 4"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
 
       # Verify Version Info
       assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
@@ -92,6 +93,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_version_provider
   @tag :cms_wip
   test "Edit Version" do
@@ -115,11 +117,11 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
 
       # Create new Versions
-      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
 
       post_1v1_b = %Noizu.Cms.V2.Article.PostEntity{post_1v1|
         title: %Noizu.MarkdownField{markdown: "My New Title"},
-      }  |> Noizu.Cms.V2.ArticleRepo.new_revision!(@context)
+      }  |> Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(@context)
 
       assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
       assert post_1v1.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {{:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}, 1}}
@@ -129,24 +131,28 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_version_provider
   test "Delete Version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_version_provider
   test "Compress Version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_version_provider
   test "Expand Version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_version_provider
   test "Version History" do
     assert true == true
@@ -157,84 +163,98 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   #----------------------------------------
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Status" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Type" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Module" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Editor" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Tag" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Created On Date" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Articles By Modified On Date" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Article Version History" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Article Version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Article Versions" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Create Article Repo Hooks" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Edit Article Repo Hooks" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Get Article Repo Hooks" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_repo_provider
   test "Delete Article Repo Hooks" do
     assert true == true
@@ -244,6 +264,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   # Markdown (Move)
   #----------------------------------------
   @tag :cms
+  @tag :cms_v2
   @tag :markdown
   test "Compress Markdown Record" do
     m = %Noizu.MarkdownField{
@@ -254,6 +275,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :markdown
   test "Expand Markdown Record" do
     m = Noizu.MarkdownField.expand({:markdown, "# Hello World"})
@@ -261,6 +283,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :markdown
   test "Render Markdown record" do
     m = %Noizu.MarkdownField{
@@ -274,36 +297,42 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   # CMS Proto
   #----------------------------------------
   @tag :cms
+  @tag :cms_v2
   @tag :cms_protocol
   test "CMS Protocol - tags" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_protocol
   test "CMS Protocol - set_version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_protocol
   test "CMS Protocol - get_version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_protocol
   test "CMS Protocol - prepare_version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_protocol
   test "CMS Protocol - expand_version" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_protocol
   test "CMS Protocol - index_details" do
     assert true == true
@@ -315,12 +344,14 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   # @TODO - we will go from top to bottom. Setup new entries, then go in to make sure all supporting records are correctly populated.
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article Polymorphism Support" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Create Should Populate Version, Revision, Index and Tag Tables." do
     with_mocks([
@@ -405,6 +436,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Updating an active record should cause the Index and Tag table to update as well." do
     with_mocks([
@@ -456,6 +488,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - User should be able to create new revisions." do
     with_mocks([
@@ -486,7 +519,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                        body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                        attributes: %{},
                        article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                     } |> Noizu.Cms.V2.ArticleRepo.new_revision!(@context)
+                     } |> Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(@context)
 
       # Verify New Revision Created.
       revision_key = elem(post_v2.article_info.revision, 2)
@@ -516,6 +549,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - User should be able to create new versions." do
     with_mocks([
@@ -546,7 +580,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                   body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                } |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
 
       # Verify New Revision Created.
       revision_key = elem(post_v2.article_info.revision, 2)
@@ -577,6 +611,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - User should be able to create multiple versions based on a single parent." do
     with_mocks([
@@ -607,14 +642,14 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                   body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                } |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
 
       post_v3 = %Noizu.Cms.V2.Article.PostEntity{post|
                   title: %Noizu.MarkdownField{markdown: "My Alternative Updated Post"},
                   body: %Noizu.MarkdownField{markdown: "My Alternative Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test2}
-                } |> Noizu.Cms.V2.ArticleRepo.new_version!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
 
       # Verify New Revisions
       revision_key = elem(post_v2.article_info.revision, 2)
@@ -656,6 +691,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Delete Active Version" do
     with_mocks([
@@ -687,6 +723,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Delete Version Active Revision" do
     with_mocks([
@@ -711,8 +748,8 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {:revision, {aid, _version, _revision}} = post.identifier
       _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
-      post_v2 = Noizu.Cms.V2.ArticleRepo.new_version!(post, @context)
-      post_v3 = Noizu.Cms.V2.ArticleRepo.new_revision!(post_v2, @context)
+      post_v2 = Noizu.Cms.V2.ArticleRepo.CMS.new_version!(post, @context)
+      post_v3 = Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(post_v2, @context)
 
       delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v3, @context)
       assert delete == true
@@ -723,6 +760,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Delete Inactive Version" do
     with_mocks([
@@ -753,7 +791,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                   body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                } |> Noizu.Cms.V2.ArticleRepo.new_revision!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(@context)
 
       delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v2, @context)
       assert delete == true
@@ -761,6 +799,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Expand Revision Ref" do
     with_mocks([
@@ -793,6 +832,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Expand Version Ref" do
     with_mocks([
@@ -824,6 +864,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Article - Expand Bare Ref" do
     with_mocks([
@@ -857,6 +898,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   test "Extended ERP Revision Support - sref to ref happy path" do
     ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2.1-432")
     assert ref == {:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, 432}}}
@@ -872,6 +914,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   test "Extended ERP Revision Support - negative cases" do
     # improperly formatted
     ref = Noizu.Cms.V2.Article.PostEntity.ref("ref.cms-entry.1234@1.2-.1-432")
@@ -899,6 +942,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   test "Extended ERP Revision Support - ref to sref happy path" do
     sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:revision, {1234, {1, 2, 1}, 432}}})
     assert sref == "ref.cms-entry.1234@1.2.1-432"
@@ -917,6 +961,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v2
   test "Extended ERP Revision Support - ref to sref negative cases" do
     # Invalid identifier
     sref = Noizu.Cms.V2.Article.PostEntity.sref({:ref, Noizu.Cms.V2.ArticleEntity, {:unsupported, {1234, {1, 2, 1}, 432}}})
@@ -996,12 +1041,14 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
 
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "Image Article CRUD" do
     assert true == true
   end
 
   @tag :cms
+  @tag :cms_v2
   @tag :cms_built_in
   test "File Article CRUD" do
     assert true == true
