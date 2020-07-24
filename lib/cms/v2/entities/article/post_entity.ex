@@ -29,10 +29,10 @@ defmodule Noizu.Cms.V2.Article.PostEntity do
     vsn: @vsn
   ]
 
-  use Noizu.Scaffolding.V2.EntityBehaviour,
-      poly_base: Noizu.Cms.V2.ArticleEntity
+  #use Noizu.Scaffolding.V2.EntityBehaviour
   use Noizu.Cms.V2.EntityBehaviour,
-      cms_base: Noizu.Cms.V2.ArticleEntity
+      cms_base: Noizu.Cms.V2.ArticleEntity,
+      poly_base: Noizu.Cms.V2.ArticleEntity
   #=============================================================================
   # has_permission - cast|info
   #=============================================================================

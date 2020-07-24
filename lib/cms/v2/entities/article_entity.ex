@@ -20,7 +20,8 @@ defmodule Noizu.Cms.V2.ArticleEntity do
   ]
 
   use Noizu.Cms.V2.Database
-  use Noizu.Scaffolding.V2.EntityBehaviour,
+  # use Noizu.Scaffolding.V2.EntityBehaviour
+  use Noizu.Cms.V2.EntityBehaviour,
       sref_module: "cms-entry",
       entity_table: Noizu.Cms.V2.Database.ArticleTable,
       poly_support: [
@@ -28,7 +29,7 @@ defmodule Noizu.Cms.V2.ArticleEntity do
         Noizu.Cms.V2.Article.ImageEntity,
         Noizu.Cms.V2.Article.PostEntity,
       ]
-  use Noizu.Cms.V2.EntityBehaviour
+
   #=============================================================================
   # has_permission - cast|info
   #=============================================================================

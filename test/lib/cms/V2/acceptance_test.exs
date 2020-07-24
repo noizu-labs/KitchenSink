@@ -79,10 +79,10 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
 
       # Create new Versions
-      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
-      post_1v2 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 2"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
-      post_1v1v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v1| body: %Noizu.MarkdownField{markdown: "My Updated Contents 3"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
-      post_1v2v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v2| body: %Noizu.MarkdownField{markdown: "My Updated Contents 4"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
+      post_1v2 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 2"}} |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
+      post_1v1v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v1| body: %Noizu.MarkdownField{markdown: "My Updated Contents 3"}} |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
+      post_1v2v1 = %Noizu.Cms.V2.Article.PostEntity{post_1v2| body: %Noizu.MarkdownField{markdown: "My Updated Contents 4"}} |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
 
       # Verify Version Info
       assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
@@ -117,11 +117,11 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
 
       # Create new Versions
-      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+      post_1v1 = %Noizu.Cms.V2.Article.PostEntity{post| body: %Noizu.MarkdownField{markdown: "My Updated Contents 1"}} |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
 
       post_1v1_b = %Noizu.Cms.V2.Article.PostEntity{post_1v1|
         title: %Noizu.MarkdownField{markdown: "My New Title"},
-      }  |> Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(@context)
+      }  |> Noizu.Cms.V2.ArticleRepo.CMS.Revision.new!(@context)
 
       assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
       assert post_1v1.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {{:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}, 1}}
@@ -519,7 +519,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                        body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                        attributes: %{},
                        article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                     } |> Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(@context)
+                     } |> Noizu.Cms.V2.ArticleRepo.CMS.Revision.new!(@context)
 
       # Verify New Revision Created.
       revision_key = elem(post_v2.article_info.revision, 2)
@@ -580,7 +580,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                   body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
 
       # Verify New Revision Created.
       revision_key = elem(post_v2.article_info.revision, 2)
@@ -642,14 +642,14 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                   body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
 
       post_v3 = %Noizu.Cms.V2.Article.PostEntity{post|
                   title: %Noizu.MarkdownField{markdown: "My Alternative Updated Post"},
                   body: %Noizu.MarkdownField{markdown: "My Alternative Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test2}
-                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_version!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(@context)
 
       # Verify New Revisions
       revision_key = elem(post_v2.article_info.revision, 2)
@@ -748,8 +748,8 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       {:revision, {aid, _version, _revision}} = post.identifier
       _article_ref = {:ref, Noizu.Cms.V2.ArticleEntity, aid}
 
-      post_v2 = Noizu.Cms.V2.ArticleRepo.CMS.new_version!(post, @context)
-      post_v3 = Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(post_v2, @context)
+      post_v2 = Noizu.Cms.V2.ArticleRepo.CMS.Version.new!(post, @context)
+      post_v3 = Noizu.Cms.V2.ArticleRepo.CMS.Revision.new!(post_v2, @context)
 
       delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v3, @context)
       assert delete == true
@@ -791,7 +791,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
                   body: %Noizu.MarkdownField{markdown: "My Updated Contents"},
                   attributes: %{},
                   article_info: %Noizu.Cms.V2.Article.Info{post.article_info| tags: MapSet.new(["hello", "steve"]), status: :approved, editor: :test}
-                } |> Noizu.Cms.V2.ArticleRepo.CMS.new_revision!(@context)
+                } |> Noizu.Cms.V2.ArticleRepo.CMS.Revision.new!(@context)
 
       delete = Noizu.Cms.V2.ArticleRepo.delete!(post_v2, @context)
       assert delete == true

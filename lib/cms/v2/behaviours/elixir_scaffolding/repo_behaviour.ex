@@ -82,12 +82,12 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       if is_versioning_record? do
         entity
         |> caller.cms().update_article_info(context, options)
-        |> caller.cms().populate_versioning_records(context, options_a)
+        |> caller.cms_version().populate(context, options_a)
       else
         # 5. Prepare Version and Revision, modify identifier.
         entity
         |> caller.cms().init_article_info(context, options)
-        |> caller.cms().initialize_versioning_records(context, options_a)
+        |> caller.cms_version().initialize(context, options_a)
       end
     end
 
@@ -174,7 +174,7 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
       entity
       |> caller.cms().update_article_info(context, options)
-      |> caller.cms().populate_versioning_records(context, options_a)
+      |> caller.cms_version().populate(context, options_a)
     end
 
     #-----------------------------
@@ -214,7 +214,7 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
                            |> Noizu.Cms.V2.Version.RevisionEntity.ref()
 
         if article_revision do
-          if article_revision == caller.cms().get_active(entity, context, options) do
+          if article_revision == caller.cms_index().get_active(entity, context, options) do
             throw :active_version
           end
 

@@ -5,6 +5,12 @@
 
 defmodule Noizu.Cms.V2.EntityBehaviour do
 
+  @moduledoc """
+    Extends Noizu.Scaffolding.V2.EntityBehaviour provider. Accepts same options as the vanilla Noizu.Scaffolding.V2.RepoBehaviour invokes
+    `use Noizu.Scaffolding.V2.EntityBehaviour` before overriding default CRUD methods and adding additional ObjectRepo.CMS namespace and CMS protocol functions.
+
+  """
+
 
   defmodule Default do
     use Amnesia
@@ -199,6 +205,13 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
     quote do
       import unquote(__MODULE__)
       require Logger
+
+
+      # Invoke EntityBehaviour before overriding defaults and adding CMS specific extensions.
+      use Noizu.Scaffolding.V2.EntityBehaviour, unquote(options)
+
+
+
       @cms_implementation unquote(cms_implementation)
       use Noizu.Cms.V2.SettingsBehaviour.EntitySettings, unquote([option_settings: cms_option_settings])
 
