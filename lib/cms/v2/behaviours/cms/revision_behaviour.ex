@@ -11,6 +11,8 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
     alias Noizu.ElixirCore.OptionSettings
     alias Noizu.ElixirCore.OptionValue
     #alias Noizu.ElixirCore.OptionList
+    alias Noizu.Cms.V2.Version.RevisionEntity
+    alias Noizu.Cms.V2.Version.RevisionRepo
 
     def prepare_options(options) do
       settings = %OptionSettings{
@@ -32,7 +34,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
       #options_a = put_in(options, [:active_revision], true)
       case caller.cms_revision().create(entity, context, options) do
         {:ok, revision} ->
-          revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
+          revision_ref = RevisionEntity.ref(revision)
           options_a = put_in(options, [:nested_versioning], true)
           entity
           |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options_a)
@@ -57,9 +59,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
                     |> Noizu.ERP.ref()
       cond do
         version_ref ->
-          Noizu.Cms.V2.Database.Version.RevisionTable.match([identifier: {version_ref, :_}])
-          |> Amnesia.Selection.values()
-          |> Enum.map(&(&1.entity))
+         RevisionRepo.match([identifier: {version_ref, :_}], context, options)
         true -> {:error, :version_unknown}
       end
     end
@@ -91,13 +91,13 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
         version == nil -> {:error, :no_version_provided}
         true ->
           revision_key = options[:revision_key] || {version_ref, caller.cms_version().version_sequencer({:revision, version_key})}
-          revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision_key)
+          revision_ref = RevisionEntity.ref(revision_key)
           article = article
                     |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
 
           {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
 
-          revision = %Noizu.Cms.V2.Version.RevisionEntity{
+          revision = %RevisionEntity{
                        identifier: revision_key,
                        article: article_ref,
                        version: version_ref,
@@ -107,16 +107,16 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
                        status: article_info.status,
                        archive_type: archive_type,
                        archive: archive,
-                     } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
+                     } |> RevisionRepo.create(context)
 
           case revision do
-            %Noizu.Cms.V2.Version.RevisionEntity{} ->
+            %RevisionEntity{} ->
 
               # Create Active Version Record.
               if options[:active_revision] do
                 %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{
                   version: Noizu.Cms.V2.VersionEntity.ref(version_ref),
-                  revision: Noizu.Cms.V2.Version.RevisionEntity.ref(revision_ref)
+                  revision: RevisionEntity.ref(revision_ref)
                 } |> Noizu.Cms.V2.Database.Version.ActiveRevisionTable.write()
               end
 
@@ -145,8 +145,8 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
       # version_key = Noizu.Cms.V2.VersionEntity.id(version)
 
       revision = Noizu.Cms.V2.Proto.get_revision(entity, context, options)
-      revision_ref = Noizu.Cms.V2.Version.RevisionEntity.ref(revision)
-      revision_key = Noizu.Cms.V2.Version.RevisionEntity.id(revision)
+      revision_ref = RevisionEntity.ref(revision)
+      revision_key = RevisionEntity.id(revision)
 
       cond do
         article_ref == nil -> {:error, :invalid_record}
@@ -154,15 +154,15 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
         revision == nil -> {:error, :no_revision_provided}
         true ->
           # load existing record.
-          revision = if revision = Noizu.Cms.V2.Version.RevisionEntity.entity(revision) do
-            %Noizu.Cms.V2.Version.RevisionEntity{
+          revision = if revision = RevisionEntity.entity(revision) do
+            %RevisionEntity{
               revision|
               article: article_ref,
               version: version_ref,
               modified_on: article_info.modified_on,
               editor: article_info.editor,
               status: article_info.status,
-            } |> Noizu.Cms.V2.Version.RevisionRepo.update(context)
+            } |> RevisionRepo.update(context)
           else
 
             # insure ref,version correctly set before obtained qualified (Versioned) ref.
@@ -171,7 +171,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
                       |> Noizu.Cms.V2.Proto.set_version(version_ref, context, options)
             {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
 
-            %Noizu.Cms.V2.Version.RevisionEntity{
+            %RevisionEntity{
               identifier: revision_key,
               article: article_ref,
               version: version_ref,
@@ -181,7 +181,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
               status: article_info.status,
               archive_type: archive_type,
               archive: archive,
-            } |> Noizu.Cms.V2.Version.RevisionRepo.create(context)
+            } |> RevisionRepo.create(context)
           end
 
 
@@ -189,7 +189,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
           if options[:active_revision] do
             %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{
               version: Noizu.Cms.V2.VersionEntity.ref(version_ref),
-              revision: Noizu.Cms.V2.Version.RevisionEntity.ref(revision_ref)
+              revision: RevisionEntity.ref(revision_ref)
             } |> Noizu.Cms.V2.Database.Version.ActiveRevisionTable.write()
           end
 
@@ -239,12 +239,59 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
       end
     end
 
+    def delete_active({:ref, _, _identifier} = ref, _context, _options, _caller) do
+      Noizu.Cms.V2.Database.Version.ActiveRevisionTable.delete(ref)
+    end
+
+    def delete_active(entity, context, options, _caller) do
+      version_ref = Noizu.Cms.V2.Proto.get_version(entity, context, options)
+                    |> Noizu.ERP.ref()
+      Noizu.Cms.V2.Database.Version.ActiveRevisionTable.delete(version_ref)
+    end
+
     #------------------------
     #
     #------------------------
     def delete!(entity, context, options, caller) do
       Amnesia.Fragment.async(fn -> caller.cms_revision().delete(entity, context, options) end)
     end
+
+    def populate(entity, context, options, caller) do
+      version = Noizu.Cms.V2.Proto.get_version(entity, context, options)
+      version_ref = caller.cms_version().ref(version)
+
+      revision = Noizu.Cms.V2.Proto.get_version(entity, context, options)
+      revision_ref = caller.cms_revision().ref(revision)
+
+      # if active revision then update version table, otherwise only update revision.
+      case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(version_ref) do
+        %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: active_revision_ref} ->
+
+          if active_revision_ref == revision_ref || options[:active_revision] == true do
+            case caller.cms_version().update(entity, context, options) do
+              {:ok, _} ->
+                entity
+              e -> throw "populate_versioning_records error: #{inspect e}"
+            end
+          else
+            case caller.cms_revision().update(entity, context, options) do
+              {:ok, _} ->
+                entity
+              e -> throw "populate_versioning_records error: #{inspect e}"
+            end
+          end
+
+        _ ->
+          options_a = put_in(options, [:active_revision], true)
+          case caller.cms_version().update(entity, context, options_a) do
+            {:ok, _} ->
+              entity
+            e -> throw "populate_versioning_records error: #{inspect e}"
+          end
+      end
+    end
+
+    def ref(entity, __caller), do: RevisionEntity.ref(entity)
 
   end
 
@@ -275,6 +322,12 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
       def new(entity, context, options \\ %{}), do: @cms_revision_implementation.new(entity, context, options, cms_base())
       def new!(entity, context, options \\ %{}), do: @cms_revision_implementation.new!(entity, context, options, cms_base())
 
+      def populate(entity, context, options \\ %{}), do: @cms_revision_implementation.populate(entity, context, options, cms_base())
+
+      def ref(entity), do: @cms_revision_implementation.ref(entity, cms_base())
+
+      def delete_active(ref, context, options \\ %{}), do: @cms_revision_implementation.delete_active(ref, context, options, cms_base())
+
       defoverridable [
 
         revisions: 2,
@@ -301,6 +354,14 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
         new: 3,
         new!: 2,
         new!: 3,
+
+        populate: 2,
+        populate: 3,
+
+        delete_active: 2,
+        delete_active: 3,
+
+        ref: 1,
       ]
     end
   end

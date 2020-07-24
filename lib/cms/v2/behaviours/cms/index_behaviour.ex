@@ -114,6 +114,12 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     def remove_active(entity, context, options, caller) do
       article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
+
+      # Delete Active version entry
+      version_ref = Proto.get_version(entity, context, options)
+                    |> Noizu.ERP.ref()
+      caller.cms_revision().delete_active(version_ref, context, options)
+
       article && caller.cms_index().delete(article, context, options)
     end
 
@@ -121,10 +127,8 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # remove_active!/4
     #-----------------------------
     def remove_active!(entity, context, options, caller) do
-      article = Noizu.Cms.V2.Proto.get_article!(entity, context, options)
-      article && caller.cms_index().delete!(article, context, options)
+      Amnesia.async(fn -> caller.cms_index().remove_active(entity, context, options) end)
     end
-
 
     #-----------------------------
     # get_active/4

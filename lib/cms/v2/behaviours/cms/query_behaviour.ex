@@ -14,7 +14,6 @@ defmodule Noizu.Cms.V2.Cms.QueryBehaviour do
     alias Noizu.ElixirCore.OptionSettings
     alias Noizu.ElixirCore.OptionValue
     #alias Noizu.ElixirCore.OptionList
-    use Noizu.Cms.V2.Database.VersionTable
 
     @default_options %{
       expand: true,
