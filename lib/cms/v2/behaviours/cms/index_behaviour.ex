@@ -116,7 +116,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
       article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
 
       # Delete Active version entry
-      version_ref = Proto.get_version(entity, context, options)
+      version_ref = Noizu.Cms.V2.Proto.get_version(entity, context, options)
                     |> Noizu.ERP.ref()
       caller.cms_revision().delete_active(version_ref, context, options)
 
