@@ -14,8 +14,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
     alias Noizu.ElixirCore.OptionSettings
     alias Noizu.ElixirCore.OptionValue
     #alias Noizu.ElixirCore.OptionList
-    alias Noizu.Cms.V2.Database.TagTable
-    use Noizu.Cms.V2.Database.TagTable
+
 
     @default_options %{
       expand: true,
@@ -37,11 +36,6 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
     def merge_options(nil), do: @default_options
     def merge_options(%{} = options), do: Map.merge(@default_options, options || %{})
 
-
-    def new_tag(tag, article, _caller) do
-      %TagTable{article: article, tag: tag}
-    end
-
     #-----------------------------
     # update/4
     #-----------------------------
@@ -53,7 +47,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
         nil -> []
       end
 
-      existing_tags = case caller.cms_tag_table().read(ref) do
+      existing_tags = case caller.cms_tag_repo().read(ref) do
         v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
         nil -> []
         v -> {:error, v}
@@ -61,11 +55,11 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
 
       if (new_tags != existing_tags) do
         # erase any existing tags
-        caller.cms_tag_table().delete(ref)
+        caller.cms_tag_repo().delete(ref)
 
         # insert new tags
         Enum.map(new_tags, fn(tag) ->
-          caller.cms_tags().new_tag(tag, ref) |> caller.cms_tag_table().write()
+          caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().write()
         end)
       end
     end
@@ -81,7 +75,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
         nil -> []
       end
 
-      existing_tags = case caller.cms_tag_table().read!(ref) do
+      existing_tags = case caller.cms_tag_repo().read!(ref) do
         v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
         nil -> []
         v -> {:error, v}
@@ -89,11 +83,11 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
 
       if (new_tags != existing_tags) do
         # erase any existing tags
-        caller.cms_tag_table().delete!(ref)
+        caller.cms_tag_repo().delete!(ref)
 
         # insert new tags
         Enum.map(new_tags, fn(tag) ->
-          caller.cms_tags().new_tag(tag, ref) |> caller.cms_tag_table().write!()
+          caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().write!()
         end)
       end
     end
@@ -104,7 +98,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
     def delete(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
       # erase any existing tags
-      caller.cms_tag_table().delete(ref)
+      caller.cms_tag_repo().delete(ref)
     end
 
     #-----------------------------
@@ -113,7 +107,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
     def delete!(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
       # erase any existing tags
-      caller.cms_tag_table().delete!(ref)
+      caller.cms_tag_repo().delete!(ref)
     end
 
 
@@ -133,7 +127,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
       @cms_implementation unquote(cms_implementation)
       use Noizu.Cms.V2.SettingsBehaviour.InheritedSettings, unquote([option_settings: cms_option_settings])
 
-      def new_tag(tag, article), do: @cms_implementation.new_tag(tag, article, cms_base())
+
 
       def update(entry, context, options \\ nil), do: @cms_implementation.update(entry, context, options, cms_base())
       def update!(entry, context, options \\ nil), do: @cms_implementation.update!(entry, context, options, cms_base())
@@ -143,7 +137,6 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
 
 
       defoverridable [
-        new_tag: 2,
         update: 2,
         update: 3,
         update!: 2,

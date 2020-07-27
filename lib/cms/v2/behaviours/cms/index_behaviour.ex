@@ -51,7 +51,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
 
 
     def active(ref, context, options, caller) do
-      index = caller.cms_index_table().read(ref)
+      index = caller.cms_index_repo().read(ref)
       revision = index && Noizu.Cms.V2.Proto.get_revision(index, context, options)
       cond do
         revision -> caller.cms_revision_entity().id(revision)
@@ -145,7 +145,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     def get_active(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      case caller.cms_index_table().read(ref) do
+      case caller.cms_index_repo().read(ref) do
         %{active_revision: r} -> r
         _ -> nil
       end
@@ -156,7 +156,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     def get_active!(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
-      case caller.cms_index_table().read!(ref) do
+      case caller.cms_index_repo().read!(ref) do
         %{active_revision: r} -> r
         _ -> nil
       end
@@ -174,7 +174,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
         _ -> filter
       end
       |> Enum.uniq()
-      |> caller.cms_index_table().match()
+      |> caller.cms_index_repo().match()
       |> Amnesia.Selection.values
     end
 
@@ -246,18 +246,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # by_created_on/5
     #----------------------------------
     def by_created_on(from, to, context, options, caller) do
-      from_ts = is_integer(from) && from || DateTime.to_unix(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix(to)
-      cond do
-        Kernel.match?({:type, _}, options.filter) ->
-          t = elem(options.filter, 1)
-          IndexTable.where(type == t and created_on >= from_ts and created_on < to_ts)
-        Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-          m = elem(options.filter, 1)
-          IndexTable.where(module == m and created_on >= from_ts and created_on < to_ts)
-        true -> IndexTable.where(created_on >= from_ts and created_on < to_ts)
-      end
-      |> Amnesia.Selection.values
+      caller.cms_index_repo().by_created_on(from, to, context, options)
       |> caller.cms_index().expand_records(context, options)
     end
 
@@ -265,20 +254,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # by_created_on!/4
     #-----------------------5----------
     def by_created_on!(from, to, context, options, caller) do
-      from_ts = is_integer(from) && from || DateTime.to_unix(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix(to)
-      Amnesia.Fragment.async(fn ->
-        cond do
-          Kernel.match?({:type, _}, options.filter) ->
-            t = elem(options.filter, 1)
-            IndexTable.where(type == t and created_on >= from_ts and created_on < to_ts)
-          Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-            m = elem(options.filter, 1)
-            IndexTable.where(module == m and created_on >= from_ts and created_on < to_ts)
-          true -> IndexTable.where(created_on >= from_ts and created_on < to_ts)
-        end
-        |> Amnesia.Selection.values
-      end)
+      caller.cms_index_repo().by_created_on!(from, to, context, options)
       |> caller.cms_index().expand_records!(context, options)
     end
 
@@ -286,18 +262,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # by_modified_on/5
     #----------------------------------
     def by_modified_on(from, to, context, options, caller) do
-      from_ts = is_integer(from) && from || DateTime.to_unix(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix(to)
-      cond do
-        Kernel.match?({:type, _}, options.filter) ->
-          t = elem(options.filter, 1)
-          IndexTable.where(type == t and modified_on >= from_ts and modified_on < to_ts)
-        Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-          m = elem(options.filter, 1)
-          IndexTable.where(module == m and modified_on >= from_ts and modified_on < to_ts)
-        true -> IndexTable.where(modified_on >= from_ts and modified_on < to_ts)
-      end
-      |> Amnesia.Selection.values
+      caller.cms_index_repo().by_modified_on(from, to, context, options)
       |> caller.cms_index().expand_records(context, options)
     end
 
@@ -305,20 +270,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # by_modified_on!/5
     #----------------------------------
     def by_modified_on!(from, to, context, options, caller) do
-      from_ts = is_integer(from) && from || DateTime.to_unix(from)
-      to_ts = is_integer(to) && to || DateTime.to_unix(to)
-      Amnesia.Fragment.async(fn ->
-        cond do
-          Kernel.match?({:type, _}, options.filter) ->
-            t = elem(options.filter, 1)
-            IndexTable.where(type == t and modified_on >= from_ts and modified_on < to_ts)
-          Kernel.match?({:module, _}, options.filter) || options.filter && is_atom(options.filter) ->
-            m = elem(options.filter, 1)
-            IndexTable.where(module == m and modified_on >= from_ts and modified_on < to_ts)
-          true -> IndexTable.where(modified_on >= from_ts and modified_on < to_ts)
-        end
-        |> Amnesia.Selection.values
-      end)
+      caller.cms_index_repo().by_modified_on!(from, to, context, options)
       |> caller.cms_index().expand_records!(context, options)
     end
 
@@ -333,19 +285,21 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
         article_info.version == nil -> {:error, :version_not_set}
         article_info.revision == nil -> {:error, :revision_not_set}
         true ->
-          case caller.cms_index_table().read(ref) do
-            index = %IndexTable{} ->
-              %IndexTable{index|
-                status: article_info.status,
-                module: article_info.module,
-                type: article_info.type,
-                editor: article_info.editor,
-                modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
-                active_version: article_info.version,
-                active_revision: article_info.revision,
-              } |> IndexTable.write
+          case caller.cms_index_repo().read(ref) do
+            index = %{} ->
+              caller.cms_index_repo().change_set(index,
+                %{
+                  status: article_info.status,
+                  module: article_info.module,
+                  type: article_info.type,
+                  editor: article_info.editor,
+                  modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
+                  active_version: article_info.version,
+                  active_revision: article_info.revision,
+                }) |> caller.cms_index_repo().write()
+
             _ ->
-              %IndexTable{
+          caller.cms_index_repo().new(%{
                 article: article_info.article,
                 status: article_info.status,
                 module: article_info.module,
@@ -355,7 +309,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
                 modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
                 active_version: article_info.version,
                 active_revision: article_info.revision,
-              } |> IndexTable.write
+              }) |> caller.cms_index_repo().write()
           end
       end
     end
@@ -371,29 +325,31 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
         article_info.version == nil -> {:error, :version_not_set}
         article_info.revision == nil -> {:error, :revision_not_set}
         true ->
-          case caller.cms_index_table().read!(ref) do
-            index = %IndexTable{} ->
-              %IndexTable{index|
-                status: article_info.status,
-                module: article_info.module,
-                type: article_info.type,
-                editor: article_info.editor,
-                modified_on: article_info.modified_on,
-                active_version: article_info.version,
-                active_revision: article_info.revision,
-              } |> IndexTable.write!
+          case caller.cms_index_repo().read!(ref) do
+            index = %{} ->
+              caller.cms_index_repo().change_set(index,
+                %{
+                  status: article_info.status,
+                  module: article_info.module,
+                  type: article_info.type,
+                  editor: article_info.editor,
+                  modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
+                  active_version: article_info.version,
+                  active_revision: article_info.revision,
+                }) |> caller.cms_index_repo().write!()
+
             _ ->
-              %IndexTable{
+              caller.cms_index_repo().new(%{
                 article: article_info.article,
                 status: article_info.status,
                 module: article_info.module,
                 type: article_info.type,
                 editor: article_info.editor,
-                created_on: article_info.created_on,
-                modified_on: article_info.modified_on,
+                created_on: article_info.created_on && DateTime.to_unix(article_info.created_on),
+                modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
                 active_version: article_info.version,
                 active_revision: article_info.revision,
-              } |> IndexTable.write!
+              }) |> caller.cms_index_repo().write!()
           end
       end
     end
@@ -403,7 +359,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     def delete(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      caller.cms_index_table().delete(ref)
+      caller.cms_index_repo().delete(ref)
     end
 
     #-----------------------------
@@ -411,7 +367,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     def delete!(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
-      caller.cms_index_table().delete!(ref)
+      caller.cms_index_repo().delete!(ref)
     end
 
   end

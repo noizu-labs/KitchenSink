@@ -10,8 +10,8 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
       cms_option_settings = Macro.expand(opts[:option_settings], __CALLER__)
       cms_options = cms_option_settings.effective_options
 
-      tag_table = cms_options.tag_table
-      index_table = cms_options.index_table
+      tag_repo = cms_options.tag_repo
+      index_repo = cms_options.index_repo
       version_entity = cms_options.version_entity
       version_repo = cms_options.version_repo
       revision_entity = cms_options.revision_entity
@@ -29,8 +29,8 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         @cms_tag_handler Module.concat(@cms_repo_handler, Tags)
 
 
-        @cms_tag_table unquote(tag_table)
-        @cms_index_table unquote(index_table)
+        @cms_tag_repo unquote(tag_repo)
+        @cms_index_repo unquote(index_repo)
         @cms_version_entity unquote(version_entity)
         @cms_version_repo unquote(version_repo)
         @cms_revision_entity unquote(revision_entity)
@@ -48,8 +48,8 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         def cms_index(), do: @cms_index_handler
         def cms_tags(), do: @cms_tag_handler
 
-        def cms_index_table(), do: @cms_index_table
-        def cms_tag_table(), do: @cms_tag_table
+        def cms_index_repo(), do: @cms_index_repo
+        def cms_tag_repo(), do: @cms_tag_repo
         def cms_version_entity(), do: @cms_version_entity
         def cms_version_repo(), do: @cms_version_repo
         def cms_revision_entity(), do: @cms_revision_entity
@@ -68,8 +68,8 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_index: 0,
           cms_tags: 0,
 
-          cms_index_table: 0,
-          cms_tag_table: 0,
+          cms_index_repo: 0,
+          cms_tag_repo: 0,
           cms_version_entity: 0,
           cms_version_repo: 0,
           cms_revision_entity: 0,
@@ -109,8 +109,8 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         defdelegate cms_tags(), to: @cms_entity_source
 
 
-        defdelegate cms_tag_table(), to: @cms_entity_source
-        defdelegate cms_index_table(), to: @cms_entity_source
+        defdelegate cms_tag_repo(), to: @cms_entity_source
+        defdelegate cms_index_repo(), to: @cms_entity_source
         defdelegate cms_version_entity(), to: @cms_entity_source
         defdelegate cms_version_repo(), to: @cms_entity_source
         defdelegate cms_revision_entity(), to: @cms_entity_source
@@ -125,8 +125,9 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_query: 0,
           cms_index: 0,
           cms_tags: 0,
-          cms_index_table: 0,
-          cms_tag_table: 0,
+
+          cms_index_repo: 0,
+          cms_tag_repo: 0,
           cms_version_entity: 0,
           cms_version_repo: 0,
           cms_revision_entity: 0,
@@ -153,8 +154,8 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         defdelegate cms_index(), to: @cms_parent
         defdelegate cms_tags(), to: @cms_parent
 
-        defdelegate cms_tag_table(), to: @cms_parent
-        defdelegate cms_index_table(), to: @cms_parent
+        defdelegate cms_tag_repo(), to: @cms_parent
+        defdelegate cms_index_repo(), to: @cms_parent
         defdelegate cms_version_entity(), to: @cms_parent
         defdelegate cms_version_repo(), to: @cms_parent
         defdelegate cms_revision_entity(), to: @cms_parent
@@ -171,8 +172,9 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_query: 0,
           cms_index: 0,
           cms_tags: 0,
-          cms_index_table: 0,
-          cms_tag_table: 0,
+
+          cms_index_repo: 0,
+          cms_tag_repo: 0,
           cms_version_entity: 0,
           cms_version_repo: 0,
           cms_revision_entity: 0,
