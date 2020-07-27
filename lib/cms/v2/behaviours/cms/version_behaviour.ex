@@ -13,7 +13,8 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     alias Noizu.Cms.V2.VersionEntity
     alias Noizu.Cms.V2.VersionRepo
 
-
+    @revision_format ~r/^(.*)@([0-9a-zA-Z][0-9a-zA-Z\.]*)-([0-9a-zA-Z]+)$/
+    @version_format ~r/^(.*)@([0-9a-zA-Z][0-9a-zA-Z\.]*)$/
 
 
     def prepare_options(options) do
@@ -25,6 +26,156 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
       OptionSettings.expand(settings, options)
     end
 
+
+    #------------------------------
+    # string_to_id
+    #------------------------------
+    def string_to_id(nil, _caller), do: nil
+    def string_to_id(identifier, caller) when is_bitstring(identifier) do
+      case identifier do
+        "ref." <> _ -> {:error, {:unsupported, identifier}}
+        _ ->
+          cond do
+            Regex.match?(@revision_format, identifier) ->
+              case Regex.run(@revision_format, identifier) do
+                [_, identifier, version, revision] ->
+                  case caller.article_string_to_id(identifier) do
+                    {:ok, i} ->
+                      version_path = String.split(version, ".")
+                                     |> Enum.map(
+                                          fn(x) ->
+                                            case Integer.parse(x) do
+                                              {v, ""} -> v
+                                              _ -> x
+                                            end
+                                          end)
+                                     |> List.to_tuple()
+                      revision = case Integer.parse(revision) do
+                        {v, ""} -> v
+                        _ -> revision
+                      end
+                      {:revision, {i, version_path, revision}}
+                    _ -> {:error, {:unsupported, identifier}}
+                  end
+                _ ->  {:error, {:unsupported, identifier}}
+              end
+
+            Regex.match?(@version_format, identifier) ->
+              case Regex.run(@version_format, identifier) do
+                [_, identifier, version] ->
+                  case caller.article_string_to_id(identifier) do
+                    {:ok, i} ->
+                      version_path = String.split(version, ".")
+                                     |> Enum.map(
+                                          fn(x) ->
+                                            case Integer.parse(x) do
+                                              {v, ""} -> v
+                                              _ -> x
+                                            end
+                                          end)
+                                     |> List.to_tuple()
+                      {:version, {i, version_path}}
+                    _ -> {:error, {:unsupported, identifier}}
+                  end
+                _ ->  {:error, {:unsupported, identifier}}
+              end
+
+            true -> caller.article_string_to_id(identifier)
+          end
+      end
+    end
+    def string_to_id(i, _caller), do: {:error, {:unsupported, i}}
+
+    #------------------------------
+    # id_to_string
+    #------------------------------
+    def id_to_string(identifier, caller) do
+      case identifier do
+        nil -> nil
+        {:revision, {i,v,r}} ->
+          cond do
+            i == nil -> {:error, {:unsupported, identifier}}
+            !is_tuple(v) -> {:error, {:unsupported, identifier}}
+            r == nil -> {:error, {:unsupported, identifier}}
+            !(is_integer(r) || is_bitstring(r) || is_atom(r)) -> {:error, {:unsupported, identifier}}
+            String.contains?("#{r}", ["-", "@"]) -> {:error, {:unsupported, identifier}}
+            vp = caller.version_path_to_string(v) ->
+              case caller.article_id_to_string(i) do
+                {:ok, id} -> {:ok, "#{id}@#{vp}-#{r}"}
+                _ -> {:error, {:unsupported, identifier}}
+              end
+            true -> {:error, {:unsupported, identifier}}
+          end
+        {:version, {i,v}} ->
+          cond do
+            i == nil -> {:error, {:unsupported, identifier}}
+            !is_tuple(v) -> {:error, {:unsupported, identifier}}
+            vp = caller.version_path_to_string(v) ->
+              case caller.article_id_to_string(i) do
+                {:ok, id} -> {:ok, "#{id}@#{vp}"}
+                _ -> {:error, {:unsupported, identifier}}
+              end
+            true -> {:error, {:unsupported, identifier}}
+          end
+        _ -> caller.article_id_to_string(identifier)
+      end
+    end
+
+    #------------------------------
+    # version_path_to_string/2
+    #------------------------------
+    def version_path_to_string(version_path, _caller) do
+      v_l = Tuple.to_list(version_path)
+      v_err = Enum.any?(v_l, fn(x) ->
+        cond do
+          x == nil -> true
+          !(is_bitstring(x) || is_integer(x) || is_atom(x)) -> true
+          String.contains?("#{x}", [".", "-", "@"]) -> true
+          true -> false
+        end
+      end)
+      cond do
+        length(v_l) == 0 -> nil
+        v_err -> nil
+        true -> Enum.map(v_l, &("#{&1}")) |> Enum.join(".")
+      end
+    end
+
+
+    #------------------------------
+    # article_string_to_id
+    #------------------------------
+    @doc """
+      override this if your entity type uses string values, nested refs, etc. for it's identifier.
+    """
+    def article_string_to_id(nil, _caller), do: nil
+    def article_string_to_id(identifier, _caller) when is_bitstring(identifier) do
+      case identifier do
+        "ref." <> _ -> {:error, {:unsupported, identifier}}
+        _ ->
+          case Integer.parse(identifier) do
+            {id, ""} -> {:ok, id}
+            v -> {:error, {:parse, v}}
+          end
+      end
+    end
+    def article_string_to_id(i, _caller), do: {:error, {:unsupported, i}}
+
+    #------------------------------
+    # article_id_to_string
+    #------------------------------
+    @doc """
+      override this if your entity type uses string values, nested refs, etc. for it's identifier.
+    """
+    def article_id_to_string(identifier, _caller) do
+      cond do
+        is_integer(identifier) -> {:ok, "#{identifier}"}
+        is_atom(identifier) -> {:ok, "#{identifier}"}
+        is_bitstring(identifier) -> {:ok, "#{identifier}"}
+        true -> {:error, {:unsupported, identifier}}
+      end
+    end
+
     #------------------------------
     # new/4
     #------------------------------
@@ -32,7 +183,7 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
       options_a = put_in(options, [:active_revision], true)
       case caller.cms_version().create(entity, context, options_a) do
         {:ok, {version, revision}} ->
-          version_ref = VersionEntity.ref(version)
+          version_ref = caller.cms_version_entity().ref(version)
           revision_ref = caller.cms_revision().ref(revision)
           options_b = put_in(options_a, [:nested_versioning], true)
           entity
@@ -61,9 +212,9 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
       case caller.cms_version().create(entity, context, options) do
         {:ok, {version, revision}} ->
           entity = entity
-                   |> Noizu.Cms.V2.Proto.set_version(VersionEntity.ref(version), context, options)
+                   |> Noizu.Cms.V2.Proto.set_version(caller.cms_version_entity().ref(version), context, options)
                    |> Noizu.Cms.V2.Proto.set_revision(caller.cms_revision().ref(revision), context, options)
-                   |> Noizu.Cms.V2.Proto.set_parent(VersionEntity.ref(version.parent), context, options)
+                   |> Noizu.Cms.V2.Proto.set_parent(caller.cms_version_entity().ref(version.parent), context, options)
           v_id = Noizu.Cms.V2.Proto.versioned_identifier(entity, context, options)
           entity = entity
                    |> put_in([Access.key(:identifier)], v_id)
@@ -117,7 +268,7 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
 
       # 1. get current version.
       current_version = Noizu.Cms.V2.Proto.get_version(article, context, options)
-      current_version_ref = VersionEntity.ref(current_version)
+      current_version_ref = caller.cms_version_entity().ref(current_version)
 
       # 2. Determine version path we will be creating
       new_version_path = cond do
@@ -140,15 +291,16 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
       case caller.cms_revision().create(article, context, options) do
         {:ok, revision} ->
           # Create Version Record
-          version = %VersionEntity{
-                      identifier: new_version_key,
-                      article: article_ref,
-                      parent: current_version_ref,
-                      created_on: revision.created_on,
-                      modified_on: revision.modified_on,
-                      editor: revision.editor,
-                      status: revision.status,
-                    } |> VersionRepo.create(context, options)
+          version = caller.cms_version_repo().new(
+                      %{
+                        identifier: new_version_key,
+                        article: article_ref,
+                        parent: current_version_ref,
+                        created_on: revision.created_on,
+                        modified_on: revision.modified_on,
+                        editor: revision.editor,
+                        status: revision.status,
+                      }) |> caller.cms_version_repo().create(context, options)
           {:ok, {version, revision}}
 
         {:error, e} -> {:error, {:creating_revision, e}}
@@ -169,19 +321,19 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     def update(entity, context, options, caller) do
       # 1. get current version.
       current_version = Noizu.Cms.V2.Proto.get_version(entity, context, options)
-                        |> VersionEntity.entity()
+                        |> caller.cms_version_entity().entity()
 
       cond do
         current_version == nil -> {:error, :invalid_version}
         true ->
           case caller.cms_revision().update(entity, context, options) do
             {:ok, revision} ->
-              version = %VersionEntity{
-                          current_version|
-                          modified_on: revision.modified_on,
-                          editor: revision.editor,
-                          status: revision.status,
-                        } |> VersionRepo.update(context, options)
+              version = caller.cms_version_repo().change_set(current_version,
+                                                 %{
+                modified_on: revision.modified_on,
+                editor: revision.editor,
+                status: revision.status,
+              }) |> caller.cms_version_repo().update(context, options)
               {:ok, {version, revision}}
             _ -> {:error, :update_revision}
           end
@@ -227,7 +379,7 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
 
               # Delete Version
               identifier = Noizu.ERP.id(version_ref)
-              VersionRepo.delete(identifier, context, options)
+              caller.cms_version_repo().delete(identifier, context, options)
 
               :ok
             _ -> {:error, :revision_lookup}
@@ -264,7 +416,17 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     end
 
 
-    def ref(entity, __caller), do: Noizu.Cms.V2.VersionEntity.ref(entity)
+
+
+
+    #------------
+    # ref
+    #------------
+    def ref({:version, {i, v}}, caller) do
+      caller.cms_version_entity().ref({caller.entity_module().ref(i), v})
+    end
+
+    def ref(entity, caller), do: caller.cms_version_entity().ref(entity)
 
 
     #----------------------------------
@@ -311,6 +473,14 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
       def version_sequencer(key), do: @cms_implementation.version_sequencer(key, cms_base())
       def version_sequencer!(key), do: @cms_implementation.version_sequencer!(key, cms_base())
 
+
+      def version_path_to_string(version_path), do: @cms_implementation.version_path_to_string(version_path, cms_base())
+      def string_to_id(identifier), do: @cms_implementation.string_to_id(identifier, cms_base())
+      def id_to_string(identifier), do: @cms_implementation.id_to_string(identifier, cms_base())
+      def article_string_to_id(identifier), do: @cms_implementation.article_string_to_id(identifier, cms_base())
+      def article_id_to_string(identifier), do: @cms_implementation.article_id_to_string(identifier, cms_base())
+
+
       defoverridable [
         new: 2,
         new!: 2,
@@ -349,6 +519,12 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
         delete!: 3,
 
         ref: 1,
+
+        version_path_to_string: 1,
+        string_to_id: 1,
+        id_to_string: 1,
+        article_string_to_id: 1,
+        article_id_to_string: 1,
 
         version_sequencer: 1,
         version_sequencer!: 1,

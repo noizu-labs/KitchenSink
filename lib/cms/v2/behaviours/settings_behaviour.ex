@@ -10,6 +10,12 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
       cms_option_settings = Macro.expand(opts[:option_settings], __CALLER__)
       cms_options = cms_option_settings.effective_options
 
+      tag_table = cms_options.tag_table
+      index_table = cms_options.index_table
+      version_entity = cms_options.version_entity
+      version_repo = cms_options.version_repo
+      revision_entity = cms_options.revision_entity
+      revision_repo = cms_options.revision_repo
       # Versioning Provider, etc.
 
       quote do
@@ -21,6 +27,14 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         @cms_query_handler Module.concat(@cms_repo_handler, Query)
         @cms_index_handler Module.concat(@cms_repo_handler, Index)
         @cms_tag_handler Module.concat(@cms_repo_handler, Tags)
+
+
+        @cms_tag_table unquote(tag_table)
+        @cms_index_table unquote(index_table)
+        @cms_version_entity unquote(version_entity)
+        @cms_version_repo unquote(version_repo)
+        @cms_revision_entity unquote(revision_entity)
+        @cms_revision_repo unquote(revision_repo)
 
         @doc """
         retrieve effective compile time options/settings for pool.
@@ -34,6 +48,16 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         def cms_index(), do: @cms_index_handler
         def cms_tags(), do: @cms_tag_handler
 
+        def cms_index_table(), do: @cms_index_table
+        def cms_tag_table(), do: @cms_tag_table
+        def cms_version_entity(), do: @cms_version_entity
+        def cms_version_repo(), do: @cms_version_repo
+        def cms_revision_entity(), do: @cms_revision_entity
+        def cms_revision_repo(), do: @cms_revision_repo
+
+
+
+
         defoverridable [
           cms_options: 0,
           cms_base: 0,
@@ -43,6 +67,13 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_query: 0,
           cms_index: 0,
           cms_tags: 0,
+
+          cms_index_table: 0,
+          cms_tag_table: 0,
+          cms_version_entity: 0,
+          cms_version_repo: 0,
+          cms_revision_entity: 0,
+          cms_revision_repo: 0,
         ]
       end
     end
@@ -58,12 +89,12 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
       # Versioning Provider, etc.
       quote do
         @cms_entity_source (case unquote(cms_base) do
-          :auto ->
-            a = Module.split(__MODULE__) |> Enum.slice(0.. -2) |> Module.concat()
-            b = Module.split(__MODULE__) |> List.last()
-            Module.concat(a, String.slice("#{b}", 0..-7) <> "Repo")
-          v -> v
-        end)
+                              :auto ->
+                                a = Module.split(__MODULE__) |> Enum.slice(0.. -2) |> Module.concat()
+                                b = Module.split(__MODULE__) |> List.last()
+                                Module.concat(a, String.slice("#{b}", 0..-7) <> "Repo")
+                              v -> v
+                            end)
 
         @doc """
         retrieve effective compile time options/settings for pool.
@@ -77,6 +108,14 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         defdelegate cms_index(), to: @cms_entity_source
         defdelegate cms_tags(), to: @cms_entity_source
 
+
+        defdelegate cms_tag_table(), to: @cms_entity_source
+        defdelegate cms_index_table(), to: @cms_entity_source
+        defdelegate cms_version_entity(), to: @cms_entity_source
+        defdelegate cms_version_repo(), to: @cms_entity_source
+        defdelegate cms_revision_entity(), to: @cms_entity_source
+        defdelegate cms_revision_repo(), to: @cms_entity_source
+
         defoverridable [
           cms_options: 0,
           cms_base: 0,
@@ -86,6 +125,12 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_query: 0,
           cms_index: 0,
           cms_tags: 0,
+          cms_index_table: 0,
+          cms_tag_table: 0,
+          cms_version_entity: 0,
+          cms_version_repo: 0,
+          cms_revision_entity: 0,
+          cms_revision_repo: 0,
         ]
       end
     end
@@ -108,6 +153,15 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         defdelegate cms_index(), to: @cms_parent
         defdelegate cms_tags(), to: @cms_parent
 
+        defdelegate cms_tag_table(), to: @cms_parent
+        defdelegate cms_index_table(), to: @cms_parent
+        defdelegate cms_version_entity(), to: @cms_parent
+        defdelegate cms_version_repo(), to: @cms_parent
+        defdelegate cms_revision_entity(), to: @cms_parent
+        defdelegate cms_revision_repo(), to: @cms_parent
+
+
+
         defoverridable [
           cms_options: 0,
           cms_base: 0,
@@ -117,6 +171,12 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_query: 0,
           cms_index: 0,
           cms_tags: 0,
+          cms_index_table: 0,
+          cms_tag_table: 0,
+          cms_version_entity: 0,
+          cms_version_repo: 0,
+          cms_revision_entity: 0,
+          cms_revision_repo: 0,
         ]
       end
     end

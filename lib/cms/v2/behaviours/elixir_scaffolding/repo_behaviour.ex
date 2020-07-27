@@ -7,11 +7,11 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
   defmodule Default do
     use Amnesia
 
-    alias Noizu.Cms.V2.Database.IndexTable
+
     #alias Noizu.Cms.V2.Database.VersionTable
     #alias Noizu.Cms.V2.Database.TagTable
 
-    use Noizu.Cms.V2.Database.IndexTable
+
     use Noizu.Cms.V2.Database.VersionTable
     use Noizu.Cms.V2.Database.TagTable
 
@@ -26,7 +26,12 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
           verbose: %OptionValue{option: :verbose, default: false},
           cms_module: %OptionValue{option: :cms_module, default: Noizu.Cms.V2.CmsBehaviour},
           cms_module_options: %OptionValue{option: :cms_module_options, default: []},
-
+          tag_table: %OptionValue{option: :tag_table, default: Noizu.Cms.V2.Database.TagTable},
+          index_table: %OptionValue{option: :index_table, default: Noizu.Cms.V2.Database.IndexTable},
+          version_entity: %OptionValue{option: :version_entity, default: Noizu.Cms.V2.VersionEntity},
+          version_repo: %OptionValue{option: :version_repo, default: Noizu.Cms.V2.VersionRepo},
+          revision_entity: %OptionValue{option: :revision_entity, default: Noizu.Cms.V2.Version.RevisionEntity},
+          revision_repo: %OptionValue{option: :revision_repo, default: Noizu.Cms.V2.Version.RevisionRepo},
           # Tag Provider
           # Index Provider
           # Version Provider
@@ -47,7 +52,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         # @todo conditional logic to insure only revision records persisted.
         entity
         |> caller.pre_create_callback(context, options)
+        |> caller.cms_pre_create_callback(context, options)
         |> caller.inner_create_callback(context, options)
+        |> caller.cms_post_create_callback(context, options)
         |> caller.post_create_callback(context, options)
       rescue e -> {:error, e}
       catch e -> {:error, e}
@@ -55,9 +62,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     end
 
     #-----------------------------
-    # pre_create_callback/4
+    # cms_pre_create_callback/4
     #-----------------------------
-    def pre_create_callback(entity, context, options, caller) do
+    def cms_pre_create_callback(entity, context, options, caller) do
       is_versioning_record? = Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)
       options_a = put_in(options, [:nested_create], true)
 
@@ -94,8 +101,16 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     #-----------------------------
     # post_create_callback/4
     #-----------------------------
-    def post_create_callback(entity, _context, _options, _caller) do
+    def cms_post_create_callback(entity, _context, _options, _caller) do
       entity
+    end
+
+
+    def revision_to_id(revision, caller) do
+      case caller.cms_revision_entity().id(revision) do
+        {{:ref, _version_entity, {{:ref, _entity, id}, version_path}}, revision_id} -> {:revision, {id, version_path, revision_id}}
+        _ -> nil
+      end
     end
 
     #-----------------------------
@@ -103,49 +118,34 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     #-----------------------------
     def get(identifier, context, options, caller) do
       try do
-        # @todo, this belongs in the version provider, this module shouldn't know the versioning formats.
-        identifier = case identifier do
-          {:revision, {_i, _v, _r}} -> identifier
-          {:version, {i, v}} ->
-            version_ref = Noizu.Cms.V2.VersionEntity.ref({caller.entity_module().ref(i), v})
-            case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(version_ref) do
-              %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: r} ->
-                case Noizu.Cms.V2.Version.RevisionEntity.id(r) do
-                  {{:ref, Noizu.Cms.V2.VersionEntity, _}, revision} -> {:revision, {i, v, revision}}
-                  _ -> nil
-                end
-              _ -> nil
-            end
-          _ ->
-            case IndexTable.read(caller.entity_module().ref(identifier)) do
-              %IndexTable{active_version: av, active_revision: ar} ->
-                version = case Noizu.Cms.V2.VersionEntity.id(av) do
-                  {_, version} -> version
-                  _ -> nil
-                end
-                revision = case Noizu.Cms.V2.Version.RevisionEntity.id(ar) do
-                  {{:ref, Noizu.Cms.V2.VersionEntity, _}, revision} -> revision
-                  _ -> nil
-                end
-                version && revision && {:revision, {identifier, version, revision}}
-              _ -> nil
-            end
+        identifier = cond do
+          Kernel.match?({:revision, {_id, _version_path, _revision_id}}, identifier) ->
+            identifier
+          Kernel.match?({:version, {_id, _version_path}}, identifier) ->
+            {:version, {id, version_path}} = identifier
+            version = caller.cms_version_entity().ref({caller.entity_module().ref(id), version_path})
+            active_revision = caller.cms_revision_repo().active(version, context, options)
+            caller.revision_to_id(active_revision)
+          true ->
+            ref = caller.entity_module().ref(identifier)
+            active_revision = caller.cms_index().get_active(ref, context, options)
+            caller.revision_to_id(active_revision)
         end
 
         if identifier do
           caller.inner_get_callback(identifier, context, options)
+          |> caller.cms_post_get_callback(context, options)
           |> caller.post_get_callback(context, options)
         end
       rescue e -> {:error, e}
       catch e -> {:error, e}
       end
-
     end
 
     #-----------------------------
-    # post_get_callback/4
+    # cms_post_get_callback/4
     #-----------------------------
-    def post_get_callback(entity, _context, _options, _caller) do
+    def cms_post_get_callback(entity, _context, _options, _caller) do
       entity
     end
 
@@ -156,7 +156,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       try do
         entity
         |>  caller.pre_update_callback(context, options)
+        |>  caller.cms_pre_update_callback(context, options)
         |>  caller.inner_update_callback(context, options)
+        |>  caller.cms_post_update_callback(context, options)
         |>  caller.post_update_callback(context, options)
       rescue e -> {:error, e}
       catch e -> {:error, e}
@@ -164,9 +166,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     end
 
     #-----------------------------
-    # pre_update_callback/4
+    # cms_pre_update_callback/4
     #-----------------------------
-    def pre_update_callback(entity, context, options, caller) do
+    def cms_pre_update_callback(entity, context, options, caller) do
       if (entity.identifier == nil), do: throw "Identifier not set"
       if (!Noizu.Cms.V2.Proto.is_versioning_record?(entity, context, options)), do: throw "#{entity.__struct__} entities may only be persisted using cms revision ids"
 
@@ -178,9 +180,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     end
 
     #-----------------------------
-    # post_update_callback/4
+    # cms_post_update_callback/4
     #-----------------------------
-    def post_update_callback(entity, _context, _options, _caller) do
+    def cms_post_update_callback(entity, _context, _options, _caller) do
       entity
     end
 
@@ -192,7 +194,9 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       try do
         entity
         |>  caller.pre_delete_callback(context, options)
+        |>  caller.cms_pre_delete_callback(context, options)
         |>  caller.inner_delete_callback(context, options)
+        |>  caller.cms_post_delete_callback(context, options)
         |>  caller.post_delete_callback(context, options)
         true
       rescue e -> {:error, e}
@@ -201,17 +205,16 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
     end
 
     #-----------------------------
-    # pre_delete_callback/4
+    # cms_pre_delete_callback/4
     #-----------------------------
-    def pre_delete_callback(entity, context, options, caller) do
-      if entity.identifier == nil, do: throw :identifier_not_set
+    def cms_pre_delete_callback(entity, context, options, caller) do
+      if entity.identifier == nil, do: throw(:identifier_not_set)
       # Active Revision Check
       if options[:bookkeeping] != :disabled do
-
         # @todo this module should not have such specific knowledge of versioning formats.
         # setup an active version check in version provider.
         article_revision = Noizu.Cms.V2.Proto.get_revision(entity, context, options)
-                           |> Noizu.Cms.V2.Version.RevisionEntity.ref()
+                           |> caller.cms_revision_entity().ref()
 
         if article_revision do
           if article_revision == caller.cms_index().get_active(entity, context, options) do
@@ -220,23 +223,20 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
           case article_revision do
             {:ref, _, {article_version, _revision}} ->
-              case Noizu.Cms.V2.Database.Version.ActiveRevisionTable.read(article_version) do
-                %Noizu.Cms.V2.Database.Version.ActiveRevisionTable{revision: active_revision} ->
-                  if active_revision == article_revision, do: throw :active_revision
-                _ -> nil
-              end
-            _ -> nil
+              active_revision = caller.cms_revision_repo().active(article_version, context, options)
+              if (active_revision == article_revision), do: throw(:active_revision), else: entity
+            _ -> entity
           end
         end
-
+      else
+        entity
       end
-      entity
     end
 
     #-----------------------------
-    # post_delete_callback/4
+    # cms_post_delete_callback/4
     #-----------------------------
-    def post_delete_callback(entity, _context, _options, _caller) do
+    def cms_post_delete_callback(entity, _context, _options, _caller) do
       entity
     end
   end
@@ -259,60 +259,78 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
         end
       end
 
+      def version_path_to_string(version_path), do: cms_version().version_path_to_string(version_path)
+      def string_to_id(identifier), do: cms_version().string_to_id(identifier)
+      def id_to_string(identifier), do: cms_version().id_to_string(identifier)
+      def article_string_to_id(identifier), do: cms_version().article_string_to_id(identifier)
+      def article_id_to_string(identifier), do: cms_version().article_id_to_string(identifier)
+
       #----------------------------------
       # Repo Overrides
       #----------------------------------
       def create(entity, context, options \\ %{}), do: @cms_implementation.create(entity, context, options, cms_base())
-      def pre_create_callback(entity, context, options \\ %{}), do: @cms_implementation.pre_create_callback(entity, context, options, cms_base())
-      def post_create_callback(entity, context, options \\ %{}), do: @cms_implementation.post_create_callback(entity, context, options, cms_base())
+      def cms_pre_create_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_pre_create_callback(entity, context, options, cms_base())
+      def cms_post_create_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_post_create_callback(entity, context, options, cms_base())
 
       def get(entity, context, options \\ %{}), do: @cms_implementation.get(entity, context, options, cms_base())
-      def post_get_callback(entity, context, options \\ %{}), do: @cms_implementation.post_get_callback(entity, context, options, cms_base())
+      def cms_post_get_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_post_get_callback(entity, context, options, cms_base())
 
       def update(entity, context, options \\ %{}), do: @cms_implementation.update(entity, context, options, cms_base())
-      def pre_update_callback(entity, context, options \\ %{}), do: @cms_implementation.pre_update_callback(entity, context, options, cms_base())
-      def post_update_callback(entity, context, options \\ %{}), do: @cms_implementation.post_update_callback(entity, context, options, cms_base())
+      def cms_pre_update_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_pre_update_callback(entity, context, options, cms_base())
+      def cms_post_update_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_post_update_callback(entity, context, options, cms_base())
 
       def delete(entity, context, options \\ %{}), do: @cms_implementation.delete(entity, context, options, cms_base())
-      def pre_delete_callback(entity, context, options \\ %{}), do: @cms_implementation.pre_delete_callback(entity, context, options, cms_base())
-      def post_delete_callback(entity, context, options \\ %{}), do: @cms_implementation.post_delete_callback(entity, context, options, cms_base())
+      def cms_pre_delete_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_pre_delete_callback(entity, context, options, cms_base())
+      def cms_post_delete_callback(entity, context, options \\ %{}), do: @cms_implementation.cms_post_delete_callback(entity, context, options, cms_base())
+
+      def revision_to_id(ref), do: @cms_implementation.revision_to_id(ref, cms_base())
 
       defoverridable [
+
+        #------------------
+        # Transplanted entity behavior methods.
+        #------------------
+        version_path_to_string: 1,
+        string_to_id: 1,
+        id_to_string: 1,
+        article_string_to_id: 1,
+        article_id_to_string: 1,
+
         #------------------
         # Repo Behaviour
         #------------------
         create: 2,
         create: 3,
 
-        pre_create_callback: 2,
-        pre_create_callback: 3,
+        cms_pre_create_callback: 2,
+        cms_pre_create_callback: 3,
 
-        post_create_callback: 2,
-        post_create_callback: 3,
+        cms_post_create_callback: 2,
+        cms_post_create_callback: 3,
 
         get: 2,
         get: 3,
 
-        post_get_callback: 2,
-        post_get_callback: 3,
+        cms_post_get_callback: 2,
+        cms_post_get_callback: 3,
 
         update: 2,
         update: 3,
 
-        pre_update_callback: 2,
-        pre_update_callback: 3,
+        cms_pre_update_callback: 2,
+        cms_pre_update_callback: 3,
 
-        post_update_callback: 2,
-        post_update_callback: 3,
+        cms_post_update_callback: 2,
+        cms_post_update_callback: 3,
 
         delete: 2,
         delete: 3,
 
-        pre_delete_callback: 2,
-        pre_delete_callback: 3,
+        cms_pre_delete_callback: 2,
+        cms_pre_delete_callback: 3,
 
-        post_delete_callback: 2,
-        post_delete_callback: 3,
+        cms_post_delete_callback: 2,
+        cms_post_delete_callback: 3,
       ]
     end
   end

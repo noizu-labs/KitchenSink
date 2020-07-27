@@ -36,6 +36,9 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
         option_settings: %{
           verbose: %OptionValue{option: :verbose, default: false},
           cms_base: %OptionValue{option: :cms_base, default: :auto},
+          version_entity: %OptionValue{option: :version_entity, default: Noizu.Cms.V2.VersionEntity},
+          version_repo: %OptionValue{option: :version_repo, default: Noizu.Cms.V2.VersionRepo},
+
           #cms_module: %OptionValue{option: :cms_module, default: Noizu.Cms.V2.CmsBehaviour},
           #cms_module_options: %OptionValue{option: :cms_module_options, default: []},
 
@@ -48,154 +51,7 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
     end
 
     # @todo modify to allow overriding just article_string_to_id, article_id_to_string()
-    #------------------------------
-    # string_to_id
-    #------------------------------
-    def string_to_id(nil, _caller), do: nil
-    def string_to_id(identifier, caller) when is_bitstring(identifier) do
-      case identifier do
-        "ref." <> _ -> {:error, {:unsupported, identifier}}
-        _ ->
-          cond do
-            Regex.match?(@revision_format, identifier) ->
-              case Regex.run(@revision_format, identifier) do
-                [_, identifier, version, revision] ->
-                  case caller.article_string_to_id(identifier) do
-                    {:ok, i} ->
-                      version_path = String.split(version, ".")
-                                     |> Enum.map(
-                                          fn(x) ->
-                                            case Integer.parse(x) do
-                                              {v, ""} -> v
-                                              _ -> x
-                                            end
-                                          end)
-                                     |> List.to_tuple()
-                      revision = case Integer.parse(revision) do
-                        {v, ""} -> v
-                        _ -> revision
-                      end
-                      {:revision, {i, version_path, revision}}
-                    _ -> {:error, {:unsupported, identifier}}
-                  end
-                _ ->  {:error, {:unsupported, identifier}}
-              end
 
-            Regex.match?(@version_format, identifier) ->
-              case Regex.run(@version_format, identifier) do
-                [_, identifier, version] ->
-                  case caller.article_string_to_id(identifier) do
-                    {:ok, i} ->
-                      version_path = String.split(version, ".")
-                                     |> Enum.map(
-                                          fn(x) ->
-                                            case Integer.parse(x) do
-                                              {v, ""} -> v
-                                              _ -> x
-                                            end
-                                          end)
-                                     |> List.to_tuple()
-                      {:version, {i, version_path}}
-                    _ -> {:error, {:unsupported, identifier}}
-                  end
-                _ ->  {:error, {:unsupported, identifier}}
-              end
-
-            true -> caller.article_string_to_id(identifier)
-          end
-      end
-    end
-    def string_to_id(i, _caller), do: {:error, {:unsupported, i}}
-
-    #------------------------------
-    # id_to_string
-    #------------------------------
-    def id_to_string(identifier, caller) do
-      case identifier do
-        nil -> nil
-        {:revision, {i,v,r}} ->
-          cond do
-            i == nil -> {:error, {:unsupported, identifier}}
-            !is_tuple(v) -> {:error, {:unsupported, identifier}}
-            r == nil -> {:error, {:unsupported, identifier}}
-            !(is_integer(r) || is_bitstring(r) || is_atom(r)) -> {:error, {:unsupported, identifier}}
-            String.contains?("#{r}", ["-", "@"]) -> {:error, {:unsupported, identifier}}
-            vp = caller.version_path_to_string(v) ->
-              case caller.article_id_to_string(i) do
-                {:ok, id} -> {:ok, "#{id}@#{vp}-#{r}"}
-                _ -> {:error, {:unsupported, identifier}}
-              end
-            true -> {:error, {:unsupported, identifier}}
-          end
-        {:version, {i,v}} ->
-          cond do
-            i == nil -> {:error, {:unsupported, identifier}}
-            !is_tuple(v) -> {:error, {:unsupported, identifier}}
-            vp = caller.version_path_to_string(v) ->
-              case caller.article_id_to_string(i) do
-                {:ok, id} -> {:ok, "#{id}@#{vp}"}
-                _ -> {:error, {:unsupported, identifier}}
-              end
-            true -> {:error, {:unsupported, identifier}}
-          end
-        _ -> caller.article_id_to_string(identifier)
-      end
-    end
-
-    #------------------------------
-    # version_path_to_string/2
-    #------------------------------
-    def version_path_to_string(version_path, _caller) do
-      v_l = Tuple.to_list(version_path)
-      v_err = Enum.any?(v_l, fn(x) ->
-        cond do
-          x == nil -> true
-          !(is_bitstring(x) || is_integer(x) || is_atom(x)) -> true
-          String.contains?("#{x}", [".", "-", "@"]) -> true
-          true -> false
-        end
-      end)
-      cond do
-        length(v_l) == 0 -> nil
-        v_err -> nil
-        true -> Enum.map(v_l, &("#{&1}")) |> Enum.join(".")
-      end
-    end
-
-
-    #------------------------------
-    # article_string_to_id
-    #------------------------------
-    @doc """
-      override this if your entity type uses string values, nested refs, etc. for it's identifier.
-    """
-    def article_string_to_id(nil, _caller), do: nil
-    def article_string_to_id(identifier, _caller) when is_bitstring(identifier) do
-      case identifier do
-        "ref." <> _ -> {:error, {:unsupported, identifier}}
-        _ ->
-          case Integer.parse(identifier) do
-            {id, ""} -> {:ok, id}
-            v -> {:error, {:parse, v}}
-          end
-      end
-    end
-    def article_string_to_id(i, _caller), do: {:error, {:unsupported, i}}
-
-    #------------------------------
-    # article_id_to_string
-    #------------------------------
-    @doc """
-      override this if your entity type uses string values, nested refs, etc. for it's identifier.
-    """
-    def article_id_to_string(identifier, _caller) do
-      cond do
-        is_integer(identifier) -> {:ok, "#{identifier}"}
-        is_atom(identifier) -> {:ok, "#{identifier}"}
-        is_bitstring(identifier) -> {:ok, "#{identifier}"}
-        true -> {:error, {:unsupported, identifier}}
-      end
-    end
   end
 
 
@@ -215,11 +71,11 @@ defmodule Noizu.Cms.V2.EntityBehaviour do
       @cms_implementation unquote(cms_implementation)
       use Noizu.Cms.V2.SettingsBehaviour.EntitySettings, unquote([option_settings: cms_option_settings])
 
-      def version_path_to_string(version_path), do: @cms_implementation.version_path_to_string(version_path, __MODULE__)
-      def string_to_id(identifier), do: @cms_implementation.string_to_id(identifier, __MODULE__)
-      def id_to_string(identifier), do: @cms_implementation.id_to_string(identifier, __MODULE__)
-      def article_string_to_id(identifier), do: @cms_implementation.article_string_to_id(identifier, __MODULE__)
-      def article_id_to_string(identifier), do: @cms_implementation.article_id_to_string(identifier, __MODULE__)
+      def version_path_to_string(version_path), do: cms_version().version_path_to_string(version_path)
+      def string_to_id(identifier), do: cms_version().string_to_id(identifier)
+      def id_to_string(identifier), do: cms_version().id_to_string(identifier)
+      def article_string_to_id(identifier), do: cms_version().article_string_to_id(identifier)
+      def article_id_to_string(identifier), do: cms_version().article_id_to_string(identifier)
 
       # @todo we need to modify entity/entity! to do a index lookup if only the raw id is exposed.
       # @todo we should add support here and elsewhere for {:version, {id, version}} references that like the above will perform active revision lookup to get the underlying entity.

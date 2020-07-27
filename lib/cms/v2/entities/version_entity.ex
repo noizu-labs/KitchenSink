@@ -37,7 +37,6 @@ defmodule Noizu.Cms.V2.VersionEntity do
         additional_fields: [:editor, :status,  :created_on, :modified_on]
       }
 
-
   #------------
   #
   #------------

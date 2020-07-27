@@ -25,6 +25,7 @@ defmodule Noizu.Cms.V2.CmsBehaviour do
           revision_module_options: %OptionValue{option: :revision_module_options, default: []},
           tags_module_options: %OptionValue{option: :tags_module_options, default: []},
           index_module_options: %OptionValue{option: :index_module_options, default: []},
+
         }
       }
       OptionSettings.expand(settings, options)

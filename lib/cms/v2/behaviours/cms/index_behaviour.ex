@@ -49,6 +49,16 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # Versioning Related Methods
     #-----------------------------------
 
+
+    def active(ref, context, options, caller) do
+      index = caller.cms_index_table().read(ref)
+      revision = index && Noizu.Cms.V2.Proto.get_revision(index, context, options)
+      cond do
+        revision -> caller.cms_revision_entity().id(revision)
+        true -> nil
+      end
+    end
+
     #-----------------------------
     # make_active/4
     #-----------------------------
@@ -133,11 +143,10 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     # get_active/4
     #-----------------------------
-    def get_active(entity, context, options, _caller) do
+    def get_active(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      case IndexTable.read(ref) do
-        index = %IndexTable{} ->
-          index.active_revision
+      case caller.cms_index_table().read(ref) do
+        %{active_revision: r} -> r
         _ -> nil
       end
     end
@@ -145,11 +154,10 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     # get_active!/4
     #-----------------------------
-    def get_active!(entity, context, options, _caller) do
+    def get_active!(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
-      case IndexTable.read!(ref) do
-        index = %IndexTable{} ->
-          index.active_revision
+      case caller.cms_index_table().read!(ref) do
+        %{active_revision: r} -> r
         _ -> nil
       end
     end
@@ -158,7 +166,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     # match_records/4
     #----------------------------------
     # @TODO submodule CMS.Index
-    def match_records(filter, _context, options, _caller) do
+    def match_records(filter, _context, options, caller) do
       case options.filter do
         {:type, t} -> [type: t] ++ filter # Unexpected behaviour if filter is [type: t2]
         {:module, m} -> [module: m] ++ filter
@@ -166,7 +174,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
         _ -> filter
       end
       |> Enum.uniq()
-      |> IndexTable.match()
+      |> caller.cms_index_table().match()
       |> Amnesia.Selection.values
     end
 
@@ -317,7 +325,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     # update/4
     #-----------------------------
-    def update(entry, context, options, _caller) do
+    def update(entry, context, options, caller) do
       entity = Noizu.ERP.entity(entry)
       ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
       article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
@@ -325,7 +333,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
         article_info.version == nil -> {:error, :version_not_set}
         article_info.revision == nil -> {:error, :revision_not_set}
         true ->
-          case IndexTable.read(ref) do
+          case caller.cms_index_table().read(ref) do
             index = %IndexTable{} ->
               %IndexTable{index|
                 status: article_info.status,
@@ -355,7 +363,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     # update!/4
     #-----------------------------
-    def update!(entry, context, options, _caller) do
+    def update!(entry, context, options, caller) do
       entity = Noizu.ERP.entity!(entry)
       ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
       article_info = Noizu.Cms.V2.Proto.get_article_info!(entity, context, options)
@@ -363,7 +371,7 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
         article_info.version == nil -> {:error, :version_not_set}
         article_info.revision == nil -> {:error, :revision_not_set}
         true ->
-          case IndexTable.read!(ref) do
+          case caller.cms_index_table().read!(ref) do
             index = %IndexTable{} ->
               %IndexTable{index|
                 status: article_info.status,
@@ -393,17 +401,17 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------
     # delete/4
     #-----------------------------
-    def delete(entity, context, options, _caller) do
+    def delete(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      IndexTable.delete(ref)
+      caller.cms_index_table().delete(ref)
     end
 
     #-----------------------------
     # delete!/4
     #-----------------------------
-    def delete!(entity, context, options, _caller) do
+    def delete!(entity, context, options, caller) do
       ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
-      IndexTable.delete!(ref)
+      caller.cms_index_table().delete!(ref)
     end
 
   end
