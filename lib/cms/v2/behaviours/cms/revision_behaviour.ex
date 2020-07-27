@@ -11,7 +11,6 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
     alias Noizu.ElixirCore.OptionSettings
     alias Noizu.ElixirCore.OptionValue
     #alias Noizu.ElixirCore.OptionList
-    alias Noizu.Cms.V2.Version.RevisionEntity
     alias Noizu.Cms.V2.Version.RevisionRepo
 
     def prepare_options(options) do

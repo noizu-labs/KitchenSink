@@ -25,74 +25,10 @@ defmodule Noizu.Cms.V2.CmsBehaviour do
           revision_module_options: %OptionValue{option: :revision_module_options, default: []},
           tags_module_options: %OptionValue{option: :tags_module_options, default: []},
           index_module_options: %OptionValue{option: :index_module_options, default: []},
-
         }
       }
       OptionSettings.expand(settings, options)
-
-
-
     end
-
-    #=====================================================
-    #
-    #=====================================================
-
-
-    #-----------------------------
-    # init_article_info/4
-    #-----------------------------
-    def init_article_info(entity, context, options, _caller) do
-      current_time = options[:current_time] || DateTime.utc_now()
-      article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
-      editor = options[:editor] || article_info.editor || context.caller
-      status = options[:status] || article_info.status || :pending
-      article_info = article_info
-                     |> put_in([Access.key(:article)], Noizu.ERP.ref(entity))
-                     |> update_in([Access.key(:created_on)], &(&1 || current_time))
-                     |> put_in([Access.key(:modified_on)], current_time)
-                     |> put_in([Access.key(:editor)], editor)
-                     |> put_in([Access.key(:status)], status)
-                     |> update_in([Access.key(:module)], &(&1 || entity.__struct__))
-                     |> update_in([Access.key(:type)], &(&1 || Noizu.Cms.V2.Proto.type(entity, context, options)))
-      entity
-      |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
-    end
-
-    #-----------------------------
-    # init_article_info!/4
-    #-----------------------------
-    def init_article_info!(entity, context, options, caller) do
-      Amnesia.Fragment.async(fn -> caller.cms().init_article_info(entity, context, options) end)
-    end
-
-    #-----------------------------
-    # update_article_info/4
-    #-----------------------------
-    def update_article_info(entity, context, options, _caller) do
-      current_time = options[:current_time] || DateTime.utc_now()
-      article_ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      article_info = (Noizu.Cms.V2.Proto.get_article_info(entity, context, options) || %Noizu.Cms.V2.Article.Info{})
-      editor = options[:editor] || article_info.editor || context.caller
-      status = options[:status] || article_info.status || :pending
-      article_info = article_info
-                     |> update_in([Access.key(:article)], &(&1 || article_ref))
-                     |> update_in([Access.key(:module)], &(&1 || entity.__struct__))
-                     |> put_in([Access.key(:modified_on)], current_time)
-                     |> put_in([Access.key(:editor)], editor)
-                     |> put_in([Access.key(:status)], status)
-      entity
-      |> Noizu.Cms.V2.Proto.set_article_info(article_info, context, options)
-    end
-
-    #-----------------------------
-    # update_article_info!/4
-    #-----------------------------
-    def update_article_info!(entity, context, options, caller) do
-      Amnesia.Fragment.async(fn -> caller.cms().update_article_info(entity, context, options) end)
-    end
-
-
   end
 
 
@@ -147,27 +83,7 @@ defmodule Noizu.Cms.V2.CmsBehaviour do
         end
       end
 
-
-      def init_article_info(entity, context, options \\ %{}), do: @cms_implementation.init_article_info(entity, context, options, cms_base())
-      def init_article_info!(entity, context, options \\ %{}), do: @cms_implementation.init_article_info!(entity, context, options, cms_base())
-
-      def update_article_info(entity, context, options \\ %{}), do: @cms_implementation.update_article_info(entity, context, options, cms_base())
-      def update_article_info!(entity, context, options \\ %{}), do: @cms_implementation.update_article_info!(entity, context, options, cms_base())
-
-
-
-      defoverridable [
-        init_article_info: 2,
-        init_article_info: 3,
-        init_article_info!: 2,
-        init_article_info!: 3,
-
-        update_article_info: 2,
-        update_article_info: 3,
-        update_article_info!: 2,
-        update_article_info!: 3,
-      ]
-
+      # defoverridable []
 
     end
   end

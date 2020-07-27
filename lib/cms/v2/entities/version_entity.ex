@@ -69,6 +69,17 @@ defmodule Noizu.Cms.V2.VersionEntity do
     {:ok, "wip"}
   end
 
+
+
+  def is_cms_entity?(_, _context, _options), do: false
+  def is_cms_entity!(_, _context, _options), do: false
+
+  def is_versioning_record?(_, _context, _options), do: true
+  def is_versioning_record!(_, _context, _options), do: true
+
+  def is_revision_record?(_, _context, _options), do: false
+  def is_revision_record?(_, _context, _options), do: false
+
   #=============================================================================
   # has_permission - cast|info
   #=============================================================================
@@ -76,3 +87,140 @@ defmodule Noizu.Cms.V2.VersionEntity do
   def has_permission!(ref, permission, context, options), do: has_permission(ref, permission, context, options)
 
 end # end defmodule
+
+
+#=====================================================
+#
+#=====================================================
+defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.VersionEntity] do
+  #----------------------
+  #
+  #----------------------
+  def tags(ref, _context, _options), do: ref.article_info.tags
+  def tags!(ref, _context, _options), do: ref.article_info.tags
+
+  #----------------------
+  #
+  #----------------------
+  def type(ref, _context, _options), do: ref.article_info.type
+  def type!(ref, _context, _options), do: ref.article_info.type
+
+  #----------------------
+  #
+  #----------------------
+  def is_cms_entity?(_ref, _context, _options), do: false
+  def is_cms_entity!(_ref, _context, _options), do: false
+
+  #----------------------
+  #
+  #----------------------
+  def is_versioning_record?(_ref, _context, _options), do: true
+  def is_versioning_record!(_ref, _context, _options), do: true
+
+  #----------------------
+  #
+  #----------------------
+  def is_revision_record?(_ref, _context, _options), do: false
+  def is_revision_record!(_ref, _context, _options), do: false
+
+  #----------------------
+  #
+  #----------------------
+  def versioned_identifier(_ref, _context, _options), do: throw :not_supported
+  def versioned_identifier!(_ref, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def article_identifier(_ref, _context, _options), do: throw :not_supported
+  def article_identifier!(_ref, _context, _options), do: throw :not_supported
+
+  def versioned_ref(_ref, _context, _options), do: throw :not_supported
+  def versioned_ref!(_ref, _context, _options), do: throw :not_supported
+
+  def article_ref(_ref, _context, _options), do: throw :not_supported
+  def article_ref!(_ref, _context, _options), do: throw :not_supported
+  #----------------------
+  #
+  #----------------------
+  def compress_archive(ref, context, options) do
+    # obtain revision, and call compress on it.
+    if entity = Noizu.ERP.entity(ref.revision) do
+      Noizu.Cms.V2.Proto.compress_archive(entity, context, options)
+    end
+  end
+
+  def compress_archive!(ref, context, options) do
+    # obtain revision, and call compress on it.
+    if entity = Noizu.ERP.entity!(ref.revision) do
+      Noizu.Cms.V2.Proto.compress_archive!(entity, context, options)
+    end
+  end
+
+  #----------------------
+  #
+  #----------------------
+  def get_article(ref, _context, _options), do: ref.article
+  def get_article!(ref, _context, _options), do: ref.article
+
+  #----------------------
+  #
+  #----------------------
+  def set_version(_ref, _version, _context, _options), do: throw :not_supported
+  def set_version!(_ref, _version, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def get_version(ref, _context, _options), do: ref
+  def get_version!(ref, _context, _options), do: ref
+
+  #----------------------
+  #
+  #----------------------
+  def set_revision(_ref, _revision, _context, _options), do: throw :not_supported
+  def set_revision!(_ref, _revision, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def get_revision(ref, _context, _options), do: ref.revision
+  def get_revision!(ref, _context, _options), do: ref.revision
+
+  #----------------------
+  #
+  #----------------------
+  def set_parent(_ref, _version, _context, _options), do: throw :not_supported
+  def set_parent!(_ref, _version, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def get_parent(ref, _context, _options), do: ref.parent
+  def get_parent!(ref, _context, _options), do: ref.parent
+
+  #----------------------
+  #
+  #----------------------
+  def get_article_info(_ref, _context, _options), do: throw :not_supported
+  def get_article_info!(_ref, _context, _options), do: throw :not_supported
+
+
+  #--------------------------------
+  # @init_article_info
+  #--------------------------------
+  def init_article_info(ref, context, options), do: throw :not_supported
+  def init_article_info!(ref, context, options), do: throw :not_supported
+
+  #--------------------------------
+  # @update_article_info
+  #--------------------------------
+  def update_article_info(ref, context, options), do: throw :not_supported
+  def update_article_info!(ref, context, options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
+  def set_article_info(_ref, _article_info, _context, _options), do: throw :not_supported
+  def set_article_info!(_ref, _article_info, _context, _options), do: throw :not_supported
+end

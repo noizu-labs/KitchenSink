@@ -6,16 +6,6 @@
 defmodule Noizu.Cms.V2.RepoBehaviour do
   defmodule Default do
     use Amnesia
-
-
-    #alias Noizu.Cms.V2.Database.VersionTable
-    #alias Noizu.Cms.V2.Database.TagTable
-
-
-    use Noizu.Cms.V2.Database.VersionTable
-    use Noizu.Cms.V2.Database.TagTable
-
-
     alias Noizu.ElixirCore.OptionSettings
     alias Noizu.ElixirCore.OptionValue
     #alias Noizu.ElixirCore.OptionList
@@ -32,9 +22,7 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
           version_repo: %OptionValue{option: :version_repo, default: Noizu.Cms.V2.VersionRepo},
           revision_entity: %OptionValue{option: :revision_entity, default: Noizu.Cms.V2.Version.RevisionEntity},
           revision_repo: %OptionValue{option: :revision_repo, default: Noizu.Cms.V2.Version.RevisionRepo},
-          # Tag Provider
-          # Index Provider
-          # Version Provider
+          version_sequencer: %OptionValue{option: :version_sequencer, default: Noizu.Cms.V2.VersionSequencerProvider},
         }
       }
       OptionSettings.expand(settings, options)
@@ -88,12 +76,12 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
       if is_versioning_record? do
         entity
-        |> caller.cms().update_article_info(context, options)
+        |>  Noizu.Cms.V2.Proto.update_article_info(context, options)
         |> caller.cms_version().populate(context, options_a)
       else
         # 5. Prepare Version and Revision, modify identifier.
         entity
-        |> caller.cms().init_article_info(context, options)
+        |>  Noizu.Cms.V2.Proto.init_article_info(context, options)
         |> caller.cms_version().initialize(context, options_a)
       end
     end
@@ -175,7 +163,7 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       options_a = put_in(options, [:nested_update], true)
 
       entity
-      |> caller.cms().update_article_info(context, options)
+      |> Noizu.Cms.V2.Proto.update_article_info(context, options)
       |> caller.cms_version().populate(context, options_a)
     end
 

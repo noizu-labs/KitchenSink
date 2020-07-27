@@ -10,8 +10,6 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     alias Noizu.ElixirCore.OptionSettings
     alias Noizu.ElixirCore.OptionValue
     #alias Noizu.ElixirCore.OptionList
-    alias Noizu.Cms.V2.VersionEntity
-    alias Noizu.Cms.V2.VersionRepo
 
     @revision_format ~r/^(.*)@([0-9a-zA-Z][0-9a-zA-Z\.]*)-([0-9a-zA-Z]+)$/
     @version_format ~r/^(.*)@([0-9a-zA-Z][0-9a-zA-Z\.]*)$/
@@ -219,7 +217,6 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
           entity = entity
                    |> put_in([Access.key(:identifier)], v_id)
 
-          # @TODO - this will change.
           caller.cms_tags().update(entity, context, options)
           caller.cms_index().update(entity, context, options)
 
@@ -242,12 +239,12 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     #------------------------
     #
     #------------------------
-    def versions(entity, context, options, _caller) do
+    def versions(entity, context, options, caller) do
       article_ref = Noizu.Cms.V2.Proto.get_article(entity, context, options)
                     |> Noizu.ERP.ref()
       cond do
         article_ref ->
-          VersionRepo.match([identifier: {article_ref, :_}], context, options)
+          caller.cms_version_repo().match([identifier: {article_ref, :_}], context, options)
         true -> {:error, :article_unknown}
       end
     end
@@ -399,26 +396,6 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     # Supporting
     #===========================================================
 
-    #----------------------------------
-    # version_sequencer/2
-    #----------------------------------
-    def version_sequencer(key, _caller) do
-      case Noizu.Cms.V2.Database.VersionSequencerTable.read(key) do
-        v = %Noizu.Cms.V2.Database.VersionSequencerTable{} ->
-          %Noizu.Cms.V2.Database.VersionSequencerTable{v| sequence: v.sequence + 1}
-          |> Noizu.Cms.V2.Database.VersionSequencerTable.write()
-          v.sequence + 1
-        nil ->
-          %Noizu.Cms.V2.Database.VersionSequencerTable{identifier: key, sequence: 1}
-          |> Noizu.Cms.V2.Database.VersionSequencerTable.write()
-          1
-      end
-    end
-
-
-
-
-
     #------------
     # ref
     #------------
@@ -427,16 +404,6 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
     end
 
     def ref(entity, caller), do: caller.cms_version_entity().ref(entity)
-
-
-    #----------------------------------
-    # version_sequencer!/1
-    #----------------------------------
-    def version_sequencer!(key, caller) do
-      Amnesia.transaction do
-        caller.cms_version().version_sequencer(key)
-      end
-    end
   end
 
 
@@ -470,9 +437,8 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
 
       def ref(entity), do: @cms_implementation.ref(entity, cms_base())
 
-      def version_sequencer(key), do: @cms_implementation.version_sequencer(key, cms_base())
-      def version_sequencer!(key), do: @cms_implementation.version_sequencer!(key, cms_base())
-
+      def version_sequencer(key), do: cms_version_sequencer().sequencer(key)
+      def version_sequencer!(key), do: cms_version_sequencer().sequencer!(key)
 
       def version_path_to_string(version_path), do: @cms_implementation.version_path_to_string(version_path, cms_base())
       def string_to_id(identifier), do: @cms_implementation.string_to_id(identifier, cms_base())

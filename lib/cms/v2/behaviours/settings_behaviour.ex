@@ -16,6 +16,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
       version_repo = cms_options.version_repo
       revision_entity = cms_options.revision_entity
       revision_repo = cms_options.revision_repo
+      version_sequencer = cms_options.version_sequencer
       # Versioning Provider, etc.
 
       quote do
@@ -35,6 +36,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         @cms_version_repo unquote(version_repo)
         @cms_revision_entity unquote(revision_entity)
         @cms_revision_repo unquote(revision_repo)
+        @cms_version_sequencer unquote(version_sequencer)
 
         @doc """
         retrieve effective compile time options/settings for pool.
@@ -48,15 +50,13 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         def cms_index(), do: @cms_index_handler
         def cms_tags(), do: @cms_tag_handler
 
+        def cms_version_sequencer(), do: @cms_version_sequencer
         def cms_index_repo(), do: @cms_index_repo
         def cms_tag_repo(), do: @cms_tag_repo
         def cms_version_entity(), do: @cms_version_entity
         def cms_version_repo(), do: @cms_version_repo
         def cms_revision_entity(), do: @cms_revision_entity
         def cms_revision_repo(), do: @cms_revision_repo
-
-
-
 
         defoverridable [
           cms_options: 0,
@@ -68,6 +68,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_index: 0,
           cms_tags: 0,
 
+          cms_version_sequencer: 0,
           cms_index_repo: 0,
           cms_tag_repo: 0,
           cms_version_entity: 0,
@@ -78,8 +79,6 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
       end
     end
   end
-
-
 
   defmodule EntitySettings do
     defmacro __using__(opts) do
@@ -109,6 +108,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         defdelegate cms_tags(), to: @cms_entity_source
 
 
+        defdelegate cms_version_sequencer(), to: @cms_entity_source
         defdelegate cms_tag_repo(), to: @cms_entity_source
         defdelegate cms_index_repo(), to: @cms_entity_source
         defdelegate cms_version_entity(), to: @cms_entity_source
@@ -126,6 +126,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_index: 0,
           cms_tags: 0,
 
+          cms_version_sequencer: 0,
           cms_index_repo: 0,
           cms_tag_repo: 0,
           cms_version_entity: 0,
@@ -154,6 +155,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
         defdelegate cms_index(), to: @cms_parent
         defdelegate cms_tags(), to: @cms_parent
 
+        defdelegate cms_version_sequencer(), to: @cms_parent
         defdelegate cms_tag_repo(), to: @cms_parent
         defdelegate cms_index_repo(), to: @cms_parent
         defdelegate cms_version_entity(), to: @cms_parent
@@ -173,6 +175,7 @@ defmodule Noizu.Cms.V2.SettingsBehaviour do
           cms_index: 0,
           cms_tags: 0,
 
+          cms_version_sequencer: 0,
           cms_index_repo: 0,
           cms_tag_repo: 0,
           cms_version_entity: 0,

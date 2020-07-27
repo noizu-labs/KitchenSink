@@ -27,11 +27,9 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
       OptionSettings.expand(settings, options)
     end
 
-
     #----------------------------------
     # expand_records/4
     #----------------------------------
-    # TODO move expand_records to cms protocol.
     def expand_records(records, _context, %{expand: true}, _caller) when is_list(records), do: Enum.map(records, &(Noizu.ERP.entity(&1.article))) |> Enum.filter(&(&1 != nil))
     def expand_records(records, _context, _, _caller) when is_list(records), do: records
     def expand_records(e, _context, _, _caller), do: throw {:error, e}
@@ -48,8 +46,6 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #-----------------------------------
     # Versioning Related Methods
     #-----------------------------------
-
-
     def active(ref, context, options, caller) do
       index = caller.cms_index_repo().read(ref)
       revision = index && Noizu.Cms.V2.Proto.get_revision(index, context, options)
@@ -165,7 +161,6 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
     #----------------------------------
     # match_records/4
     #----------------------------------
-    # @TODO submodule CMS.Index
     def match_records(filter, _context, options, caller) do
       case options.filter do
         {:type, t} -> [type: t] ++ filter # Unexpected behaviour if filter is [type: t2]
