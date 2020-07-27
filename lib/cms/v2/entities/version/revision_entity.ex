@@ -79,7 +79,7 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
   def is_versioning_record!(_, _context, _options), do: true
 
   def is_revision_record?(_, _context, _options), do: true
-  def is_revision_record?(_, _context, _options), do: true
+  def is_revision_record!(_, _context, _options), do: true
 
   #=============================================================================
   # has_permission - cast|info
@@ -211,14 +211,14 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Version.RevisionEntity] do
   #--------------------------------
   # @init_article_info
   #--------------------------------
-  def init_article_info(ref, context, options), do: throw :not_supported
-  def init_article_info!(ref, context, options), do: throw :not_supported
+  def init_article_info(_ref, _context, _options), do: throw :not_supported
+  def init_article_info!(_ref, _context, _options), do: throw :not_supported
 
   #--------------------------------
   # @update_article_info
   #--------------------------------
-  def update_article_info(ref, context, options), do: throw :not_supported
-  def update_article_info!(ref, context, options), do: throw :not_supported
+  def update_article_info(_ref, _context, _options), do: throw :not_supported
+  def update_article_info!(_ref, _context, _options), do: throw :not_supported
 
   #----------------------
   #

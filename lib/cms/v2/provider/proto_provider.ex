@@ -11,7 +11,7 @@ defmodule Noizu.Cms.V2.ProtoProvider do
     ref.article_info.tags
   end
 
-  def tags!(ref, context, options) do
+  def tags!(ref, _context, _options) do
     ref.article_info.tags
   end
 
@@ -22,7 +22,7 @@ defmodule Noizu.Cms.V2.ProtoProvider do
     ref.__struct__.cms_type()
   end
 
-  def type!(ref, context, options) do
+  def type!(ref, _context, _options) do
     ref.__struct__.cms_type()
   end
 

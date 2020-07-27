@@ -239,6 +239,8 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
       import unquote(__MODULE__)
       require Logger
       @cms_implementation unquote(cms_implementation)
+
+      use Noizu.Scaffolding.V2.RepoBehaviour, unquote(options)
       use Noizu.Cms.V2.SettingsBehaviour.RepoSettings, unquote([option_settings: cms_option_settings])
 
       if (unquote(cms_module)) do
