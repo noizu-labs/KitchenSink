@@ -30,6 +30,7 @@ defmodule Noizu.Cms.V2.ChangeSet do
                   create_table(Noizu.Cms.V2.Database.IndexTable, [disk: neighbors])
                   create_table(Noizu.Cms.V2.Database.TagTable, [disk: neighbors])
                   create_table(Noizu.Cms.V2.Database.VersionSequencerTable, [disk: neighbors])
+                  create_table(Noizu.Cms.V2.Database.VersionTable, [disk: neighbors])
                   create_table(Noizu.Cms.V2.Database.Version.RevisionTable, [disk: neighbors])
                   create_table(Noizu.Cms.V2.Database.Version.ActiveRevisionTable, [disk: neighbors])
                   :success
