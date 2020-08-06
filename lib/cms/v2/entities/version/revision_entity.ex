@@ -65,7 +65,7 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
 
   def string_to_id("ref.cms-revision-v2." <> identifier), do: string_to_id(identifier)
   def string_to_id(identifier) do
-    case Regex.match?(~r/^\[(.*)\]@([0-9\.]*)-([0-9]*)$/, identifier) do
+    case Regex.run(~r/^\[(.*)\]@([0-9\.]*)-([0-9]*)$/, identifier) do
       [_,sref,version, revision] ->
         if ref = Noizu.ERP.ref(sref) do
           version = String.split(version, ".") |> Enum.map(&(elem(Integer.parse(&1), 0))) |> List.to_tuple()
