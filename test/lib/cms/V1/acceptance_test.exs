@@ -12,6 +12,7 @@ defmodule Noizu.Cms.V1.AcceptanceTest do
   @context Noizu.ElixirCore.CallingContext.admin()
 
   @tag :cms
+  @tag :cms_v1
   test "Create New Record" do
     post = %Noizu.Cms.PostEntity{
       status: :enabled,
@@ -65,6 +66,7 @@ defmodule Noizu.Cms.V1.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v1
   test "Versioning" do
     post = %Noizu.Cms.PostEntity{
       status: :enabled,
@@ -132,6 +134,7 @@ defmodule Noizu.Cms.V1.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v1
   test "Query By Tag" do
     post = %Noizu.Cms.PostEntity{
       status: :enabled,
@@ -152,6 +155,7 @@ defmodule Noizu.Cms.V1.AcceptanceTest do
   end
 
   @tag :cms
+  @tag :cms_v1
   test "Delete Record" do
     post = %Noizu.Cms.PostEntity{
       status: :enabled,

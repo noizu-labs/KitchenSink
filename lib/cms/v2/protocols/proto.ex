@@ -223,7 +223,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
 
   def article_ref(ref, context, options) do
     case ref do
-      v_ref = {:ref, m, {:revision, {identifier, _version, _revision}}} -> {:ref, m, identifier}
+      _v_ref = {:ref, m, {:revision, {identifier, _version, _revision}}} -> {:ref, m, identifier}
       {:ref, _m, _id} -> ref
       _ ->
         if (entity = Noizu.ERP.entity(ref)) do
@@ -447,14 +447,14 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def is_versioning_record?(ref, context, options) do
+  def is_versioning_record?(ref, _context, _options) do
     case ref.identifier do
       {:revision, {_identifier, _version, _revision}} -> true
       _ -> false
     end
   end
 
-  def is_versioning_record!(ref, context, options) do
+  def is_versioning_record!(ref, _context, _options) do
     case ref.identifier do
       {:revision, {_identifier, _version, _revision}} -> true
       _ -> false
@@ -465,7 +465,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def versioned_identifier(ref, context, options) do
+  def versioned_identifier(ref, _context, _options) do
     if ref.article_info && ref.article_info.revision do
       # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
       {:ref, _, {{:ref, _v, {_article, version_path}}, revision_number}} = Noizu.ERP.ref(ref.article_info.revision)
@@ -484,7 +484,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def article_identifier(ref, context, options) do
+  def article_identifier(ref, _context, _options) do
     case ref.identifier do
       # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
       {:revision, {identifier, _version, _revision}} -> identifier
@@ -495,7 +495,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
     article_identifier(ref, context, options)
   end
 
-  def versioned_ref(ref, context, options) do
+  def versioned_ref(ref, _context, _options) do
     if ref.article_info && ref.article_info.revision do
       # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
       {:ref, _, {{:ref, _v, {{:ref, _a, identifier}, version_path}}, revision_number}} = Noizu.ERP.ref(ref.article_info.revision)
@@ -507,11 +507,11 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
     versioned_ref(ref, context, options)
   end
 
-  def article_ref(ref, context, options) do
+  def article_ref(ref, _context, _options) do
     case ref.identifier do
       # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
       {:revision, {identifier, _version, _revision}} -> Noizu.ERP.ref(%{ref| identifier: identifier})
-      identifier -> Noizu.ERP.ref(ref)
+      _identifier -> Noizu.ERP.ref(ref)
     end
   end
 
@@ -533,9 +533,9 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def get_article(ref, context, options), do: ref
+  def get_article(ref, _context, _options), do: ref
 
-  def get_article!(ref, context, options), do: ref
+  def get_article!(ref, _context, _options), do: ref
 
   #----------------------
   #
@@ -605,7 +605,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def get_article_info(ref, context, options) do
+  def get_article_info(ref, _context, _options) do
     get_in(ref, [Access.key(:article_info)])
   end
 
@@ -616,7 +616,7 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Article.FileEntity, Noizu.Cms.V2.
   #----------------------
   #
   #----------------------
-  def set_article_info(ref, article_info, context, options) do
+  def set_article_info(ref, article_info, _context, _options) do
     put_in(ref, [Access.key(:article_info)], article_info)
   end
 
@@ -808,19 +808,31 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Version.RevisionEntity] do
   #----------------------
   #
   #----------------------
-  def compress_archive(ref, context, options) do
-    {ref.full_copy, ref.record}
-  end
+  def versioned_ref(_ref, _context, _options), do: throw :not_supported
+  def versioned_ref!(_ref, _context, _options), do: throw :not_supported
 
-  def compress_archive!(ref, context, options) do
-    {ref.full_copy, ref.record}
-  end
+  #----------------------
+  #
+  #----------------------
+  def article_ref(_ref, _context, _options), do: throw :not_supported
+  def article_ref!(_ref, _context, _options), do: throw :not_supported
 
   #----------------------
   #
   #----------------------
   def get_article(ref, _context, _options), do: ref.article
   def get_article!(ref, _context, _options), do: ref.article
+
+  #----------------------
+  #
+  #----------------------
+  def compress_archive(ref, _context, _options) do
+    {ref.full_copy, ref.record}
+  end
+
+  def compress_archive!(ref, _context, _options) do
+    {ref.full_copy, ref.record}
+  end
 
   #----------------------
   #

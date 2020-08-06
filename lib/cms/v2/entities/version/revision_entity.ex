@@ -62,6 +62,7 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
   #------------
   #
   #------------
+
   def string_to_id("ref.cms-version-v2." <> identifier), do: string_to_id(identifier)
   def string_to_id(identifier) do
     case Regex.match?(~r/^[(.*)]@([0-9\.]*)-([0-9]*)$/, identifier) do
@@ -77,11 +78,10 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
     end
   end
 
+
   #------------
   #
   #------------
-
-
   def id_to_string({ {:ref, Noizu.Cms.V2.VersionEntity, {inner_ref, version}}, revision} = ref) do
     sref = Noizu.ERP.sref(inner_ref)
     version = Tuple.to_list(version) |> Enum.join(".")
