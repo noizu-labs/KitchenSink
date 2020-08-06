@@ -58,18 +58,38 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
   end
   def id(_ref), do: nil
 
-  #------------
-  #
-  #------------
-  def string_to_id(_identifier) do
-    {:ok, :wip}
-  end
 
   #------------
   #
   #------------
-  def id_to_string(_identifier) do
-    {:ok, "wip"}
+
+  def string_to_id("ref.cms-version-v2." <> identifier), do: string_to_id(identifier)
+  def string_to_id(identifier) do
+    case Regex.match?(~r/^[(.*)]@([0-9\.]*)-([0-9]*)$/, identifier) do
+      [_,sref,version, revision] ->
+        if ref = Noizu.ERP.ref(sref) do
+          version = Enum.split(version, ".") |> Enum.map(&(elem(Integer.parse(&1), 0))) |> List.to_tuple()
+          revision = Integer.parse(revision)
+          {{:ref, Noizu.Cms.V2.VersionEntity, {ref, version}}, revision}
+        else
+          {:error, {:inner_ref, sref, identifier}}
+        end
+      _ -> {:error, {:format, identifier}}
+    end
+  end
+
+
+  #------------
+  #
+  #------------
+  def id_to_string({ {:ref, Noizu.Cms.V2.VersionEntity, {inner_ref, version}}, revision} = ref) do
+    sref = Noizu.ERP.sref(inner_ref)
+    version = Tuple.to_list(version) |> Enum.join(".")
+    {:ok, "[#{sref}]@#{version}#-#{revision}"}
+  end
+
+  def id_to_string(ref) do
+    {:error, ref}
   end
 
   def is_cms_entity?(_, _context, _options), do: false
