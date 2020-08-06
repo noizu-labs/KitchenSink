@@ -63,7 +63,7 @@ defmodule Noizu.Cms.V2.VersionEntity do
     case Regex.run(~r/^\[(.*)\]@([0-9\.]*)$/, identifier) do
       [_,sref,version] ->
         if ref = Noizu.ERP.ref(sref) do
-          version = Enum.split(version, ".") |> Enum.map(&(elem(Integer.parse(&1), 0))) |> List.to_tuple()
+          version = String.split(version, ".") |> Enum.map(&(elem(Integer.parse(&1), 0))) |> List.to_tuple()
           {ref, version}
         else
           {:error, {:inner_ref, sref, identifier}}
