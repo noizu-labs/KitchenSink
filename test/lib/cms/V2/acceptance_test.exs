@@ -36,6 +36,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
   alias Noizu.Support.Cms.V2.Database.MockVersionTable
   alias Noizu.Support.Cms.V2.Database.Version.MockRevisionTable
   alias Noizu.Support.Cms.V2.Database.MockVersionActiveRevisionTable
+
   #----------------
   # Macros
   #----------------

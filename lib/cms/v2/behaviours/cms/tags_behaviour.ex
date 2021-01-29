@@ -2,117 +2,117 @@
 # Author: Keith Brings
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
+defmodule Noizu.Cms.V2.Cms.TagsBehaviour.Default do
+  @moduledoc """
+    Our default implementation just queries index tables. Alternative versions may query manticore/sphinx, etc. or other sources.
+  """
+
+  use Amnesia
+
+  alias Noizu.ElixirCore.OptionSettings
+  alias Noizu.ElixirCore.OptionValue
+  #alias Noizu.ElixirCore.OptionList
+
+
+  @default_options %{
+    expand: true,
+    filter: false
+  }
+
+  def prepare_options(options) do
+    settings = %OptionSettings{
+      option_settings: %{
+        verbose: %OptionValue{option: :verbose, default: false},
+      }
+    }
+    OptionSettings.expand(settings, options)
+  end
+
+  #----------------------------------
+  # merge_options
+  #----------------------------------
+  def merge_options(nil), do: @default_options
+  def merge_options(%{} = options), do: Map.merge(@default_options, options || %{})
+
+  #-----------------------------
+  # update/4
+  #-----------------------------
+  def update(entity, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    new_tags = case Noizu.Cms.V2.Proto.tags(entity, context, options) do
+      v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
+      v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+    end
+
+    existing_tags = case caller.cms_tag_repo().mnesia_read(ref) do
+      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+      v -> {:error, v}
+    end
+
+    if (new_tags != existing_tags) do
+      # erase any existing tags
+      caller.cms_tag_repo().mnesia_delete(ref)
+
+      # insert new tags
+      Enum.map(new_tags, fn(tag) ->
+        caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().mnesia_write()
+      end)
+    end
+  end
+
+  #-----------------------------
+  # update!/4
+  #-----------------------------
+  def update!(entity, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+    new_tags = case Noizu.Cms.V2.Proto.tags!(entity, context, options) do
+      v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
+      v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+    end
+
+    existing_tags = case caller.cms_tag_repo().mnesia_read!(ref) do
+      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+      v -> {:error, v}
+    end
+
+    if (new_tags != existing_tags) do
+      # erase any existing tags
+      caller.cms_tag_repo().mnesia_delete!(ref)
+
+      # insert new tags
+      Enum.map(new_tags, fn(tag) ->
+        caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().mnesia_write!()
+      end)
+    end
+  end
+
+  #-----------------------------
+  # delete/4
+  #-----------------------------
+  def delete(entity, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    # erase any existing tags
+    caller.cms_tag_repo().mnesia_delete(ref)
+  end
+
+  #-----------------------------
+  # delete!/4
+  #-----------------------------
+  def delete!(entity, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+    # erase any existing tags
+    caller.cms_tag_repo().mnesia_delete!(ref)
+  end
+
+
+
+end
 
 defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
-  defmodule Default do
-    @moduledoc """
-      Our default implementation just queries index tables. Alternative versions may query manticore/sphinx, etc. or other sources.
-    """
-
-    use Amnesia
-
-    alias Noizu.ElixirCore.OptionSettings
-    alias Noizu.ElixirCore.OptionValue
-    #alias Noizu.ElixirCore.OptionList
-
-
-    @default_options %{
-      expand: true,
-      filter: false
-    }
-
-    def prepare_options(options) do
-      settings = %OptionSettings{
-        option_settings: %{
-          verbose: %OptionValue{option: :verbose, default: false},
-        }
-      }
-      OptionSettings.expand(settings, options)
-    end
-
-    #----------------------------------
-    # merge_options
-    #----------------------------------
-    def merge_options(nil), do: @default_options
-    def merge_options(%{} = options), do: Map.merge(@default_options, options || %{})
-
-    #-----------------------------
-    # update/4
-    #-----------------------------
-    def update(entity, context, options, caller) do
-      ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      new_tags = case Noizu.Cms.V2.Proto.tags(entity, context, options) do
-        v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
-        v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
-        nil -> []
-      end
-
-      existing_tags = case caller.cms_tag_repo().read(ref) do
-        v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
-        nil -> []
-        v -> {:error, v}
-      end
-
-      if (new_tags != existing_tags) do
-        # erase any existing tags
-        caller.cms_tag_repo().delete(ref)
-
-        # insert new tags
-        Enum.map(new_tags, fn(tag) ->
-          caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().write()
-        end)
-      end
-    end
-
-    #-----------------------------
-    # update!/4
-    #-----------------------------
-    def update!(entity, context, options, caller) do
-      ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
-      new_tags = case Noizu.Cms.V2.Proto.tags!(entity, context, options) do
-        v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
-        v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
-        nil -> []
-      end
-
-      existing_tags = case caller.cms_tag_repo().read!(ref) do
-        v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
-        nil -> []
-        v -> {:error, v}
-      end
-
-      if (new_tags != existing_tags) do
-        # erase any existing tags
-        caller.cms_tag_repo().delete!(ref)
-
-        # insert new tags
-        Enum.map(new_tags, fn(tag) ->
-          caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().write!()
-        end)
-      end
-    end
-
-    #-----------------------------
-    # delete/4
-    #-----------------------------
-    def delete(entity, context, options, caller) do
-      ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-      # erase any existing tags
-      caller.cms_tag_repo().delete(ref)
-    end
-
-    #-----------------------------
-    # delete!/4
-    #-----------------------------
-    def delete!(entity, context, options, caller) do
-      ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
-      # erase any existing tags
-      caller.cms_tag_repo().delete!(ref)
-    end
-
-
-
-  end
 
 
 

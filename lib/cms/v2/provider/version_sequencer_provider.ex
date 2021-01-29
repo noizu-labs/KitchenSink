@@ -6,6 +6,7 @@
 defmodule Noizu.Cms.V2.VersionSequencerProvider do
 
 
+
   use Amnesia
 
   def sequencer!(key) do

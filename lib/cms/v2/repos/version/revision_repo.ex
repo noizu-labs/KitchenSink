@@ -4,11 +4,16 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.Version.RevisionRepo do
+  @behaviour Noizu.Cms.V2.Cms.RevisionRepoBehaviour
   use Noizu.Scaffolding.V2.RepoBehaviour,
         entity_module: Noizu.Cms.V2.Version.RevisionEntity,
         mnesia_table: Noizu.Cms.V2.Database.Version.RevisionTable
 
   alias Noizu.Cms.V2.Version.RevisionEntity
+
+  alias Noizu.Cms.V2.Database.Version.RevisionTable
+  use Noizu.Cms.V2.Database.Version.RevisionTable
+  use Amnesia
 
   #------------------------
   #
@@ -53,6 +58,10 @@ defmodule Noizu.Cms.V2.Version.RevisionRepo do
     } |> Noizu.Cms.V2.Database.Version.ActiveRevisionTable.write()
   end
 
+  def version_revisions(version, context, options) do
+    match([identifier: {version, :_}], context, options)
+  end
+
   #------------------------
   #
   #------------------------
@@ -84,5 +93,17 @@ defmodule Noizu.Cms.V2.Version.RevisionRepo do
   #------------------------
   def is_revision({:revision, {_i, _v, _r}}), do: true
   def is_revision(_), do: false
+
+
+
+
+  def mnesia_delete(identifier), do: RevisionTable.delete(identifier)
+  def mnesia_delete!(identifier), do: RevisionTable.delete!(identifier)
+  def mnesia_read(identifier), do: RevisionTable.read(identifier)
+  def mnesia_read!(identifier), do: RevisionTable.read!(identifier)
+  def mnesia_write(identifier), do: RevisionTable.write(identifier)
+  def mnesia_write!(identifier), do: RevisionTable.write!(identifier)
+  def mnesia_match(m), do: RevisionTable.match(m)
+  def mnesia_match!(m), do: RevisionTable.match!(m)
 
 end

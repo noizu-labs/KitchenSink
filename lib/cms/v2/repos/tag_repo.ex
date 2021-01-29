@@ -4,6 +4,8 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.TagRepo do
+  @behaviour Noizu.Cms.V2.Cms.TagRepoBehaviour
+
   alias Noizu.Cms.V2.Database.TagTable
   use Noizu.Cms.V2.Database.TagTable
   use Amnesia
@@ -15,11 +17,13 @@ defmodule Noizu.Cms.V2.TagRepo do
       }
   end
 
-  def delete(identifier), do: TagTable.delete(identifier)
-  def delete!(identifier), do: TagTable.delete!(identifier)
-  def read(identifier), do: TagTable.read(identifier)
-  def read!(identifier), do: TagTable.read!(identifier)
-  def write(e), do: TagTable.write(e)
-  def write!(e), do: TagTable.write!(e)
+  def mnesia_delete(identifier), do: TagTable.delete(identifier)
+  def mnesia_delete!(identifier), do: TagTable.delete!(identifier)
+  def mnesia_read(identifier), do: TagTable.read(identifier)
+  def mnesia_read!(identifier), do: TagTable.read!(identifier)
+  def mnesia_write(identifier), do: TagTable.write(identifier)
+  def mnesia_write!(identifier), do: TagTable.write!(identifier)
+  def mnesia_match(m), do: TagTable.match(m)
+  def mnesia_match!(m), do: TagTable.match!(m)
 
 end

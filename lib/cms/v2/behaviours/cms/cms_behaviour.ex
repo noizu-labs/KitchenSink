@@ -2,34 +2,34 @@
 # Author: Keith Brings
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
+defmodule Noizu.Cms.V2.CmsBehaviour.Default do
+  use Amnesia
+
+  alias Noizu.ElixirCore.OptionSettings
+  alias Noizu.ElixirCore.OptionValue
+
+  def prepare_options(options) do
+    settings = %OptionSettings{
+      option_settings: %{
+        verbose: %OptionValue{option: :verbose, default: false},
+        query_module: %OptionValue{option: :query_module, default: Noizu.Cms.V2.Cms.QueryBehaviour},
+        version_module: %OptionValue{option: :version_module, default: Noizu.Cms.V2.Cms.VersionBehaviour},
+        revision_module: %OptionValue{option: :revision_module, default: Noizu.Cms.V2.Cms.RevisionBehaviour},
+        tags_module: %OptionValue{option: :tags_module, default: Noizu.Cms.V2.Cms.TagsBehaviour},
+        index_module: %OptionValue{option: :index_module, default: Noizu.Cms.V2.Cms.IndexBehaviour},
+        query_module_options: %OptionValue{option: :query_module_options, default: []},
+        version_module_options: %OptionValue{option: :version_module_options, default: []},
+        revision_module_options: %OptionValue{option: :revision_module_options, default: []},
+        tags_module_options: %OptionValue{option: :tags_module_options, default: []},
+        index_module_options: %OptionValue{option: :index_module_options, default: []},
+      }
+    }
+    OptionSettings.expand(settings, options)
+  end
+end
 
 
 defmodule Noizu.Cms.V2.CmsBehaviour do
-  defmodule Default do
-    use Amnesia
-
-    alias Noizu.ElixirCore.OptionSettings
-    alias Noizu.ElixirCore.OptionValue
-
-    def prepare_options(options) do
-      settings = %OptionSettings{
-        option_settings: %{
-          verbose: %OptionValue{option: :verbose, default: false},
-          query_module: %OptionValue{option: :query_module, default: Noizu.Cms.V2.Cms.QueryBehaviour},
-          version_module: %OptionValue{option: :version_module, default: Noizu.Cms.V2.Cms.VersionBehaviour},
-          revision_module: %OptionValue{option: :revision_module, default: Noizu.Cms.V2.Cms.RevisionBehaviour},
-          tags_module: %OptionValue{option: :tags_module, default: Noizu.Cms.V2.Cms.TagsBehaviour},
-          index_module: %OptionValue{option: :index_module, default: Noizu.Cms.V2.Cms.IndexBehaviour},
-          query_module_options: %OptionValue{option: :query_module_options, default: []},
-          version_module_options: %OptionValue{option: :version_module_options, default: []},
-          revision_module_options: %OptionValue{option: :revision_module_options, default: []},
-          tags_module_options: %OptionValue{option: :tags_module_options, default: []},
-          index_module_options: %OptionValue{option: :index_module_options, default: []},
-        }
-      }
-      OptionSettings.expand(settings, options)
-    end
-  end
 
 
 

@@ -2,144 +2,144 @@
 # Author: Keith Brings
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
+defmodule Noizu.Cms.V2.Cms.QueryBehaviour.Default do
+  @moduledoc """
+    Our default implementation just queries index tables. Alternative versions may query manticore/sphinx, etc. or other sources.
+  """
+
+  use Amnesia
+
+  alias Noizu.ElixirCore.OptionSettings
+  alias Noizu.ElixirCore.OptionValue
+  #alias Noizu.ElixirCore.OptionList
+
+  @default_options %{
+    expand: true,
+    filter: false
+  }
+
+  def prepare_options(options) do
+    settings = %OptionSettings{
+      option_settings: %{
+        verbose: %OptionValue{option: :verbose, default: false},
+      }
+    }
+    OptionSettings.expand(settings, options)
+  end
+
+  #----------------------------------
+  # merge_options
+  #----------------------------------
+  def merge_options(nil), do: @default_options
+  def merge_options(%{} = options), do: Map.merge(@default_options, options || %{})
+
+  #----------------------------------
+  # by_status/4
+  #----------------------------------
+  def by_status(status, context, options, caller) do
+    caller.cms_index().query_by(:status, status, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_status!/4
+  #----------------------------------
+  def by_status!(status, context, options, caller) do
+    caller.cms_index().query_by!(:status, status, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_type/4
+  #----------------------------------
+  def by_type(type, context, options, caller) do
+    caller.cms_index().query_by(:type, type, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_type!/4
+  #----------------------------------
+  def by_type!(type, context, options, caller) do
+    caller.cms_index().query_by!(:type, type, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_module/4
+  #----------------------------------
+  def by_module(module, context, options, caller) do
+    caller.cms_index().query_by(:module, module, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_module!/4
+  #----------------------------------
+  def by_module!(module, context, options, caller) do
+    caller.cms_index().query_by!(:module, module, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_editor/4
+  #----------------------------------
+  def by_editor(editor, context, options, caller) do
+    caller.cms_index().query_by(:editor, editor, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_editor!/4
+  #----------------------------------
+  def by_editor!(editor, context, options, caller) do
+    caller.cms_index().query_by!(:editor, editor, context, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_tag/4
+  #----------------------------------
+  def by_tag(tag, context, options, caller) do
+    options = merge_options(options)
+    tag
+    |> caller.cms_tags().articles_by_tag(context, options)
+    |> caller.cms_index().filter_set(context, options)
+  end
+
+  #----------------------------------
+  # by_tag!/4
+  #----------------------------------
+  def by_tag!(tag, context, options, caller) do
+    options = merge_options(options)
+    tag
+    |> caller.cms_tags().articles_by_tag!(context, options)
+    |> caller.cms_index().filter_set!(context, options)
+    # Note previous iteration threw on empty map sets.
+  end
+
+  #----------------------------------
+  # by_created_on/5
+  #----------------------------------
+  def by_created_on(from, to, context, options, caller) do
+    caller.cms_index().by_created_on(from, to, context, options, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_created_on!/4
+  #-----------------------5----------
+  def by_created_on!(from, to, context, options, caller) do
+    caller.cms_index().by_created_on!(from, to, context, options, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_modified_on/5
+  #----------------------------------
+  def by_modified_on(from, to, context, options, caller) do
+    caller.cms_index().by_modified_on(from, to, context, options, merge_options(options))
+  end
+
+  #----------------------------------
+  # by_modified_on!/5
+  #----------------------------------
+  def by_modified_on!(from, to, context, options, caller) do
+    caller.cms_index().by_modified_on!(from, to, context, options, merge_options(options))
+  end
+end
 
 defmodule Noizu.Cms.V2.Cms.QueryBehaviour do
-  defmodule Default do
-    @moduledoc """
-      Our default implementation just queries index tables. Alternative versions may query manticore/sphinx, etc. or other sources.
-    """
-
-    use Amnesia
-
-    alias Noizu.ElixirCore.OptionSettings
-    alias Noizu.ElixirCore.OptionValue
-    #alias Noizu.ElixirCore.OptionList
-
-    @default_options %{
-      expand: true,
-      filter: false
-    }
-
-    def prepare_options(options) do
-      settings = %OptionSettings{
-        option_settings: %{
-          verbose: %OptionValue{option: :verbose, default: false},
-        }
-      }
-      OptionSettings.expand(settings, options)
-    end
-
-    #----------------------------------
-    # merge_options
-    #----------------------------------
-    def merge_options(nil), do: @default_options
-    def merge_options(%{} = options), do: Map.merge(@default_options, options || %{})
-
-    #----------------------------------
-    # by_status/4
-    #----------------------------------
-    def by_status(status, context, options, caller) do
-      caller.cms_index().query_by(:status, status, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_status!/4
-    #----------------------------------
-    def by_status!(status, context, options, caller) do
-      caller.cms_index().query_by!(:status, status, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_type/4
-    #----------------------------------
-    def by_type(type, context, options, caller) do
-      caller.cms_index().query_by(:type, type, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_type!/4
-    #----------------------------------
-    def by_type!(type, context, options, caller) do
-      caller.cms_index().query_by!(:type, type, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_module/4
-    #----------------------------------
-    def by_module(module, context, options, caller) do
-      caller.cms_index().query_by(:module, module, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_module!/4
-    #----------------------------------
-    def by_module!(module, context, options, caller) do
-      caller.cms_index().query_by!(:module, module, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_editor/4
-    #----------------------------------
-    def by_editor(editor, context, options, caller) do
-      caller.cms_index().query_by(:editor, editor, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_editor!/4
-    #----------------------------------
-    def by_editor!(editor, context, options, caller) do
-      caller.cms_index().query_by!(:editor, editor, context, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_tag/4
-    #----------------------------------
-    def by_tag(tag, context, options, caller) do
-      options = merge_options(options)
-      tag
-      |> caller.cms_tags().articles_by_tag(context, options)
-      |> caller.cms_index().filter_set(context, options)
-    end
-
-    #----------------------------------
-    # by_tag!/4
-    #----------------------------------
-    def by_tag!(tag, context, options, caller) do
-      options = merge_options(options)
-      tag
-      |> caller.cms_tags().articles_by_tag!(context, options)
-      |> caller.cms_index().filter_set!(context, options)
-      # Note previous iteration threw on empty map sets.
-    end
-
-    #----------------------------------
-    # by_created_on/5
-    #----------------------------------
-    def by_created_on(from, to, context, options, caller) do
-      caller.cms_index().by_created_on(from, to, context, options, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_created_on!/4
-    #-----------------------5----------
-    def by_created_on!(from, to, context, options, caller) do
-      caller.cms_index().by_created_on!(from, to, context, options, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_modified_on/5
-    #----------------------------------
-    def by_modified_on(from, to, context, options, caller) do
-      caller.cms_index().by_modified_on(from, to, context, options, merge_options(options))
-    end
-
-    #----------------------------------
-    # by_modified_on!/5
-    #----------------------------------
-    def by_modified_on!(from, to, context, options, caller) do
-      caller.cms_index().by_modified_on!(from, to, context, options, merge_options(options))
-    end
-  end
 
 
 

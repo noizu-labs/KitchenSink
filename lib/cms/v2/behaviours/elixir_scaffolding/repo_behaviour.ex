@@ -76,12 +76,12 @@ defmodule Noizu.Cms.V2.RepoBehaviour do
 
       if is_versioning_record? do
         entity
-        |>  Noizu.Cms.V2.Proto.update_article_info(context, options)
+        |> Noizu.Cms.V2.Proto.update_article_info(context, options)
         |> caller.cms_version().populate(context, options_a)
       else
         # 5. Prepare Version and Revision, modify identifier.
         entity
-        |>  Noizu.Cms.V2.Proto.init_article_info(context, options)
+        |> Noizu.Cms.V2.Proto.init_article_info(context, options)
         |> caller.cms_version().initialize(context, options_a)
       end
     end

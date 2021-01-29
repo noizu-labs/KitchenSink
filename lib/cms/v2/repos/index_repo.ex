@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.Cms.V2.IndexRepo do
-
+  @behaviour Noizu.Cms.V2.Cms.IndexRepoBehaviour
   alias Noizu.Cms.V2.Database.IndexTable
   use Noizu.Cms.V2.Database.IndexTable
   use Amnesia
@@ -29,15 +29,14 @@ defmodule Noizu.Cms.V2.IndexRepo do
     end)
   end
 
-  def delete(identifier), do: IndexTable.delete(identifier)
-  def delete!(identifier), do: IndexTable.delete!(identifier)
-  def read(identifier), do: IndexTable.read(identifier)
-  def read!(identifier), do: IndexTable.read!(identifier)
-  def write(identifier), do: IndexTable.write(identifier)
-  def write!(identifier), do: IndexTable.write!(identifier)
-  def match(m), do: IndexTable.match(m)
-  def match!(m), do: IndexTable.match!(m)
-
+  def mnesia_delete(identifier), do: IndexTable.delete(identifier)
+  def mnesia_delete!(identifier), do: IndexTable.delete!(identifier)
+  def mnesia_read(identifier), do: IndexTable.read(identifier)
+  def mnesia_read!(identifier), do: IndexTable.read!(identifier)
+  def mnesia_write(identifier), do: IndexTable.write(identifier)
+  def mnesia_write!(identifier), do: IndexTable.write!(identifier)
+  def mnesia_match(m), do: IndexTable.match(m)
+  def mnesia_match!(m), do: IndexTable.match!(m)
 
   #----------------------------------
   # by_created_on/5
