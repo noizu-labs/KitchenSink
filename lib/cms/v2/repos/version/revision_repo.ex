@@ -89,25 +89,8 @@ defmodule Noizu.Cms.V2.Version.RevisionRepo do
   end
 
 
-  def revision_create(cms, article, version, context, options) do
-    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
-    article_ref = Noizu.ERP.ref(article)
-    version_ref = Noizu.ERP.ref(version)
-    identifier = options[:article_options][:revision_key] || {version_ref, cms.cms_version().version_sequencer({:revision, Noizu.ERP.id(version_ref)})}
-    article = article
-              |> Noizu.Cms.V2.Proto.set_revision(identifier, context, options)
-    {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
-    new(%{
-      identifier: identifier,
-      article: article_ref,
-      version: version_ref,
-      created_on: article_info.created_on,
-      modified_on: article_info.modified_on,
-      editor: article_info.editor,
-      status: article_info.status,
-      archive_type: archive_type,
-      archive: archive,
-    }) |> create(context, options[:create_options])
+  def revision_create(article, version, context, options, cms) do
+    cms.cms_revision().revision_create(article, version, context, options)
   end
 
   #------------------------

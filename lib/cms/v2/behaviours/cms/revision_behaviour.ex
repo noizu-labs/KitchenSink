@@ -63,6 +63,28 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour.Default do
     Amnesia.Fragment.async(fn -> caller.cms_revision().revisions(entity, context, options) end)
   end
 
+
+  def revision_create(article, version, context, options, caller) do
+    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
+    article_ref = Noizu.ERP.ref(article)
+    version_ref = Noizu.ERP.ref(version)
+    identifier = options[:article_options][:revision_key] || {version_ref, caller.cms_version().version_sequencer({:revision, Noizu.ERP.id(version_ref)})}
+    article = article
+              |> Noizu.Cms.V2.Proto.set_revision(identifier, context, options)
+    {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
+    caller.cms_revision_repo().new(%{
+      identifier: identifier,
+      article: article_ref,
+      version: version_ref,
+      created_on: article_info.created_on,
+      modified_on: article_info.modified_on,
+      editor: article_info.editor,
+      status: article_info.status,
+      archive_type: archive_type,
+      archive: archive,
+    }) |> caller.cms_revision_repo().create(context, options[:create_options])
+  end
+
   #------------------------
   #
   #------------------------
@@ -82,7 +104,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour.Default do
       article == nil -> {:error, :invalid_record}
       version == nil -> {:error, :no_version_provided}
       :else ->
-        revision = caller.cms_revision_repo().revision_create(caller, article, version, context, options)
+        revision = caller.cms_revision_repo().revision_create(article, version, context, options, caller)
         case revision do
           %{__struct__: s} ->
             if s == caller.cms_revision_entity() do
@@ -279,6 +301,9 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
       def revisions(entity, context, options \\ %{}), do: @cms_revision_implementation.revisions(entity, context, options, cms_base())
       def revisions!(entity, context, options \\ %{}), do: @cms_revision_implementation.revisions!(entity, context, options, cms_base())
 
+
+      def revision_create(article, version, context, options), do: @cms_revision_implementation.revision_create(article, version, context, options, cms_base())
+
       def create(entity, context, options \\ %{}), do: @cms_revision_implementation.create(entity, context, options, cms_base())
       def create!(entity, context, options \\ %{}), do: @cms_revision_implementation.create!(entity, context, options, cms_base())
 
@@ -303,6 +328,8 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour do
         revisions: 3,
         revisions!: 2,
         revisions!: 3,
+
+        revision_create: 4,
 
         create: 2,
         create: 3,

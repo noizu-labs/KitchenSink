@@ -252,10 +252,45 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
     Amnesia.Fragment.async(fn -> caller.cms_version().versions(entity, context, options) end)
   end
 
+
+  #------------------------
+  # version_create
+  #------------------------
+  def version_create(article, current_version, context, options, caller) do
+    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
+    article_ref =  Noizu.Cms.V2.Proto.article_ref(article, context, options)
+    current_version_ref = caller.cms_version_entity().ref(current_version)
+
+    if article_info do
+      # 1. Determine version path we will be creating
+      new_version_path = cond do
+        current_version == nil ->
+          {caller.cms_version().version_sequencer({article_ref, {}})}
+        true ->
+          {:ref, _, {_article, path}} = current_version_ref
+          List.to_tuple(Tuple.to_list(path) ++ [caller.cms_version().version_sequencer({article_ref, path})])
+      end
+
+      # 2. identifier
+      new_version_key = {article_ref, new_version_path}
+
+      caller.cms_version_repo().new(
+        %{
+          identifier: new_version_key,
+          article: article_ref,
+          parent: current_version_ref,
+          created_on: article_info.created_on,
+          modified_on: article_info.modified_on,
+          editor: article_info.editor,
+          status: article_info.status,
+        }
+      ) |> caller.cms_version_repo().create(context, options[:create_options])
+    end
+  end
+
   #------------------------
   #
   #------------------------
-
   def create(entity, context, options, caller) do
     article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
 
@@ -265,7 +300,7 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
 
 
     # 3. Create Version.
-    version = caller.cms_version_repo().version_create(caller, article, current_version, context, options)
+    version = caller.cms_version_repo().version_create(article, current_version, context, options, caller)
     if version do
       article = article
                 |> Noizu.Cms.V2.Proto.set_version(version, context, options)
@@ -408,6 +443,8 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
       def versions(entity, context, options \\ %{}), do: @cms_implementation.versions(entity, context, options, cms_base())
       def versions!(entity, context, options \\ %{}), do: @cms_implementation.versions!(entity, context, options, cms_base())
 
+      def version_create(article, current_version, context, options), do: @cms_implementation.version_create(article, current_version, context, options, cms_base())
+
       def create(entity, context, options \\ %{}), do: @cms_implementation.create(entity, context, options, cms_base())
       def create!(entity, context, options \\ %{}), do: @cms_implementation.create!(entity, context, options, cms_base())
 
@@ -447,6 +484,8 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour do
 
         versions: 3,
         versions!: 3,
+
+        version_create: 4,
 
         create: 2,
         create!: 2,

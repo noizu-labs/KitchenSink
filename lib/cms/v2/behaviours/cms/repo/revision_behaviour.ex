@@ -8,7 +8,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionRepoBehaviour do
   @callback new(options :: any) :: any
   @callback is_revision(ref :: any) :: any
 
-  @callback revision_create(cms :: any, article :: any, version :: any, context :: any, options :: any) :: any
+  @callback revision_create(article :: any, version :: any, context :: any, options :: any, cms :: any) :: any
 
 
   @callback mnesia_delete(identifier :: any) :: any

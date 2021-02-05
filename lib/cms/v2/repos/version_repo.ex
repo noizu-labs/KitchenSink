@@ -43,36 +43,8 @@ defmodule Noizu.Cms.V2.VersionRepo do
     }
   end
 
-  def version_create(cms, article, current_version, context, options) do
-    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
-    article_ref =  Noizu.Cms.V2.Proto.article_ref(article, context, options)
-    current_version_ref = cms.cms_version_entity().ref(current_version)
-
-    if article_info do
-      # 1. Determine version path we will be creating
-      new_version_path = cond do
-        current_version == nil ->
-          {cms.cms_version().version_sequencer({article_ref, {}})}
-        true ->
-          {:ref, _, {_article, path}} = current_version_ref
-          List.to_tuple(Tuple.to_list(path) ++ [cms.cms_version().version_sequencer({article_ref, path})])
-      end
-
-      # 2. identifier
-      new_version_key = {article_ref, new_version_path}
-
-      new(
-        %{
-          identifier: new_version_key,
-          article: article_ref,
-          parent: current_version_ref,
-          created_on: article_info.created_on,
-          modified_on: article_info.modified_on,
-          editor: article_info.editor,
-          status: article_info.status,
-        }
-      ) |> create(context, options[:create_options])
-    end
+  def version_create(article, current_version, context, options, cms) do
+    cms.cms_version().version_create(article, current_version, context, options)
   end
 
 
