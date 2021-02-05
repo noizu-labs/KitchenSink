@@ -68,7 +68,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour.Default do
   #------------------------
   def create(entity, context, options, caller) do
     article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
-    article_ref =  Noizu.Cms.V2.Proto.article_ref(article, context, options)
+
     article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
     current_time = options[:current_time] || DateTime.utc_now()
     article_info = %Noizu.Cms.V2.Article.Info{article_info| modified_on: current_time, created_on: current_time}
@@ -76,7 +76,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour.Default do
 
     version = Noizu.Cms.V2.Proto.get_version(article, context, options)
     version_ref = caller.cms_version_entity().ref(version)
-    version_key = caller.cms_version_entity().id(version)
+
 
     cond do
       article == nil -> {:error, :invalid_record}

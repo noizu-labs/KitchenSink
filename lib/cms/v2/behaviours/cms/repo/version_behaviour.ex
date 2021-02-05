@@ -6,6 +6,8 @@ defmodule Noizu.Cms.V2.Cms.VersionRepoBehaviour do
   @callback new(options :: any) :: any
   @callback is_version(ref :: any) :: any
 
+  @callback version_create(cms :: any, article :: any,  current_version :: any, context :: any, options :: any) :: any
+
   @callback mnesia_delete(identifier :: any) :: any
   @callback mnesia_delete!(identifier :: any) :: any
   @callback mnesia_read(identifier :: any) :: any

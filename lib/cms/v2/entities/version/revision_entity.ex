@@ -82,7 +82,7 @@ defmodule Noizu.Cms.V2.Version.RevisionEntity do
   #------------
   #
   #------------
-  def id_to_string({ {:ref, Noizu.Cms.V2.VersionEntity, {inner_ref, version}}, revision} = ref) do
+  def id_to_string({ {:ref, Noizu.Cms.V2.VersionEntity, {inner_ref, version}}, revision} = _ref) do
     sref = Noizu.ERP.sref(inner_ref)
     version = Tuple.to_list(version) |> Enum.join(".")
     {:ok, "[#{sref}]@#{version}-#{revision}"}
