@@ -43,6 +43,7 @@ defmodule Noizu.Cms.V2.VersionRepo do
     }
   end
 
+
   def is_version({:version, {_i, _v}}), do: true
   def is_version(_), do: false
 

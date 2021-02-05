@@ -179,12 +179,10 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
     options_a = put_in(options, [:active_revision], true)
     case caller.cms_version().create(entity, context, options_a) do
       {:ok, {version, revision}} ->
-        version_ref = caller.cms_version_entity().ref(version)
-        revision_ref = caller.cms_revision().ref(revision)
         options_b = put_in(options_a, [:nested_versioning], true)
         entity
-        |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options_b)
-        |> Noizu.Cms.V2.Proto.set_version(version_ref, context, options_b)
+        |> Noizu.Cms.V2.Proto.set_revision(revision, context, options_b)
+        |> Noizu.Cms.V2.Proto.set_version(version, context, options_b)
         |> Noizu.Cms.V2.Proto.set_parent(version.parent, context, options_b)
         |> caller.update(context, options_a)
       {:error, e} -> throw {:error, {:creating_revision, e}}
@@ -208,9 +206,9 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
     case caller.cms_version().create(entity, context, options) do
       {:ok, {version, revision}} ->
         entity = entity
-                 |> Noizu.Cms.V2.Proto.set_version(caller.cms_version_entity().ref(version), context, options)
-                 |> Noizu.Cms.V2.Proto.set_revision(caller.cms_revision().ref(revision), context, options)
-                 |> Noizu.Cms.V2.Proto.set_parent(caller.cms_version_entity().ref(version.parent), context, options)
+                 |> Noizu.Cms.V2.Proto.set_version(version, context, options)
+                 |> Noizu.Cms.V2.Proto.set_revision(revision, context, options)
+                 |> Noizu.Cms.V2.Proto.set_parent(version.parent, context, options)
         v_id = Noizu.Cms.V2.Proto.versioned_identifier(entity, context, options)
         entity = entity
                  |> put_in([Access.key(:identifier)], v_id)
@@ -257,9 +255,11 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
   #------------------------
   #
   #------------------------
+
   def create(entity, context, options, caller) do
     article = Noizu.Cms.V2.Proto.get_article(entity, context, options)
     article_ref =  Noizu.Cms.V2.Proto.article_ref(article, context, options)
+    article_info = Noizu.Cms.V2.Proto.get_article_info(article, context, options)
 
     # 1. get current version.
     current_version = Noizu.Cms.V2.Proto.get_version(article, context, options)
@@ -274,35 +274,40 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
         List.to_tuple(Tuple.to_list(path) ++ [caller.cms_version().version_sequencer({article_ref, path})])
     end
 
-    # 3. Create Version Stub
-    new_version_key = {article_ref, new_version_path}
-    # new_version_ref = VersionEntity.ref(new_version_key)
+    # 3. Create Version.
+    if article_info do
+      new_version_key = {article_ref, new_version_path}
+      version = caller.cms_version_repo().new(
+                  %{
+                    identifier: new_version_key,
+                    article: article_ref,
+                    parent: current_version_ref,
+                    created_on: article_info.created_on,
+                    modified_on: article_info.modified_on,
+                    editor: article_info.editor,
+                    status: article_info.status,
+                  }) |> caller.cms_version_repo().create(context, options)
 
-    article = article
-              |> Noizu.Cms.V2.Proto.set_version(new_version_key, context, options)
-              |> Noizu.Cms.V2.Proto.set_parent(current_version_ref, context, options)
-              |> Noizu.Cms.V2.Proto.set_revision(nil, context, options)
+      if version do
+        article = article
+                  |> Noizu.Cms.V2.Proto.set_version(version, context, options)
+                  |> Noizu.Cms.V2.Proto.set_parent(current_version, context, options)
+                  |> Noizu.Cms.V2.Proto.set_revision(nil, context, options)
 
-    case caller.cms_revision().create(article, context, options) do
-      {:ok, revision} ->
-        # Create Version Record
-        version = caller.cms_version_repo().new(
-                    %{
-                      identifier: new_version_key,
-                      article: article_ref,
-                      parent: current_version_ref,
-                      created_on: revision.created_on,
-                      modified_on: revision.modified_on,
-                      editor: revision.editor,
-                      status: revision.status,
-                    }) |> caller.cms_version_repo().create(context, options)
-        {:ok, {version, revision}}
-
-      {:error, e} -> {:error, {:creating_revision, e}}
-      e -> {:error, {:creating_revision, {:unknown, e}}}
+        case caller.cms_revision().create(article, context, options) do
+          {:ok, revision} ->
+            # Create Version Record
+            {:ok, {version, revision}}
+          {:error, e} -> {:error, {:creating_revision, e}}
+          e -> {:error, {:creating_revision, {:unknown, e}}}
+        end
+      else
+        {:error, {:creating_version, :create_failed}}
+      end
+    else
+      {:error, {:creating_version, :article_info_not_found}}
     end
   end
-
   #------------------------------
   #
   #------------------------------

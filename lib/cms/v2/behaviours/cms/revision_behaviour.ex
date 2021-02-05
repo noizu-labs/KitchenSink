@@ -81,33 +81,14 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour.Default do
     cond do
       article == nil -> {:error, :invalid_record}
       version == nil -> {:error, :no_version_provided}
-      true ->
-        revision_key = options[:revision_key] || {version_ref, caller.cms_version().version_sequencer({:revision, version_key})}
-        revision_ref = caller.cms_revision_entity().ref(revision_key)
-        article = article
-                  |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options)
-
-        {archive_type, archive} = Noizu.Cms.V2.Proto.compress_archive(article, context, options)
-
-        revision = caller.cms_revision_repo().new(%{
-          identifier: revision_key,
-          article: article_ref,
-          version: version_ref,
-          created_on: article_info.created_on,
-          modified_on: article_info.modified_on,
-          editor: article_info.editor,
-          status: article_info.status,
-          archive_type: archive_type,
-          archive: archive,
-        }) |> caller.cms_revision_repo().create(context)
-
+      :else ->
+        revision = caller.cms_revision_repo().revision_create(caller, article, version, context, options)
         case revision do
           %{__struct__: s} ->
             if s == caller.cms_revision_entity() do
-
               # Create Active Version Record.
               if options[:active_revision] do
-                caller.cms_revision_repo().set_active(revision_ref, version_ref, context)
+                caller.cms_revision_repo().set_active(caller.cms_revision_entity().ref(revision), version_ref, context)
               end
               {:ok, revision}
             else
