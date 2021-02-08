@@ -184,6 +184,7 @@ defmodule Noizu.Cms.V2.Cms.VersionBehaviour.Default do
         |> Noizu.Cms.V2.Proto.set_revision(revision, context, options_b)
         |> Noizu.Cms.V2.Proto.set_version(version, context, options_b)
         |> Noizu.Cms.V2.Proto.set_parent(version.parent, context, options_b)
+        |> Noizu.Cms.V2.Proto.update_article_identifier(context, options_b)
         |> caller.update(context, options_a)
       {:error, e} -> throw {:error, {:creating_revision, e}}
       e -> throw {:error, {:creating_revision, {:unknown, e}}}

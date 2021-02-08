@@ -152,6 +152,12 @@ defimpl Noizu.Cms.V2.Proto, for: [Noizu.Cms.V2.Version.RevisionEntity] do
   #----------------------
   #
   #----------------------
+  def update_article_identifier(_ref, _context, _options), do: throw :not_supported
+  def update_article_identifier!(_ref, _context, _options), do: throw :not_supported
+
+  #----------------------
+  #
+  #----------------------
   def article_identifier(_ref, _context, _options), do: throw :not_supported
   def article_identifier!(_ref, _context, _options), do: throw :not_supported
 

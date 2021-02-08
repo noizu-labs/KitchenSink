@@ -42,6 +42,14 @@ defprotocol Noizu.Cms.V2.Proto do
   def versioned_identifier(ref, context, options)
   def versioned_identifier!(ref, context, options)
 
+
+  #--------------------------------
+  # @update_article_identifier
+  #--------------------------------
+  def update_article_identifier(ref, context, options)
+  def update_article_identifier!(ref, context, options)
+
+
   #--------------------------------
   # @article_identifier
   #--------------------------------
@@ -263,6 +271,24 @@ defimpl Noizu.Cms.V2.Proto, for: [Tuple, BitString] do
         end
     end
   end
+
+
+
+  #----------------------
+  # update_article_identifier
+  #----------------------
+  def update_article_identifier(ref, context, options) do
+    if (entity = Noizu.ERP.entity(ref)) do
+      Noizu.Cms.V2.Proto.update_article_identifier(entity, context, options)
+    end
+  end
+
+  def update_article_identifier!(ref, context, options) do
+    if (entity = Noizu.ERP.entity!(ref)) do
+      Noizu.Cms.V2.Proto.update_article_identifier!(entity, context, options)
+    end
+  end
+
 
   def article_identifier(ref, context, options) do
     case ref do

@@ -75,6 +75,10 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       post = @cms_post
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
       article = post.article_info.article
+      {:ref, _, aid} = article
+
+      # Verify article
+      assert post.identifier == {:revision, {aid, {1}, 1}}
 
       # Verify Version Info
       assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
@@ -90,6 +94,13 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert post_1v2.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,2}}}
       assert post_1v1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1,1}}}
       assert post_1v2v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,2,1}}}
+
+      # Verify Identifiers
+      assert post_1v1.identifier == {:revision, {aid, {1,1}, 1}}
+      assert post_1v2.identifier == {:revision, {aid, {1,2}, 1}}
+      assert post_1v1v1.identifier == {:revision, {aid, {1,1,1}, 1}}
+      assert post_1v2v1.identifier == {:revision, {aid, {1,2,1}, 1}}
+
     end
   end
 
@@ -113,7 +124,7 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       post = @cms_post
       post = Noizu.Cms.V2.ArticleRepo.create!(post, @context)
       article = post.article_info.article
-
+      {:ref, _, aid} = article
       # Verify Version Info
       assert post.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {post.article_info.article, {1}}}
 
@@ -124,10 +135,15 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
         title: %Noizu.MarkdownField{markdown: "My New Title"},
       }  |> Noizu.Cms.V2.ArticleRepo.CMS.Revision.new!(@context)
 
+      assert post.identifier == {:revision, {aid, {1}, 1}}
+
       assert post_1v1.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
       assert post_1v1.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {{:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}, 1}}
+      assert post_1v1.identifier == {:revision, {aid, {1,1}, 1}}
+
       assert post_1v1_b.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}
       assert post_1v1_b.article_info.revision == {:ref, Noizu.Cms.V2.Version.RevisionEntity, {{:ref, Noizu.Cms.V2.VersionEntity, {article, {1,1}}}, 2}}
+      assert post_1v1_b.identifier == {:revision, {aid, {1,1}, 2}}
     end
   end
 
@@ -618,6 +634,8 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       # Verify Version Correct in post_v2
       assert post_v2.article_info.version == post.article_info.version
 
+      assert post_v2.identifier == {:revision, {aid, {1}, 2}}
+
 
       # Verify Index Not Updated
       index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)
@@ -675,6 +693,8 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       assert revision.editor == :test
       assert revision.status == :approved
       assert revision.identifier ==  {{:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 1}}}, 1}
+
+      assert post_v2.identifier == {:revision, {aid, {1,1}, 1}}
 
       # Verify parent and version updated.
       # Verify Version Correct in post_v2
@@ -758,9 +778,11 @@ defmodule Noizu.Cms.V2.AcceptanceTest do
       # Verify Version Correct in post_v2
       assert post_v2.article_info.parent == post.article_info.version
       assert post_v2.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 1}}}
+      assert post_v2.identifier == {:revision, {aid, {1,1}, 1}}
 
       assert post_v3.article_info.parent == post.article_info.version
       assert post_v3.article_info.version == {:ref, Noizu.Cms.V2.VersionEntity, {article_ref, {1, 2}}}
+      assert post_v3.identifier == {:revision, {aid, {1,2}, 1}}
 
       # Verify Index Not Updated
       index_record = Noizu.Support.Cms.V2.Database.MnesiaEmulator.get(IndexTable, article_ref, :error)

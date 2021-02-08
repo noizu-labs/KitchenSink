@@ -30,6 +30,7 @@ defmodule Noizu.Cms.V2.Cms.RevisionBehaviour.Default do
         options_a = put_in(options, [:nested_versioning], true)
         entity
         |> Noizu.Cms.V2.Proto.set_revision(revision_ref, context, options_a)
+        |> Noizu.Cms.V2.Proto.update_article_identifier(context, options_a)
         |> caller.update(context, options_a)
       {:error, e} -> throw {:error, {:creating_revision, e}}
       e -> throw {:error, {:creating_revision, {:unknown, e}}}

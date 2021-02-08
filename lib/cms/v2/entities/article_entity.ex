@@ -89,6 +89,9 @@ defimpl Noizu.Cms.V2.Proto, for: [ Noizu.Cms.V2.ArticleEntity, Noizu.Cms.V2.Arti
   def versioned_identifier(ref, context, options), do: @provider.versioned_identifier(ref, context, options)
   def versioned_identifier!(ref, context, options), do: @provider.versioned_identifier!(ref, context, options)
 
+  def update_article_identifier(ref, context, options), do: @provider.update_article_identifier(ref, context, options)
+  def update_article_identifier!(ref, context, options), do: @provider.update_article_identifier!(ref, context, options)
+
   def article_identifier(ref, context, options), do: @provider.article_identifier(ref, context, options)
   def article_identifier!(ref, context, options), do: @provider.article_identifier!(ref, context, options)
 

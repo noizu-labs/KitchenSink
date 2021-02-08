@@ -78,6 +78,20 @@ defmodule Noizu.Cms.V2.ProtoProvider.Default do
   #----------------------
   #
   #----------------------
+  def update_article_identifier(m, ref, context, options) do
+    case Noizu.Cms.V2.Proto.versioned_identifier(ref, context, options) do
+      nil -> throw "unable to determine correct versioned identifier"
+      v when is_tuple(v) -> put_in(ref, [Access.key(:identifier)], v)
+    end
+  end
+
+  def update_article_identifier!(m, ref, context, options) do
+    m.update_article_identifier(ref, context, options)
+  end
+
+  #----------------------
+  #
+  #----------------------
   def article_identifier(_m, ref, _context, _options) do
     case ref.identifier do
       # @Hack - Avoid Hard Coded Formatting, need prototypes, etc. here.
@@ -312,6 +326,18 @@ defmodule Noizu.Cms.V2.ProtoProviderBehaviour do
 
       def versioned_identifier!(ref, context, options) do
         Noizu.Cms.V2.ProtoProvider.Default.versioned_identifier!(__MODULE__, ref, context, options)
+      end
+
+
+      #----------------------
+      # update_article_identifier
+      #----------------------
+      def update_article_identifier(ref, context, options) do
+        Noizu.Cms.V2.ProtoProvider.Default.update_article_identifier(__MODULE__, ref, context, options)
+      end
+
+      def update_article_identifier!(ref, context, options) do
+        Noizu.Cms.V2.ProtoProvider.Default.update_article_identifier!(__MODULE__, ref, context, options)
       end
 
       #----------------------
