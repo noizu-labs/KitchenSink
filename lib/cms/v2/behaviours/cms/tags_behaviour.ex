@@ -35,6 +35,34 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour.Default do
   def merge_options(%{} = options), do: Map.merge(@default_options, options || %{})
 
   #-----------------------------
+  # save_tags/5
+  #-----------------------------
+  def save_tags(entity, tags, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    # erase any existing tags
+    caller.cms_tag_repo().mnesia_delete(ref)
+
+    # insert new tags
+    Enum.map(tags, fn(tag) ->
+      caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().mnesia_write()
+    end)
+  end
+
+  #-----------------------------
+  # save_tags!/5
+  #-----------------------------
+  def save_tags!(entity, tags, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+    # erase any existing tags
+    caller.cms_tag_repo().mnesia_delete!(ref)
+
+    # insert new tags
+    Enum.map(tags, fn(tag) ->
+      caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().mnesia_write!()
+    end)
+  end
+
+  #-----------------------------
   # update/4
   #-----------------------------
   def update(entity, context, options, caller) do
@@ -45,20 +73,9 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour.Default do
       nil -> []
     end
 
-    existing_tags = case caller.cms_tag_repo().mnesia_read(ref) do
-      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
-      nil -> []
-      v -> {:error, v}
-    end
-
+    existing_tags = caller.cms_tag_repo().article_tags(entity, context, options, caller)
     if (new_tags != existing_tags) do
-      # erase any existing tags
-      caller.cms_tag_repo().mnesia_delete(ref)
-
-      # insert new tags
-      Enum.map(new_tags, fn(tag) ->
-        caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().mnesia_write()
-      end)
+      caller.cms_tag_repo().update_article_tags(entity, new_tags, context, options, caller)
     end
   end
 
@@ -73,20 +90,10 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour.Default do
       nil -> []
     end
 
-    existing_tags = case caller.cms_tag_repo().mnesia_read!(ref) do
-      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
-      nil -> []
-      v -> {:error, v}
-    end
+    existing_tags = caller.cms_tag_repo().article_tags!(entity, context, options, caller)
 
     if (new_tags != existing_tags) do
-      # erase any existing tags
-      caller.cms_tag_repo().mnesia_delete!(ref)
-
-      # insert new tags
-      Enum.map(new_tags, fn(tag) ->
-        caller.cms_tag_repo().new(%{tag: tag, article: ref}) |> caller.cms_tag_repo().mnesia_write!()
-      end)
+      caller.cms_tag_repo().update_article_tags!(entity, new_tags, context, options, caller)
     end
   end
 
@@ -128,6 +135,8 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
       use Noizu.Cms.V2.SettingsBehaviour.InheritedSettings, unquote([option_settings: cms_option_settings])
 
 
+      def save_tags(entity, tags, context, options \\ nil), do: @cms_implementation.save_tags(entity, tags, context, options, cms_base())
+      def save_tags!(entity, tags, context, options \\ nil), do: @cms_implementation.save_tags!(entity, tags, context, options, cms_base())
 
       def update(entry, context, options \\ nil), do: @cms_implementation.update(entry, context, options, cms_base())
       def update!(entry, context, options \\ nil), do: @cms_implementation.update!(entry, context, options, cms_base())
@@ -137,6 +146,11 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour do
 
 
       defoverridable [
+        save_tags: 3,
+        save_tags: 4,
+        save_tags!: 3,
+        save_tags!: 4,
+
         update: 2,
         update: 3,
         update!: 2,

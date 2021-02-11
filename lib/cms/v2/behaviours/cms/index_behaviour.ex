@@ -265,43 +265,85 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour.Default do
     |> caller.cms_index().expand_records!(context, options)
   end
 
+
+  def update_index_record(entry, context, options, caller) do
+    entity = Noizu.ERP.entity(entry)
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
+    case caller.cms_index_repo().mnesia_read(ref) do
+      index = %{} ->
+        caller.cms_index_repo().change_set(index,
+          %{
+            status: article_info.status,
+            module: article_info.module,
+            type: article_info.type,
+            editor: article_info.editor,
+            modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
+            active_version: article_info.version,
+            active_revision: article_info.revision,
+          }) |> caller.cms_index_repo().mnesia_write()
+
+      _ ->
+        caller.cms_index_repo().new(%{
+          article: article_info.article,
+          status: article_info.status,
+          module: article_info.module,
+          type: article_info.type,
+          editor: article_info.editor,
+          created_on: article_info.created_on && DateTime.to_unix(article_info.created_on),
+          modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
+          active_version: article_info.version,
+          active_revision: article_info.revision,
+        }) |> caller.cms_index_repo().mnesia_write()
+    end
+  end
+
+
+
+  def update_index_record!(entry, context, options, caller) do
+    entity = Noizu.ERP.entity!(entry)
+    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+    article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
+    case caller.cms_index_repo().mnesia_read!(ref) do
+      index = %{} ->
+        caller.cms_index_repo().change_set(index,
+          %{
+            status: article_info.status,
+            module: article_info.module,
+            type: article_info.type,
+            editor: article_info.editor,
+            modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
+            active_version: article_info.version,
+            active_revision: article_info.revision,
+          }) |> caller.cms_index_repo().mnesia_write!()
+
+      _ ->
+        caller.cms_index_repo().new(%{
+          article: article_info.article,
+          status: article_info.status,
+          module: article_info.module,
+          type: article_info.type,
+          editor: article_info.editor,
+          created_on: article_info.created_on && DateTime.to_unix(article_info.created_on),
+          modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
+          active_version: article_info.version,
+          active_revision: article_info.revision,
+        }) |> caller.cms_index_repo().mnesia_write!()
+    end
+  end
+
+
+
   #-----------------------------
   # update/4
   #-----------------------------
   def update(entry, context, options, caller) do
     entity = Noizu.ERP.entity(entry)
-    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     article_info = Noizu.Cms.V2.Proto.get_article_info(entity, context, options)
     cond do
       article_info.version == nil -> {:error, :version_not_set}
       article_info.revision == nil -> {:error, :revision_not_set}
-      true ->
-        case caller.cms_index_repo().mnesia_read(ref) do
-          index = %{} ->
-            caller.cms_index_repo().change_set(index,
-              %{
-                status: article_info.status,
-                module: article_info.module,
-                type: article_info.type,
-                editor: article_info.editor,
-                modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
-                active_version: article_info.version,
-                active_revision: article_info.revision,
-              }) |> caller.cms_index_repo().mnesia_write()
-
-          _ ->
-            caller.cms_index_repo().new(%{
-              article: article_info.article,
-              status: article_info.status,
-              module: article_info.module,
-              type: article_info.type,
-              editor: article_info.editor,
-              created_on: article_info.created_on && DateTime.to_unix(article_info.created_on),
-              modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
-              active_version: article_info.version,
-              active_revision: article_info.revision,
-            }) |> caller.cms_index_repo().mnesia_write()
-        end
+      :else -> caller.cms_index_repo().update_active(entity, context, options, caller)
     end
   end
 
@@ -310,38 +352,11 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour.Default do
   #-----------------------------
   def update!(entry, context, options, caller) do
     entity = Noizu.ERP.entity!(entry)
-    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
     article_info = Noizu.Cms.V2.Proto.get_article_info!(entity, context, options)
     cond do
       article_info.version == nil -> {:error, :version_not_set}
       article_info.revision == nil -> {:error, :revision_not_set}
-      true ->
-        case caller.cms_index_repo().mnesia_read!(ref) do
-          index = %{} ->
-            caller.cms_index_repo().change_set(index,
-              %{
-                status: article_info.status,
-                module: article_info.module,
-                type: article_info.type,
-                editor: article_info.editor,
-                modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
-                active_version: article_info.version,
-                active_revision: article_info.revision,
-              }) |> caller.cms_index_repo().mnesia_write!()
-
-          _ ->
-            caller.cms_index_repo().new(%{
-              article: article_info.article,
-              status: article_info.status,
-              module: article_info.module,
-              type: article_info.type,
-              editor: article_info.editor,
-              created_on: article_info.created_on && DateTime.to_unix(article_info.created_on),
-              modified_on: article_info.modified_on && DateTime.to_unix(article_info.modified_on),
-              active_version: article_info.version,
-              active_revision: article_info.revision,
-            }) |> caller.cms_index_repo().mnesia_write!()
-        end
+      :else -> caller.cms_index_repo().update_active!(entity, context, options, caller)
     end
   end
 
@@ -409,6 +424,9 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
       def by_created_on!(from, to, context, options \\ %{}), do: @cms_implementation.by_created_on!(from, to, context, options, cms_base())
       def by_modified_on(from, to, context, options \\ %{}), do: @cms_implementation.by_modified_on(from, to, context, options, cms_base())
       def by_modified_on!(from, to, context, options \\ %{}), do: @cms_implementation.by_modified_on!(from, to, context, options, cms_base())
+
+      def update_index_record(entity, context, options \\ %{}), do: @cms_implementation.update_index_record(entity, context, options, cms_base())
+      def update_index_record!(entity, context, options \\ %{}), do: @cms_implementation.update_index_record!(entity, context, options, cms_base())
       def update(entity, context, options \\ %{}), do: @cms_implementation.update(entity, context, options, cms_base())
       def update!(entity, context, options \\ %{}), do: @cms_implementation.update!(entity, context, options, cms_base())
       def delete(entity, context, options \\ %{}), do: @cms_implementation.delete(entity, context, options, cms_base())
@@ -475,6 +493,11 @@ defmodule Noizu.Cms.V2.Cms.IndexBehaviour do
 
         by_modified_on!: 3,
         by_modified_on!: 4,
+
+        update_index_record: 2,
+        update_index_record: 3,
+        update_index_record!: 2,
+        update_index_record!: 3,
 
         update: 2,
         update: 3,

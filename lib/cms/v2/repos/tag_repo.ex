@@ -17,6 +17,30 @@ defmodule Noizu.Cms.V2.TagRepo do
       }
   end
 
+  def article_tags(entity, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    existing_tags = case caller.cms_tag_repo().mnesia_read(ref) do
+      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+      v -> {:error, v}
+    end
+  end
+  def article_tags!(entity, context, options, caller) do
+    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    existing_tags = case caller.cms_tag_repo().mnesia_read!(ref) do
+      v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
+      nil -> []
+      v -> {:error, v}
+    end
+  end
+
+  def update_article_tags(entity, tags, context, options, caller) do
+    caller.cms_tags().save_tags(entity, tags, context, options)
+  end
+  def update_article_tags!(entity, tags, context, options, caller) do
+    caller.cms_tags().save_tags!(entity, tags, context, options)
+  end
+
   def mnesia_delete(identifier), do: TagTable.delete(identifier)
   def mnesia_delete!(identifier), do: TagTable.delete!(identifier)
   def mnesia_read(identifier), do: TagTable.read(identifier)

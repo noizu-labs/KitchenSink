@@ -29,6 +29,14 @@ defmodule Noizu.Cms.V2.IndexRepo do
     end)
   end
 
+  def update_active(entity, context, options, caller) do
+    caller.cms_index().update_index_record(entity, context, options)
+  end
+
+  def update_active!(entity, context, options, caller) do
+    caller.cms_index().update_index_record!(entity, context, options)
+  end
+
   def mnesia_delete(identifier), do: IndexTable.delete(identifier)
   def mnesia_delete!(identifier), do: IndexTable.delete!(identifier)
   def mnesia_read(identifier), do: IndexTable.read(identifier)

@@ -7,6 +7,9 @@ defmodule Noizu.Cms.V2.Cms.IndexRepoBehaviour do
   @callback by_modified_on(from :: any, to :: any, context :: any, options :: any) :: any
   @callback by_modified_on!(from :: any, to :: any, context :: any, options :: any) :: any
 
+  @callback update_active(entity :: any, context :: any, options :: any, caller :: any) :: any
+  @callback update_active!(entity :: any, context :: any, options :: any, caller :: any) :: any
+
   @callback mnesia_delete(identifier :: any) :: any
   @callback mnesia_delete!(identifier :: any) :: any
   @callback mnesia_read(identifier :: any) :: any
