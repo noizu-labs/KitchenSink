@@ -10,7 +10,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   alias Noizu.EmailService.Email.QueueRepo
   require Logger
 
-  @vsn 1.00
+  @vsn 1.0
 
   @type t :: %__MODULE__{
                template: T.entity_reference,
@@ -79,7 +79,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
         case queued_email.binding.template.external_template_identifier do
           {:sendgrid, sendgrid_template_id} ->
             email = build_email(sendgrid_template_id, queued_email.binding)
-            v = SendGrid.Mailer.send(email)
+            v = SendGrid.Mail.send(email)
             case v do
               :ok -> QueueRepo.update_state!(queued_email, :delivered, context)
                 :ok
@@ -105,7 +105,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     |> put_text(binding)
     |> put_html(binding)
     |> put_subject(binding)
-    |> put_substitions(binding)
+    |> put_substitutions(binding)
     |> put_attachments(binding)
   end # end build_email/2
 
@@ -174,19 +174,19 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   end # end put_subject
 
   #--------------------------
-  # put_substitions/2
+  # put_substitutions/2
   #--------------------------
-  defp put_substitions({substition_key, substition_value}, email) do
-    if is_map(substition_value) do
-      Enum.reduce(substition_value, email, fn({k,v}, acc) -> put_substitions({"#{substition_key}.#{k}", v}, acc) end)
+  defp put_substitutions({substitution_key, substitution_value}, email) do
+    if is_map(substitution_value) do
+      Enum.reduce(substitution_value, email, fn({k,v}, acc) -> put_substitutions({"#{substitution_key}.#{k}", v}, acc) end)
     else
-      SendGrid.Email.add_substitution(email, "-{#{substition_key}}-", substition_value)
+      SendGrid.Email.add_substitution(email, "-{#{substitution_key}}-", substitution_value)
     end
   end
 
-  defp put_substitions(email, binding) do
-    Enum.reduce(binding.substitutions || %{}, email, fn({substition_key, substition_value}, acc) -> put_substitions({substition_key, substition_value}, acc) end)
-  end # end put_substitions/2
+  defp put_substitutions(email, binding) do
+    Enum.reduce(binding.substitutions || %{}, email, fn({substitution_key, substitution_value}, acc) -> put_substitutions({substitution_key, substitution_value}, acc) end)
+  end # end put_substitutions/2
 
   #--------------------------
   # restricted?/1

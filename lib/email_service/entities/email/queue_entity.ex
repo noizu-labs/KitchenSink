@@ -42,10 +42,21 @@ defmodule Noizu.EmailService.Email.QueueEntity do
     vsn: @vsn
   ]
 
-  use Noizu.Scaffolding.EntityBehaviour,
+  use Noizu.Scaffolding.V2.EntityBehaviour,
       sref_module: "queued-email",
       mnesia_table: Noizu.EmailService.Database.Email.QueueTable,
-      as_record_options: %{additional_fields: [:recipient, :sender, :state, :Created_on, :retry_on]},
+      as_record_options: %{additional_fields: [:recipient, :sender, :state, :created_on, :retry_on]},
       dirty_default: true
 
+end
+
+
+defimpl Noizu.ERP, for: [Noizu.EmailService.Email.QueueEntity, Noizu.EmailService.Database.Email.QueueTable] do
+  defdelegate id(o), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate ref(o), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate sref(o), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate entity(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate entity!(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate record(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate record!(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
 end

@@ -35,7 +35,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     vsn: @vsn
   ]
 
-  use Noizu.Scaffolding.EntityBehaviour,
+  use Noizu.Scaffolding.V2.EntityBehaviour,
       sref_module: "email-template",
       mnesia_table: Noizu.EmailService.Database.Email.TemplateTable,
       as_record_options: %{additional_fields: [:synched_on]},
@@ -81,4 +81,14 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
   defp simulate?() do
     Application.get_env(:sendgrid, :simulate)
   end
+end
+
+defimpl Noizu.ERP, for: [Noizu.EmailService.Email.TemplateEntity, Noizu.EmailService.Database.Email.TemplateTable] do
+  defdelegate id(o), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate ref(o), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate sref(o), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate entity(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate entity!(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate record(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+  defdelegate record!(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
 end

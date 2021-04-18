@@ -4,18 +4,18 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.Binding do
-  @vsn 1.0
+  @vsn 1.1
   alias Noizu.KitchenSink.Types, as: T
 
   alias Noizu.EmailService.SendGrid.TransactionalEmail
   alias Noizu.EmailService.Email.TemplateEntity
 
   @type t :: %__MODULE__{
-               recipient: T.entity_refernce,
+               recipient: T.entity_reference,
                recipient_name: :default | String.t,
                recipient_email: :default | String.t,
 
-               sender: T.entity_refernce,
+               sender: T.entity_reference,
                sender_name: :default | String.t,
                sender_email: :default | String.t,
 
@@ -24,12 +24,14 @@ defmodule Noizu.EmailService.Email.Binding do
                subject: String.t,
 
                template: any,
-               template_version: Map.t, #Exact version being used {:sengrid, template, version}
+               template_version: any, # Exact version being used {:sendgrid, template, version}
 
-               state: :valid|{:error| any},
-               substitutions: Map.t,
-               unbound: Map.t,
+               state: :valid | {:error| any},
+
+               substitutions: Map.t, # Injected variables.
+               unbound: Map.t, # Template variables we were unable to bind to values.
                attachments: Map.t,
+               meta: Map.t,
                vsn: float
              }
 
@@ -40,15 +42,20 @@ defmodule Noizu.EmailService.Email.Binding do
     sender: nil,
     sender_name: :default,
     sender_email: :default,
+
     body: nil,
     html_body: nil,
     subject: nil,
-    template: nil, # temporary
+
+    template: nil,
     template_version: nil,
+
     state: nil,
+
     substitutions: nil,
     unbound: nil,
     attachments: nil,
+    meta: %{},
     vsn: @vsn
   ]
 
@@ -56,6 +63,9 @@ defmodule Noizu.EmailService.Email.Binding do
   #--------------------------
   # bind_from_template/1
   #--------------------------
+  @doc """
+
+  """
   def bind_from_template(%TransactionalEmail{} = email, %TemplateEntity{} = template, context, options) do
     #-------------------------------
     # 1. Update Bindings & Extract final recipient/sender values in reference format.
@@ -63,7 +73,7 @@ defmodule Noizu.EmailService.Email.Binding do
     bindings = apply_template_bindings(email, template, context, options)
 
     #-------------------------------------
-    # 2. Track bindings required for current template. Only these need to be persisted.
+    # 2. Track bindings required for template
     #-------------------------------------
     {bound, unbound} = extract_bindings(bindings, template.cached, context)
     outcome = (map_size(unbound) != 0) && {:error, :unbound_fields} || :ok
@@ -265,7 +275,7 @@ defmodule Noizu.EmailService.Email.Binding do
     extract_field_substitutions(version, :subject)
     |> MapSet.union(extract_field_substitutions(version, :html_content))
     |> MapSet.union(extract_field_substitutions(version, :plain_content))
-  end # end extract_substitions/1
+  end # end extract_substitutions/1
 
   #----------------------------
   # extract_field_substitutions/2

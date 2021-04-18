@@ -4,9 +4,9 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.QueueRepo do
-  use Noizu.Scaffolding.RepoBehaviour,
-      mnesia_table: Noizu.EmailService.Database.Email.QueueTable,
-      override: [] #@TODO CRITICAL override audit engine, @TODO audit format protocol.
+  use Noizu.Scaffolding.V2.RepoBehaviour,
+      mnesia_table: Noizu.EmailService.Database.Email.QueueTable
+
   require Logger
   alias Noizu.EmailService.Email.QueueEntity
   alias Noizu.ElixirCore.CallingContext

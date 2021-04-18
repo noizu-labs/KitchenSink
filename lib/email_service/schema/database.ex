@@ -44,4 +44,26 @@ defdatabase Noizu.EmailService.Database do
                  entity: Noizu.EmailService.Email.QueueEntity.t
                }
   end # end deftable Email.Queue
+
+
+  #-----------------------------------------------------------------------------
+  # @Email.Queue.Event
+  #-----------------------------------------------------------------------------
+  deftable Email.Queue.EventTable,
+           [:identifier, :queue_item, :event, :event_time, :entity],
+           type: :set,
+           index: [:queue_item, :event, :event_time, :entity] do
+    @moduledoc """
+    Email Queue Event
+    """
+    @type t :: %Email.Queue.EventTable{
+                 identifier: any,
+                 queue_item: any,
+                 event: atom, # send, retry, giveup
+                 event_time: integer,
+                 entity: Noizu.EmailService.Email.Queue.EventEntity.t
+               }
+  end # end deftable Email.Queue.EventTable
+
+
 end
