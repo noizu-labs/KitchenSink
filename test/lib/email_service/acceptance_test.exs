@@ -12,7 +12,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
   @tag :email
   test "Send Transactional Email (Legacy)" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
-               |> Noizu.EmailService.Email.TemplateEntity.refresh!(@context)
+               |> Noizu.Proto.EmailServiceTemplate.refresh!(@context)
 
     template_ref = Noizu.EmailService.Email.TemplateEntity.ref(template)
 

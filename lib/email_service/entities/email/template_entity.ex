@@ -50,26 +50,41 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
         this
       (this.synched_on == nil || DateTime.compare(DateTime.utc_now, Timex.shift(this.synched_on, minutes: 30)) == :gt ) ->
         this.external_template_identifier
-        |> refresh!(this)
+        |> internal_refresh!(this)
         |> TemplateRepo.update!(context)
       true -> this
     end
   end # end refresh/1
 
-  #--------------------------
-  # refresh/2
-  #--------------------------
-  def refresh!({:sendgrid, identifier}, this) do
-    # Load Template from SendGrid
-    template = SendGrid.Templates.get(identifier)
 
+
+  defp internal_refresh__cache(%SendGrid.LegacyTemplate{} = template) do
     # Grab Active Version
     version = Enum.find(template.versions, &(&1.active))
 
     # Grab Substitutions
-    substitutions = Binding.extract_substitutions(version)
+    substitutions = Binding.extract_substitutions(:legacy, version)
 
-    cached = %{version: version.id, substitutions: substitutions}
+    %{version: version.id, substitutions: substitutions}
+  end
+
+  defp internal_refresh__cache(%SendGrid.DynamicTemplate{} = template) do
+    # Grab Active Version
+    version = Enum.find(template.versions, &(&1.active))
+
+    # Grab Substitutions
+    substitutions = Binding.extract_substitutions(:dynamic, version)
+
+    %{version: version.id, substitutions: substitutions}
+  end
+
+  #--------------------------
+  # internal_refresh/2
+  #--------------------------
+  defp internal_refresh!({:sendgrid, identifier}, this) do
+    # Load Template from SendGrid
+    template = SendGrid.Templates.get(identifier)
+    cached = internal_refresh__cache(template)
 
     # Return updated record
     %__MODULE__{this| cached: cached, synched_on: DateTime.utc_now()}
@@ -91,4 +106,8 @@ defimpl Noizu.ERP, for: [Noizu.EmailService.Email.TemplateEntity, Noizu.EmailSer
   defdelegate entity!(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
   defdelegate record(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
   defdelegate record!(o, options \\ nil), to: Noizu.Scaffolding.V2.ERPResolver
+end
+
+defimpl Noizu.Proto.EmailServiceTemplate, for: Noizu.EmailService.Email.TemplateEntity do
+  defdelegate refresh!(template, context), to: Noizu.EmailService.Email.TemplateEntity
 end

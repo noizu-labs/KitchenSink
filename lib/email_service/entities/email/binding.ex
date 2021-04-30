@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 # Author: Keith Brings
-# Copyright (C) 2018 Noizu Labs, Inc. All rights reserved.
+# Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.Binding do
@@ -58,7 +58,6 @@ defmodule Noizu.EmailService.Email.Binding do
     meta: %{},
     vsn: @vsn
   ]
-
 
   #--------------------------
   # bind_from_template/1
@@ -140,14 +139,14 @@ defmodule Noizu.EmailService.Email.Binding do
   def extract_binding(binding, bindings, context) do
     value = if Map.has_key?(bindings, binding) do
       # Allow Overrides of fields otherwise yanked from EAV, Structs, etc.
-      bindings[binding]
+              bindings[binding]
     else
       case String.split(binding, ".") do
         ["site"] -> extract_inner_site()
         ["EAV"| specifier] -> extract_inner_eav(specifier, context)
         path -> extract_inner_path(path, bindings, context)
       end
-    end
+            end
 
     case value do
       {:error, details} -> {:error, details}
@@ -189,7 +188,7 @@ defmodule Noizu.EmailService.Email.Binding do
         # @TODO Noizu.ERP.ref(current) -> EAV fetch
         {:error, :eav_lookup_nyi}
       matching_key == nil -> {:error, "#{h} key not found."}
-        true -> extract_inner_path(t, Map.get(current, matching_key), context)
+      true -> extract_inner_path(t, Map.get(current, matching_key), context)
     end
   end # end extract_inner/3
 
@@ -224,12 +223,12 @@ defmodule Noizu.EmailService.Email.Binding do
 
     # 2. Append recipient, sender fields to simplify downstream logic.
     (is_map(email.bindings) && email.bindings || %{})
-      |> Map.put(:recipient, recipient)
-      |> Map.put(:sender, sender)
-      |> Map.put(:body, email.body)
-      |> Map.put(:html_body, email.html_body)
-      |> Map.put(:subject, email.subject)
-      |> Map.put(:attachments, email.attachments)
+    |> Map.put(:recipient, recipient)
+    |> Map.put(:sender, sender)
+    |> Map.put(:body, email.body)
+    |> Map.put(:html_body, email.html_body)
+    |> Map.put(:subject, email.subject)
+    |> Map.put(:attachments, email.attachments)
   end # end prep_email_bindings/1
 
 
@@ -267,14 +266,17 @@ defmodule Noizu.EmailService.Email.Binding do
     |> Noizu.SmartToken.TokenRepo.create!(Noizu.ElixirCore.CallingContext.system(context))
   end # end calculate_binding/2
 
-
   #----------------------------
   # extract_substitutions/1
   #----------------------------
-  def extract_substitutions(%SendGrid.Template.Version{} = version) do
+  def extract_substitutions(:legacy, %SendGrid.Template.Version{} = version) do
     extract_field_substitutions(version, :subject)
     |> MapSet.union(extract_field_substitutions(version, :html_content))
     |> MapSet.union(extract_field_substitutions(version, :plain_content))
+  end # end extract_substitutions/1
+
+  def extract_substitutions(:dynamic, %SendGrid.Template.Version{} = version) do
+    Noizu.EmailService.Email.Binding.Dynamic.extract((version.subject || "") <>  (version.html_content || "") <> (version.plain_content || ""))
   end # end extract_substitutions/1
 
   #----------------------------
@@ -292,6 +294,6 @@ defmodule Noizu.EmailService.Email.Binding do
             |> MapSet.new
         end
     end # end case
-  end # end extract_field_substitions/2
+  end # end extract_field_substitutions/2
 
 end # end defmodule
