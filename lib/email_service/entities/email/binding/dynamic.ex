@@ -43,7 +43,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     state = %__MODULE__{}
 
     # 1. Explicit Variable Bind
-    state = case Regex.scan(~r/\{\{(!bind\s+[^\}]+)\}\}/, block, capture: :all_but_first) do
+    state = case Regex.scan(~r/\{\{(!bind\s+[a-zA-Z0-9_\.\[\]]+)\}\}/, block, capture: :all_but_first) do
                         v when is_list(v) ->
                           List.flatten(v)
                           |> Enum.map(&(String.trim(&1)))
@@ -65,10 +65,10 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
         |> put_in([Access.key(:outcome)], :fatal_error)
       :else ->
         # 2. Strip comment sections that allow nested bars.
-        block = String.replace(block, ~r/\{\{!--[.\t\r\n]*--\}\}/U, "")
+        block = String.replace(block, ~r/\{\{!--.*--\}\}/U, "")
 
         # 3. Strip plain comments.
-        block = String.replace(block, ~r/\{\{![.\t\r\n]*\}\}/U, "")
+        block = String.replace(block, ~r/\{\{!.*\}\}/U, "")
 
         # 4. Parse Tokens and Specifiers
         case Regex.scan(~r/\{\{([^\}]+)\}\}/, block, capture: :all_but_first) do
@@ -144,9 +144,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
       "#each" <> clause -> extract_token__section_open__enter(:each, clause, this, options)
       "#with" <> clause -> extract_token__section_open__enter(:with, clause, this, options)
       "#" <> _clause ->
-        case Regex.scan(~r/#([^\s]+) (.*)/, token, capture: :all_but_first) do
-          [[section], [clause]] -> extract_token__section_open__enter({:unsupported, section}, clause, this, options)
-          [[section]] -> extract_token__section_open__enter({:unsupported, section}, nil, this, options)
+        case Regex.run(~r/^#([\w\.]+)(\s.*\|.*)?$/U, token, capture: :all_but_first) do
+          [section, clause] -> extract_token__section_open__enter({:unsupported, section}, clause, this, options)
+          [section] -> extract_token__section_open__enter({:unsupported, section}, nil, this, options)
         end
       _ -> fatal_error(this, {:section_open, token})
     end
@@ -164,7 +164,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
 
         # append new section
         [head|tail] = this.section_stack
-        new_section = Section.spawn(head, section, options)
+        new_section = Section.spawn(head, section, clause, options)
         this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
 
         # update this or bindings if each or with
@@ -175,9 +175,8 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
               :else -> current_selector(this, clause)
             end
           :each ->
-            clause = Selector.wildcard(clause)
             cond do
-              clause.as -> add_alias(this, clause)
+              clause && clause.as -> add_alias(this, clause)
               :else -> current_selector(this, clause)
             end
             _ -> this
@@ -250,6 +249,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   #----------------------------
   # require_binding
   #----------------------------
+  def require_binding(this, nil, _options) do
+    this
+  end
   def require_binding(this, %Selector{} = binding, options) do
     update_in(this, [Access.key(:section_stack), Access.at(0)], &(Section.require_binding(&1, binding, options)))
   end
@@ -269,6 +271,17 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     |> put_in([Access.key(:last_error)], error)
   end
 
+
+  def parse_pipes(nil), do: nil
+  def parse_pipes([]), do: nil
+  def parse_pipes([v]), do: parse_pipes(v)
+  def parse_pipes(pipe) do
+    case Regex.run(~r/as \|\s*([a-zA-Z0-9_]+)?\s*\|/, pipe, capture: :all_but_first) do
+      [h|t] -> %{as: h}
+      _ -> %{}
+    end
+  end
+
   #----------------------------
   # extract_selector/3
   #----------------------------
@@ -277,9 +290,11 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     @returns Dynamic.Binding.Selector or Dynamic.Binding.HandleBarClause
   """
   def extract_selector(this, token, options \\ %{})
+  def extract_selector(this, nil, _options), do: {nil, this}
   def extract_selector(this, token, options) do
     token = String.trim(token)
     cond do
+      token == "else" -> {:error, mark_error(this, {:extract_clause, :else, :support_pending}, options)}
       token == "this" || token == "." ->
         selector = current_selector(this)
         if Selector.valid?(selector, options) do
@@ -289,7 +304,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
         end
       token == "../" ->
         selector = current_selector(this)
-        case Selector.parent(selector, options) do
+        case Selector.parent(selector, nil, options) do
           {:error, clause} ->
             {:error, mark_error(this, clause, options)}
             selector -> {selector, this}
@@ -298,9 +313,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
       :else ->
         case token do
           "../" <> _relative ->
-            token = Regex.replace(~r/\|.*$/, token, "") # strip any pipes
+            clean_token = Regex.replace(~r/\|.*$/, token, "") # strip any pipes
             selector = current_selector(this)
-            case Selector.relative(selector, token, options) do
+            case Selector.relative(selector, clean_token, parse_pipes(token), options) do
               {:error, clause} ->
                 {:error, mark_error(this, clause, options)}
               selector -> {selector, this}
@@ -314,26 +329,28 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
             end
 
            "this." <> clause ->
-           case Regex.run(~r/^this((?:[\.\[\]]@?[a-zA-Z0-9]+)*)\]?\s*(\|.*)?$/, token, capture: :all_but_first) do
+           case Regex.run(~r/^this((?:[\.\[\]]@?[a-zA-Z0-9_]+)*)\]?(\s.*\|.*)?$/, token, capture: :all_but_first) do
              [""|_] -> {:error, mark_error(this, :parse, options)}
              [b|c] -> {:error, mark_error(this, clause, options)}
-               # Ignore pipe c
-               b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9]+/, b) |> List.flatten()
-               case Selector.extend(current_selector(this), b) do
+               b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9_]+/, b) |> List.flatten()
+               case Selector.extend(current_selector(this), b, parse_pipes(c)) do
                  selector = %Selector{} -> {selector, this}
                  {:error, clause} -> {:error, mark_error(this, clause, options)}
                end
+               _ ->
+                 {:error, mark_error(this, {:invalid_token, token}, options)}
            end
 
           token ->
-          case Regex.run(~r/^([a-zA-Z0-9]+)((?:[\.\[\]]@?[a-zA-Z0-9]+)*)\]?\s*(\|.*)?$/, token, capture: :all_but_first) do
+          case Regex.run(~r/^([a-zA-Z0-9_]+)((?:[\.\[\]]@?[a-zA-Z0-9_]+)*)\]?(\s.*\|.*)?$/, token, capture: :all_but_first) do
             [a,b|c] ->
-              # Ignore pipe c
               b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9]+/, b) |> List.flatten()
-              case Selector.new([a] ++ b) do
+              case Selector.new([a] ++ b, parse_pipes(c)) do
                 selector = %Selector{} -> {selector, this}
                 {:error, clause} -> {:error, mark_error(this, clause, options)}
               end
+              _ ->
+                {:error, mark_error(this, {:invalid_token, token}, options)}
           end
         end
     end

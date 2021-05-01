@@ -21,11 +21,11 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   def valid?(%__MODULE__{}, options), do: true
   def valid?(_this, _options), do: false
 
-  def new([h|t]) do
+  def new([h|t], pipes) do
     selector = [:root, {:select, h}]
     case t do
-      [] -> %__MODULE__{selector: selector}
-      v when is_list(v) -> extend(%__MODULE__{selector: selector}, t)
+      [] -> %__MODULE__{selector: selector, as: pipes[:as]}
+      v when is_list(v) -> extend(%__MODULE__{selector: selector}, t, pipes)
     end
   end
 
@@ -33,7 +33,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     %__MODULE__{this| selector: this.selector ++ [{:*}]}
   end
 
-  def extend(this, [h|t] = v) do
+  def extend(this, [h|t] = v, pipes) do
     cond do
       this.selector == [:root] -> {:error, {:extract_clause, :this, :invalid}}
       :else ->
@@ -45,22 +45,22 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
                      "[" <> v -> {:at, String.trim(v)}
                    end
                  end)
-      %__MODULE__{this| selector: selector, as: nil}
+      %__MODULE__{this| selector: selector, as: pipes[:as]}
     end
   end
 
-  def relative(this, path, options \\ %{}) do
+  def relative(this, path, pipes, options \\ %{}) do
     Enum.reduce_while(String.split(path, "./"), this, fn(token,acc) ->
       case token do
         "" -> {:halt, acc}
         "." ->
-          case parent(acc) do
+          case parent(acc, pipes) do
             p = %__MODULE_{} -> {:cont, p}
             e -> {:halt, e}
           end
         v ->
           b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9]+/, "." <> v) |> List.flatten()
-          case extend(acc, b) do
+          case extend(acc, b, pipes) do
             p = %__MODULE_{} -> {:cont, p}
             e -> {:halt, e}
           end
@@ -68,18 +68,18 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     end)
   end
 
-  def parent(this, options \\ %{})
-  def parent(this = %__MODULE__{selector: [:root]}, options) do
+  def parent(this, pipes, options \\ %{})
+  def parent(this = %__MODULE__{selector: [:root]}, _pipes, options) do
   {:error, {:select_parent, :already_root}}
   end
-  def parent(this = %__MODULE__{selector: [:root, _object]}, options) do
+  def parent(this = %__MODULE__{selector: [:root, _object]}, _pipes, options) do
   {:error, {:select_parent, :already_top}}
   end
-  def parent(this = %__MODULE__{selector: selector}, options) do
+  def parent(this = %__MODULE__{selector: selector}, pipes, options) do
     parent = cond do
                List.last(this.selector) == :* -> Enum.slice(this.selector, 0 .. -3)
                :else -> Enum.slice(this.selector, 0 .. -2)
              end
-    %__MODULE__{this| selector: parent, as: nil}
+    %__MODULE__{this| selector: parent, as: pipes[:as]}
   end
 end

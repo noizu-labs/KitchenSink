@@ -174,17 +174,258 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     assert selector_or_error == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}, {:at, "@index"}]}
   end
 
+
+  @tag :email
+  @tag :dynamic_template
+  test "With Section: hello.dolly" do
+    state = fixture(:foo_biz)
+    {:cont, state} =  Binding.extract_token({"#with hello.dolly", state}, %{})
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}]}
+  end
+
+  @tag :email
+  @tag :dynamic_template
+  test "With Section: hello.dolly as | sheep | " do
+    state = fixture(:foo_biz)
+    {:cont, state} = Binding.extract_token({"#with hello.dolly as | sheep | ", state}, %{})
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}]}
+
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}], as: "sheep"}
+    assert h.match["sheep"] == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}], as: "sheep"}
+    assert t.bind == %{{:select, "hello"} => %{{:key, "dolly"} => %{}}}
+  end
+
+  @tag :email
+  @tag :dynamic_template
+  test "With Section (foo.biz): this.dolly " do
+    state = fixture(:foo_biz)
+    {:cont, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    assert t.bind == %{{:select, "foo"} => %{ {:key, "biz"} => %{{:key, "dolly"} => %{}}}}
+
+  end
+
+  @tag :email
+  @tag :dynamic_template
+  test "With Section (foo.biz): this.dolly as | sheep | " do
+    state = fixture(:foo_biz)
+    {:cont, state} = Binding.extract_token({"#with this.dolly as | sheep | ", state}, %{})
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}], as: "sheep"}
+    assert t.bind == %{{:select, "foo"} => %{ {:key, "biz"} => %{{:key, "dolly"} => %{}}}}
+    assert h.match["sheep"] == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}], as: "sheep"}
+  end
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "If Section (foo.biz): this.dolly " do
+    state = fixture(:foo_biz)
+    {:cont, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}]}
+
+    [h,t|_] = state.section_stack
+    assert h.section == :if
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    assert t.bind == %{{:select, "foo"} => %{ {:key, "biz"} => %{{:key, "dolly"} => %{}}}}
+  end
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "Section Nesting" do
+    state = fixture(:foo_biz)
+    {_, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+
+
+    # Confirm expected state after with
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    assert t.bind == %{{:select, "foo"} => %{ {:key, "biz"} => %{{:key, "dolly"} => %{}}}}
+    #----
+
+    {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
+
+    # Confirm expected state after nested with.
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}, {:key, "henry"}], as: "bob"}
+    assert t.bind == %{{:select, "foo"} => %{ {:key, "biz"} => %{{:key, "dolly"} => %{ {:key, "henry"} => %{} }}}}
+    #----
+
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+
+    # Confirm expected state after returning to first with
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :with
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    assert t.bind == %{{:select, "foo"} => %{ {:key, "biz"} => %{{:key, "dolly"} => %{}}}}
+    #----
+
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+
+    # Confirm expected state after returning to first if
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}]}
+    [h,t|_] = state.section_stack
+    assert h.section == :if
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
+    assert t.bind == %{{:select, "foo"} => %{{:key, "biz"} => %{{:key, "dolly"} => %{}}}}
+    #----
+
+    {_, state} = Binding.extract_token({"/if", state}, %{})
+
+    # Confirm expected state after returning to root (not selector is still set for this because of fixture construction)
+    selector = Binding.current_selector(state)
+    assert selector == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}]}
+    [h|_] = state.section_stack
+    assert h.section == :root
+    #----
+
+    assert state.outcome == :ok
+  end
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "Section Nesting| Unsupported tag - correct close" do
+    state = fixture(:foo_biz)
+    {_, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
+
+    {_, state} = Binding.extract_token({"#apple bob.douglas as | bob | ", state}, %{})
+
+    [h,t|_] = state.section_stack
+
+    assert h.section == {:unsupported, "apple"}
+    assert h.clause == %Selector{selector: [:root, {:select, "bob"}, {:key, "douglas"}], as: "bob"}
+
+    {_, state} = Binding.extract_token({"/apple", state}, %{})
+
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+    {_, state} = Binding.extract_token({"/if", state}, %{})
+
+
+    assert state.outcome == :ok
+  end
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "Section Nesting| Unsupported tag - no clause - correct close" do
+    state = fixture(:foo_biz)
+    {_, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
+
+    {_, state} = Binding.extract_token({"#apple", state}, %{})
+    [h,t|_] = state.section_stack
+    assert h.section == {:unsupported, "apple"}
+    assert h.clause == nil
+    {_, state} = Binding.extract_token({"/apple", state}, %{})
+
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+    {_, state} = Binding.extract_token({"/if", state}, %{})
+
+    assert state.outcome == :ok
+  end
+
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "Section Nesting| Unsupported tag - skipped close" do
+    state = fixture(:foo_biz)
+    {_, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
+
+    {_, state} = Binding.extract_token({"#apple", state}, %{})
+
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+    {_, state} = Binding.extract_token({"/with", state}, %{})
+    {_, state} = Binding.extract_token({"/if", state}, %{})
+
+    assert state.outcome == :ok
+  end
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "Section Nesting| Unsupported tag - invalid close" do
+    state = fixture(:foo_biz)
+    {_, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
+
+    {_, state} = Binding.extract_token({"#apple", state}, %{})
+
+    {:halt, state} = Binding.extract_token({"/if", state}, %{})
+    state.outcome == :error
+  end
+
+
+  @tag :email
+  @tag :dynamic_template
+  test "Section Nesting| invalid close" do
+    state = fixture(:foo_biz)
+    {_, state} = Binding.extract_token({"#if this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
+    {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
+    {:halt, state} = Binding.extract_token({"/if", state}, %{})
+    state.outcome == :error
+  end
+
+
+
+
   @tag :email
   @tag :dynamic_template
   test "Extract Default Binding" do
     template = """
+    {{!bind required.variable.hint}}
+    {{! regular comment }}
+    {{!-- comment with nested tokens {{#if !condition}} --}}
     {{#if selection}}
       {{apple}}
       {{#with nested}}
          {{this.stuff | ignore}}
+         {{#with this.stuff.user_name as | myguy | }}
+            {{myguy.first_name | output_pipe}}
+         {{/with}}
       {{/with}}
     {{/if}}
-
+    {{#unless selection}}
+        {{oh.my}}
+    {{!-- @TODO pending {{else}} --}}
+      {{oh.goodness}}
+    {{/unless}
     """
     sut = Binding.extract(template)
     assert sut.outcome == :ok

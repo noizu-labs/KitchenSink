@@ -48,14 +48,14 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   #----------------------------
   # add_alias/2
   #----------------------------
-  def current_selector(this, value) do
+  def add_alias(this, value) do
     put_in(this, [Access.key(:match), value.as], value)
   end
 
   #----------------------------
   # spawn
   #----------------------------
-  def spawn(this, type, clause) do
+  def spawn(this, type, clause, options \\ %{}) do
     spawn = %__MODULE__{this|
       section: type,
       clause: clause,
@@ -76,10 +76,14 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   #----------------------------
   # require_binding
   #----------------------------
+  def require_binding(this, nil, _options) do
+    this
+  end
   def require_binding(this, %Selector{} = binding, options) do
     [:root| path] = binding.selector
-    bind = Enum.reduce(path, this.bind, fn(x,acc) ->
-      update_in(acc, [x], &( &1 || %{} ))
+    {bind, _} = Enum.reduce(path, {this.bind, []}, fn(x, {b,p}) ->
+      p = p ++ [x]
+      {update_in(b, p, &( &1 || %{} )), p}
     end)
     %__MODULE__{this| bind: bind}
   end
