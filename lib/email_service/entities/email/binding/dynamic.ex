@@ -42,22 +42,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   def extract(block, options \\ %{}) do
     state = %__MODULE__{}
 
+    # 1. Reshape bindings
+    block = String.replace(block, ~r/\{\{!bind /, "{{#bind ")
     # 1. Explicit Variable Bind
-    state = case Regex.scan(~r/\{\{(!bind\s+[a-zA-Z0-9_\.\[\]]+)\}\}/, block, capture: :all_but_first) do
-                        v when is_list(v) ->
-                          List.flatten(v)
-                          |> Enum.map(&(String.trim(&1)))
-                          |> Enum.reduce_while(state,  fn(term, state) ->
-                            case extract_selector(state, term, options) do
-                              {:halt, state} -> {:halt, state}
-                              {:error, state} -> {:cont, state}
-                              {selector, state} ->
-                                state = require_binding(state, selector, options)
-                                {:cont, state}
-                            end
-                          end)
-                        _ -> state
-                      end
 
     cond do
       state.outcome != :ok ->
@@ -106,6 +93,14 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
             end
 
     case token do
+      "#bind " <> clause ->
+        case extract_selector(this, "!bind " <> clause, options) do
+          {:error, this} -> {:halt, this}
+          {clause, this} ->
+            this = require_binding(this, clause, options)
+            {:cont, this}
+        end
+
       # Begin Built-in
       "#" <> _clause ->
         case extract_token__section_open(this, token, options) do

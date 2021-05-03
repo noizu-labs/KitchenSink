@@ -414,6 +414,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     {{!-- comment with nested tokens {{#if !condition}} --}}
     {{#if selection}}
       {{apple}}
+      {{!bind required.only_if_selection.hint}}
       {{#with nested}}
          {{this.stuff | ignore}}
          {{#with this.stuff.user_name as | myguy | }}
@@ -427,7 +428,6 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
        {{myguy.first_name | output_pipe}}
     {{/with}}
 
-
     {{#unless selection}}
         {{oh.my}}
     {{else}}
@@ -439,14 +439,18 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     assert sut.outcome == :ok
     assert sut.last_error == nil
 
-    [h|t] = sut.section_stack
+    [h|_] = sut.section_stack
     assert h.bind[{:select, "nested"}][{:key, "stuff"}][{:key, "user_name"}][{:key, "first_name"}] == %{}
     assert h.bind[{:select, "nested"}][{:key, "stuff"}][{:key, "user_name"}][{:key, "last_name"}] == %{}
     assert h.bind[{:select, "required"}][{:key, "variable"}][{:key, "hint"}] == %{}
     assert h.bind[{:select, "selection"}] == %{}
+
+    [i|_] = h.children
+    assert i.bind[{:select, "required"}][{:key, "only_if_selection"}][{:key, "hint"}] == %{}
     assert length(sut.section_stack) == 1
     assert length(h.children) == 3
-    # The finalize step needs to be written to collapse down all of the required bindings and any conditional hooks (although we can just require everything referenced).
+
+    # The finalize step needed to prepare final script capable of providing required bindings for given input.
   end
 
   @tag :email
