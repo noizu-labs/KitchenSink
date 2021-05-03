@@ -8,16 +8,31 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula do
   @type t :: %__MODULE__{
                identifier: String.t | list | tuple | nil,
                argument: any, # Rule Engine Op
+               selectors: list,
                vsn: float,
              }
   defstruct [
     identifier: nil,
     argument: nil,
+    selectors: [],
     vsn: @vsn
   ]
 
-  def selectors(this) do # Pending
-    nil
+  def selectors(this) do
+    this.selectors
+  end
+
+  def negate(selector = %Noizu.EmailService.Email.Binding.Dynamic.Selector{}) do
+    this = %__MODULE__{
+      argument: selector,
+      selectors: [selector]
+    }
+    negate(this)
+  end
+
+  def negate(this = %__MODULE__{}) do
+    argument = %Noizu.RuleEngine.Op.NotOp{argument: this.argument}
+    %__MODULE__{this| argument: argument}
   end
 end
 

@@ -18,6 +18,10 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     vsn: @vsn
   ]
 
+  def selectors(this) do
+    [this]
+  end
+
   def valid?(this, options \\ %{})
   def valid?(%__MODULE__{selector: [:root]}, options), do: false
   def valid?(%__MODULE__{}, options), do: true
@@ -101,9 +105,8 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
   # execute!/4
   #-----------------
   def execute!(this, state, context, options) do
-    {selector_extractor, state} = Noizu.RuleEngine.StateProtocol.get!(state, :value_extractor, context)
-    value = selector_extractor.(this, state, context, options)
-    {value, state}
+    variable_extractor =  options.variable_extractor
+    variable_extractor.(this, state, context, options)
   end
 
   #---------------------

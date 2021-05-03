@@ -6,7 +6,7 @@
 defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   @vsn 1.0
   alias Noizu.EmailService.Email.Binding.Dynamic.Selector
-
+  alias Noizu.EmailService.Email.Binding.Dynamic.Formula
   @type t :: %__MODULE__{
                section: :root | :if | :when | :each | :unless | {:unsupported, String.t},
                clause: any | nil,
@@ -63,11 +63,11 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   # spawn
   #----------------------------
   def spawn(this, type, clause, options \\ %{}) do
-    clause = if type == :else do
-        this.clause # todo negate formula
-    else
-        clause
-    end
+    clause  = case type do
+                :else -> this.clause
+                :each -> Selector.wildcard(clause)
+                _ -> clause
+              end
     spawn = %__MODULE__{this|
       section: type,
       clause: clause,
@@ -82,12 +82,52 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   # collapse/3
   #----------------------------
   def collapse(this = %__MODULE__{}, child = %__MODULE__{}, options) do
-    # todo any non if/unless/:else children sections bindings can be added to this level, only child's if/unless sections need to be added to our children set.
     case child.section do
-      :if -> %__MODULE__{this| children: this.children ++ [child]}
-      :else -> %__MODULE__{this| children: this.children ++ [child]}
-      :unless -> %__MODULE__{this| children: this.children ++ [child]}
-      _else ->  %__MODULE__{this| bind: merge_bindings(this.bind, child.bind, options)}
+      :if ->
+        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+          condition_clause: child.clause,
+          then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil}
+        }
+        %__MODULE__{this| children: this.children ++ [f]}
+      :unless ->
+        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+          condition_clause: Formula.negate(child.clause),
+          then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil}
+        }
+        %__MODULE__{this| children: this.children ++ [f]}
+        :each ->
+          f = %Formula.Each{
+            clause: child.clause,
+            argument: %__MODULE__{child| match: nil, current_selector: nil, errors: nil},
+          }
+          %__MODULE__{this| children: this.children ++ [f]}
+      _else ->
+        %__MODULE__{this| bind: merge_bindings(this.bind, child.bind, options)}
+    end
+  end
+
+  #----------------------------
+  # collapse/4
+  #----------------------------
+  def collapse(this = %__MODULE__{}, if_child = %__MODULE__{}, else_child = %__MODULE__{}, options) do
+    case if_child.section do
+      :if ->
+        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+          condition_clause: if_child.clause,
+          then_clause: %__MODULE__{if_child| match: nil, current_selector: nil, errors: nil},
+          else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil},
+        }
+        %__MODULE__{this| children: this.children ++ [f]}
+      :unless ->
+        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+          condition_clause: Formula.negate(if_child.clause),
+          then_clause: %__MODULE__{if_child| match: nil, current_selector: nil, errors: nil},
+          else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil}
+        }
+        %__MODULE__{this| children: this.children ++ [f]}
+      _else ->
+        # critical error
+        %__MODULE__{this| bind: merge_bindings(this.bind, if_child.bind, options)}
     end
   end
 
@@ -124,5 +164,46 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     end)
     %__MODULE__{this| bind: bind}
   end
+end
 
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Section do
+  alias Noizu.RuleEngine.Helper
+  #-----------------
+  # execute!/3
+  #-----------------
+  def execute!(this, state, context), do: execute!(this, state, context, %{})
+
+  #-----------------
+  # execute!/4
+  #-----------------
+  def execute!(this, state, context, options) do
+    bind = Noizu.EmailService.Email.Binding.Helper.prepare_effective_binding(this.bind, state, context, options)
+    Enum.reduce(this.children, {bind, state}, fn(child, {b,s}) ->
+      {c,s} = Noizu.RuleEngine.ScriptProtocol.execute!(child, s, context, options)
+      b = Noizu.EmailService.Email.Binding.Helper.merge_effective_binding(b,c, s, context, options)
+      {b,s}
+    end)
+  end
+
+  #---------------------
+  # identifier/3
+  #---------------------
+  def identifier(this, _state, _context), do: Helper.identifier(this)
+
+  #---------------------
+  # identifier/4
+  #---------------------
+  def identifier(this, _state, _context, _options), do: Helper.identifier(this)
+
+  #---------------------
+  # render/3
+  #---------------------
+  def render(this, state, context), do: render(this, state, context, %{})
+
+  #---------------------
+  # render/4
+  #---------------------
+  def render(this, state, context, options) do
+    Helper.render_arg_list("Section", identifier(this, state, context, options), [this.argument], state, context, options)
+  end
 end

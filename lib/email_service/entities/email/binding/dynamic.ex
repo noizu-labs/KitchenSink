@@ -11,8 +11,6 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   alias Noizu.EmailService.Email.Binding.Dynamic, as: Binding
   @type t :: %__MODULE__{
                current_token: {integer, String.t} | nil,
-               bind: Map.t,
-               conditional_bind: any,
                section_stack: [Section.t],
                errors: list,
                last_error: Error.t,
@@ -23,8 +21,6 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
 
   defstruct [
     current_token: nil,
-    bind: %{},
-    conditional_bind: :pending,
     section_stack: [%Section{}],
     errors: [],
     last_error: nil,
@@ -70,15 +66,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
             end)
           _ -> state
         end
-    end |> finalize()
-  end
-
-  #----------------------------
-  # finalize/1
-  #----------------------------
-  def finalize(this) do
-    # compress and build formula tree
-    this
+    end
   end
 
   #----------------------------
@@ -162,8 +150,8 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     case extract_selector(this, clause, options) do
       {:error, this} -> {:halt, this}
       {clause, this} ->
-        # mark param as required as we'll need it regardless of type at the current stack level.
-        this = require_binding(this, clause, options)
+        # Deprecate, section collapse process takes care of forced requirements, formula process takes care of ensuring required bindings for if/unless clauses loaded.
+        # this = require_binding(this, clause, options)
 
         # append new section
         [head|tail] = this.section_stack
@@ -178,6 +166,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
               :else -> current_selector(this, clause)
             end
           :each ->
+            clause = Selector.wildcard(clause)
             cond do
               clause && clause.as -> add_alias(this, clause)
               :else -> current_selector(this, clause)
@@ -223,9 +212,8 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
         p = Section.collapse(p, h, options)
         %__MODULE__{this| section_stack: [p|tail]}
       h.section == :else && section == p.section && (section == :if || section == :unless) ->
-        [h,i,p|t] = this.section_stack
-        p = Section.collapse(p, i, options)
-        p = Section.collapse(p, h, options)
+        [e,i_u,p|t] = this.section_stack
+        p = Section.collapse(p, i_u, e, options)
         %__MODULE__{this| section_stack: [p|t]}
       Kernel.match?({:unsupported, _}, h.section) ->
         # Allow non closed unsupported sections, unwrap until end of list or match.
@@ -368,5 +356,49 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
           end
         end
     end
+  end
+end
+
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic do
+  alias Noizu.RuleEngine.Helper
+  #-----------------
+  # execute!/3
+  #-----------------
+  def execute!(this, state, context), do: execute!(this, state, context, %{})
+
+  #-----------------
+  # execute!/4
+  #-----------------
+  def execute!(this, state, context, options) do
+    [root] = this.section_stack
+    Noizu.RuleEngine.ScriptProtocol.execute!(root, state, @context, options)
+  end
+
+  #---------------------
+  # identifier/3
+  #---------------------
+  def identifier(this, _state, _context), do: Helper.identifier(this)
+
+  #---------------------
+  # identifier/4
+  #---------------------
+  def identifier(this, _state, _context, _options), do: Helper.identifier(this)
+
+  #---------------------
+  # render/3
+  #---------------------
+  def render(this, state, context), do: render(this, state, context, %{})
+
+  #---------------------
+  # render/4
+  #---------------------
+  def render(this, state, context, options) do
+    depth = options[:depth] || 0
+    prefix = (depth == 0) && (">> ") || (String.duplicate(" ", ((depth - 1) * 4) + 3) <> "|-- ")
+    id = identifier(this, state, context, options)
+    v = "#{inspect this.selector}"
+    t = String.slice(v, 0..64)
+    t = if (t != v), do: t <> "...", else: t
+    "#{prefix}#{id} [VALUE #{t}]\n"
   end
 end
