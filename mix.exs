@@ -36,6 +36,7 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:noizu_simple_pool, github: "noizu/SimplePool", tag: "2.0.8", override: true},
       {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.43", override: true},
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.9", override: true},
+      {:noizu_rule_engine, github: "noizu/RuleEngine", tag: "0.2.0"},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
       {:tzdata, github: "noizu/tzdata", tag: "opt_exp", override: true},

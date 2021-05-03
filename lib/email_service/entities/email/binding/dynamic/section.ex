@@ -14,6 +14,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
                bind: Map.t,
                current_selector: Selector.t,
                errors: list,
+               children: list,
                meta: Map.t,
                vsn: float,
              }
@@ -25,10 +26,10 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     bind: %{},
     current_selector: %Selector{},
     errors: [],
+    children: [],
     meta: %{},
     vsn: @vsn
   ]
-
 
   #----------------------------
   # current_selector/1
@@ -44,6 +45,12 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     %__MODULE__{this| current_selector: value}
   end
 
+  #----------------------------
+  # matches/1
+  #----------------------------
+  def matches(this) do
+    this.match
+  end
 
   #----------------------------
   # add_alias/2
@@ -56,13 +63,43 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   # spawn
   #----------------------------
   def spawn(this, type, clause, options \\ %{}) do
+    clause = if type == :else do
+        this.clause # todo negate formula
+    else
+        clause
+    end
     spawn = %__MODULE__{this|
       section: type,
       clause: clause,
       bind: %{},
       errors: [],
       meta: %{},
+      children: [],
     }
+  end
+
+  #----------------------------
+  # collapse/3
+  #----------------------------
+  def collapse(this = %__MODULE__{}, child = %__MODULE__{}, options) do
+    # todo any non if/unless/:else children sections bindings can be added to this level, only child's if/unless sections need to be added to our children set.
+    case child.section do
+      :if -> %__MODULE__{this| children: this.children ++ [child]}
+      :else -> %__MODULE__{this| children: this.children ++ [child]}
+      :unless -> %__MODULE__{this| children: this.children ++ [child]}
+      _else ->  %__MODULE__{this| bind: merge_bindings(this.bind, child.bind, options)}
+    end
+  end
+
+  #----------------------------
+  # merge_bindings/3
+  #----------------------------
+  def merge_bindings(a, b, options) do
+    Enum.reduce(b, a, fn({k,v},acc) ->
+      update_in(acc, [k], fn(p) ->
+        p && merge_bindings(p, v, options) || v
+      end)
+    end)
   end
 
   #----------------------------

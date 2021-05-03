@@ -114,6 +114,13 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
           this -> {:cont, this}
         end
 
+      "else" ->
+        case extract_token__section_open(this, token, options) do
+          {:halt, this} -> {:halt, this}
+          {:cont, this} -> {:cont, this}
+          this -> {:cont, this}
+        end
+
       # End Built-In
       "/" <> _clause ->
         case extract_token__section_close(this, token, options) do
@@ -139,6 +146,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   def extract_token__section_open(this, token, options) do
     token = String.trim(token)
     case token do
+      "else" -> extract_token__section_open__enter(:else, nil, this, options)
       "#if " <> clause -> extract_token__section_open__enter(:if, clause, this, options)
       "#unless " <> clause -> extract_token__section_open__enter(:unless, clause, this, options)
       "#each" <> clause -> extract_token__section_open__enter(:each, clause, this, options)
@@ -200,29 +208,40 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   end
 
   #----------------------------
-  #
+  # extract_token__section_close__exit
   #----------------------------
   def extract_token__section_close__exit(section, this, options) do
     #TODO output for processing structure needs to be built here.
     #E.g nested section tree.
-    case extract_token__section_close__exit_match(section, this.section_stack, this, options) do
+    case extract_token__section_close__exit_match(section, this, options) do
       {:error, cause} -> fatal_error(this, cause, options)
       this -> this
     end
   end
 
   #----------------------------
-  #
+  # extract_token__section_close__exit_match
   #----------------------------
-  def extract_token__section_close__exit_match(section, [head|tail] = _command_stack, this, options) do
+  def extract_token__section_close__exit_match(section, %__MODULE__{section_stack: [h,p|tail]} = this, options) do
     cond do
-      head.section == section ->
-        %__MODULE__{this| section_stack: tail}
-      Kernel.match?({:unsupported, _}, head.section) ->
+      h.section == section ->
+        p = Section.collapse(p, h, options)
+        %__MODULE__{this| section_stack: [p|tail]}
+      h.section == :else && section == p.section && (section == :if || section == :unless) ->
+        [h,i,p|t] = this.section_stack
+        p = Section.collapse(p, i, options)
+        p = Section.collapse(p, h, options)
+        %__MODULE__{this| section_stack: [p|t]}
+      Kernel.match?({:unsupported, _}, h.section) ->
         # Allow non closed unsupported sections, unwrap until end of list or match.
-        extract_token__section_close__exit_match(section, tail, this, options)
+        p = Section.collapse(p, h, options)
+        extract_token__section_close__exit_match(section, %__MODULE__{this| section_stack: [p|tail]}, options)
       :else -> {:error, {:tag_close_mismatch, section}}
     end
+  end
+
+  def matches(this) do
+    Section.matches(get_in(this, [Access.key(:section_stack), Access.at(0)]))
   end
 
   #----------------------------
@@ -294,7 +313,6 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   def extract_selector(this, token, options) do
     token = String.trim(token)
     cond do
-      token == "else" -> {:error, mark_error(this, {:extract_clause, :else, :support_pending}, options)}
       token == "this" || token == "." ->
         selector = current_selector(this)
         if Selector.valid?(selector, options) do
@@ -344,8 +362,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
           token ->
           case Regex.run(~r/^([a-zA-Z0-9_]+)((?:[\.\[\]]@?[a-zA-Z0-9_]+)*)\]?(\s.*\|.*)?$/, token, capture: :all_but_first) do
             [a,b|c] ->
-              b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9]+/, b) |> List.flatten()
-              case Selector.new([a] ++ b, parse_pipes(c)) do
+              b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9_]+/, b) |> List.flatten()
+              # todo check for existing match
+              case Selector.new([a] ++ b, parse_pipes(c), matches(this)) do
                 selector = %Selector{} -> {selector, this}
                 {:error, clause} -> {:error, mark_error(this, clause, options)}
               end

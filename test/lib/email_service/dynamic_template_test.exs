@@ -322,7 +322,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
 
     assert h.section == {:unsupported, "apple"}
-    assert h.clause == %Selector{selector: [:root, {:select, "bob"}, {:key, "douglas"}], as: "bob"}
+    assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}, {:key, "henry"}, {:key, "douglas"}], as: "bob"}
 
     {_, state} = Binding.extract_token({"/apple", state}, %{})
 
@@ -421,16 +421,31 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
          {{/with}}
       {{/with}}
     {{/if}}
+
+    {{ nested.stuff.user_name.last_name }}
+    {{#with nested.stuff.user_name as | myguy | }}
+       {{myguy.first_name | output_pipe}}
+    {{/with}}
+
+
     {{#unless selection}}
         {{oh.my}}
-    {{!-- @TODO pending {{else}} --}}
+    {{else}}
       {{oh.goodness}}
-    {{/unless}
+    {{/unless}}
+
     """
     sut = Binding.extract(template)
     assert sut.outcome == :ok
     assert sut.last_error == nil
 
+    [h|t] = sut.section_stack
+    assert h.bind[{:select, "nested"}][{:key, "stuff"}][{:key, "user_name"}][{:key, "first_name"}] == %{}
+    assert h.bind[{:select, "nested"}][{:key, "stuff"}][{:key, "user_name"}][{:key, "last_name"}] == %{}
+    assert h.bind[{:select, "required"}][{:key, "variable"}][{:key, "hint"}] == %{}
+    assert h.bind[{:select, "selection"}] == %{}
+    assert length(sut.section_stack) == 1
+    assert length(h.children) == 3
     # The finalize step needs to be written to collapse down all of the required bindings and any conditional hooks (although we can just require everything referenced).
   end
 
