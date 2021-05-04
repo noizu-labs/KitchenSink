@@ -25,6 +25,7 @@ end
 
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen do
   alias Noizu.RuleEngine.Helper
+  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------
@@ -42,11 +43,13 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
 
     {condition, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this.condition_clause, state, context, options)
     options_b = put_in(options, [:list_async?], async?)
-
+    {bind, state} = Effective.new(this, state, context, options)
     if condition do
-      Noizu.RuleEngine.ScriptProtocol.execute!(this.then_clause, state, context, options_b)
+      {r, s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.then_clause, state, context, options_b)
+      Effective.merge(bind, r, s, context, options)
     else
-      Noizu.RuleEngine.ScriptProtocol.execute!(this.else_clause, state, context, options_b)
+      {r, s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.else_clause, state, context, options_b)
+      Effective.merge(bind, r, s, context, options)
     end
   end
 

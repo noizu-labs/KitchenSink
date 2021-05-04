@@ -4,6 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula do
+  alias Noizu.EmailService.Email.Binding.Dynamic.Selector
   @vsn 1.0
   @type t :: %__MODULE__{
                identifier: String.t | list | tuple | nil,
@@ -18,7 +19,11 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula do
     vsn: @vsn
   ]
 
-  def selectors(this) do
+  def selectors(%Selector{} = selector) do
+    [selector]
+  end
+
+  def selectors(%__MODULE__{} = this) do
     this.selectors
   end
 

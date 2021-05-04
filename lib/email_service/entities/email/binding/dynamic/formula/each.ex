@@ -21,6 +21,7 @@ end
 
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Formula.Each do
   alias Noizu.RuleEngine.Helper
+  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------
@@ -30,25 +31,25 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
   # execute!/4
   #-----------------
   def execute!(this, state, context, options) do
-    bind = Noizu.EmailService.Email.Binding.Helper.prepare_effective_binding(%{}, state, context, options)
-    {e, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this.clause, state, context, options)
-    case e do
-      nil -> {nil, state}
+    {bind,state} = Effective.new(this, state, context, options)
+    {iterator, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this.clause, state, context, options)
+    case iterator do
+      nil -> {bind, state}
       v when is_list(v) ->
-        {v,s,_i} = Enum.reduce(v, {bind, state, 0}, fn(x, {b,s, i}) ->
-          # @TODO - Set internal state for bound variable b, plus @key/@value/@index etc. fields.
-          {c,s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.argument, s, context, options)
-          b = Noizu.EmailService.Email.Binding.Helper.merge_effective_binding(b,c, s, context, options)
-          {b,s, i + 1}
+        {b,s,_i} = Enum.reduce(v, {bind, state, 0}, fn(x, {b,s, index}) ->
+          {b,s} = Effective.set_wildcard_hint(b, this.clause, :list, {index, x}, s, context, options)
+          {r,s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.argument, s, context, options)
+          {r,s} = Effective.merge(b, r, s, context, options)
+          {r,s, index + 1}
         end)
-        {v,s}
+        Effective.clear_wildcard_hint(b, this.clause, :list, s, context, options)
       v = %{} ->
-        Enum.reduce(v, {bind, state}, fn({k,v}, {b,s}) ->
-          # @TODO - Set internal state for bound variable b, plus @key/@value/@index etc. fields.
-          {c,s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.argument, s, context, options)
-          b = Noizu.EmailService.Email.Binding.Helper.merge_effective_binding(b,c, s, context, options)
-          {b,s}
+        {b,s} = Enum.reduce(v, {bind, state}, fn({k,v}, {b,s}) ->
+          {b,s} = Effective.set_wildcard_hint(b, this.clause, :kv, {k, v}, s, context, options)
+          {r,s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.argument, s, context, options)
+          Effective.merge(b, r, s, context, options)
         end)
+        Effective.clear_wildcard_hint(b, this.clause, :list, s, context, options)
     end
   end
 

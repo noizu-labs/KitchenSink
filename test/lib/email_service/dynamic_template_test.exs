@@ -231,7 +231,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     assert h.section == :with
     assert h.clause == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}], as: "sheep"}
     assert h.match["sheep"] == %Selector{selector: [:root, {:select, "hello"}, {:key, "dolly"}], as: "sheep"}
-    assert t.bind == %{}
+    assert t.bind == []
   end
 
   @tag :email
@@ -244,7 +244,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :with
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
-    assert t.bind == %{}
+    assert t.bind == []
 
   end
 
@@ -258,7 +258,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :with
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}], as: "sheep"}
-    assert t.bind == %{}
+    assert t.bind == []
     assert h.match["sheep"] == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}], as: "sheep"}
   end
 
@@ -274,7 +274,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :if
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
-    assert t.bind == %{}
+    assert t.bind == []
   end
 
 
@@ -292,7 +292,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :with
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
-    assert t.bind == %{}
+    assert t.bind == []
     #----
 
     {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
@@ -303,7 +303,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :with
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}, {:key, "henry"}], as: "bob"}
-    assert t.bind == %{}
+    assert t.bind == []
     #----
 
     {_, state} = Binding.extract_token({"/with", state}, %{})
@@ -314,7 +314,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :with
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
-    assert t.bind == %{}
+    assert t.bind == []
     #----
 
     {_, state} = Binding.extract_token({"/with", state}, %{})
@@ -325,7 +325,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     [h,t|_] = state.section_stack
     assert h.section == :if
     assert h.clause == %Selector{selector: [:root, {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}]}
-    assert t.bind == %{}
+    assert t.bind == []
     #----
 
     {_, state} = Binding.extract_token({"/if", state}, %{})
@@ -445,13 +445,16 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     assert sut.last_error == nil
 
     [h|_] = sut.section_stack
-    assert h.bind[{:select, "nested"}][{:key, "stuff"}][{:key, "user_name"}][{:key, "first_name"}] == %{}
-    assert h.bind[{:select, "nested"}][{:key, "stuff"}][{:key, "user_name"}][{:key, "last_name"}] == %{}
-    assert h.bind[{:select, "required"}][{:key, "variable"}][{:key, "hint"}] == %{}
+
+    assert length(h.bind) == 3
+    assert Enum.at(h.bind, 0).selector == [:root, {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "last_name"}]
+    assert Enum.at(h.bind, 1).selector == [:root, {:select, "required"}, {:key, "variable"}, {:key, "hint"}]
+    assert Enum.at(h.bind, 2).selector == [:root, {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "first_name"}]
+
 
     [i|_] = h.children
     i = i.then_clause
-    assert i.bind[{:select, "required"}][{:key, "only_if_selection"}][{:key, "hint"}] == %{}
+    assert Enum.at(i.bind, 0).selector == [:root, {:select, "required"}, {:key, "only_if_selection"}, {:key, "hint"}]
     assert length(sut.section_stack) == 1
     assert length(h.children) == 2
   end
@@ -468,12 +471,10 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     options = %{variable_extractor: &__MODULE__.variable_extractor/4}
     {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(sut, state, @context, options)
     IO.inspect response
-    IO.inspect sut
   end
 
   def variable_extractor(selector, state, context, options) do
-    IO.inspect "extract: #{inspect selector}"
-    {%{wip: true}, state}
+    {[%{wip: true}, %{wip: false}], state}
   end
 
   def fixture(fixture, options \\ %{})

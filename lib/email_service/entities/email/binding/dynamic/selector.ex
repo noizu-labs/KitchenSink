@@ -9,24 +9,35 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
                identifier: String.t | list | tuple | nil,
                selector: list,
                as: String.t | nil,
+               required: boolean,
                vsn: float,
              }
   defstruct [
     identifier: nil,
     selector: [:root],
     as: nil,
+    required: true,
     vsn: @vsn
   ]
 
+  #----------------------------------
+  #
+  #----------------------------------
   def selectors(this) do
     [this]
   end
 
+  #----------------------------------
+  #
+  #----------------------------------
   def valid?(this, options \\ %{})
   def valid?(%__MODULE__{selector: [:root]}, options), do: false
   def valid?(%__MODULE__{}, options), do: true
   def valid?(_this, _options), do: false
 
+  #----------------------------------
+  #
+  #----------------------------------
   def new([h|t], pipes, matches) do
     selector = case matches[h] do
                %{selector: v} -> v
@@ -38,10 +49,24 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     end
   end
 
+  #----------------------------------
+  #
+  #----------------------------------
   def wildcard(this) do
     %__MODULE__{this| selector: this.selector ++ [{:*}]}
   end
 
+  #----------------------------------
+  #
+  #----------------------------------
+  def set_wildcard_hint(%__MODULE__{} = this, hint) do
+    selector = Enum.slice(this.selector, 0..-2) ++ [hint]
+    %__MODULE__{selector: selector}
+  end
+
+  #----------------------------------
+  #
+  #----------------------------------
   def extend(this, [h|t] = v, pipes) do
     cond do
       this.selector == [:root] -> {:error, {:extract_clause, :this, :invalid}}
@@ -58,6 +83,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     end
   end
 
+  #----------------------------------
+  #
+  #----------------------------------
   def relative(this, path, pipes, options \\ %{}) do
     Enum.reduce_while(String.split(path, "./"), this, fn(token,acc) ->
       case token do
@@ -77,6 +105,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     end)
   end
 
+  #----------------------------------
+  #
+  #----------------------------------
   def parent(this, pipes, options \\ %{})
   def parent(this = %__MODULE__{selector: [:root]}, _pipes, options) do
   {:error, {:select_parent, :already_root}}

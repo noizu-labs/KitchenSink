@@ -7,6 +7,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   @vsn 1.0
   alias Noizu.EmailService.Email.Binding.Dynamic.Selector
   alias Noizu.EmailService.Email.Binding.Dynamic.Formula
+  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
   @type t :: %__MODULE__{
                section: :root | :if | :when | :each | :unless | {:unsupported, String.t},
                clause: any | nil,
@@ -23,7 +24,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     section: :root,
     clause: nil,
     match: %{},
-    bind: %{},
+    bind: [],
     current_selector: %Selector{},
     errors: [],
     children: [],
@@ -71,7 +72,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     spawn = %__MODULE__{this|
       section: type,
       clause: clause,
-      bind: %{},
+      bind: [],
       errors: [],
       meta: %{},
       children: [],
@@ -125,9 +126,6 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
           else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil}
         }
         %__MODULE__{this| children: this.children ++ [f]}
-      _else ->
-        # critical error
-        %__MODULE__{this| bind: merge_bindings(this.bind, if_child.bind, options)}
     end
   end
 
@@ -135,11 +133,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   # merge_bindings/3
   #----------------------------
   def merge_bindings(a, b, options) do
-    Enum.reduce(b, a, fn({k,v},acc) ->
-      update_in(acc, [k], fn(p) ->
-        p && merge_bindings(p, v, options) || v
-      end)
-    end)
+    (a || []) ++ (b || [])
   end
 
   #----------------------------
@@ -157,17 +151,14 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     this
   end
   def require_binding(this, %Selector{} = binding, options) do
-    [:root| path] = binding.selector
-    {bind, _} = Enum.reduce(path, {this.bind, []}, fn(x, {b,p}) ->
-      p = p ++ [x]
-      {update_in(b, p, &( &1 || %{} )), p}
-    end)
-    %__MODULE__{this| bind: bind}
+    binding = %Selector{binding| as: nil}
+    %__MODULE__{this| bind: Enum.uniq([binding] ++ this.bind)}
   end
 end
 
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Section do
   alias Noizu.RuleEngine.Helper
+  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------
@@ -177,11 +168,10 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
   # execute!/4
   #-----------------
   def execute!(this, state, context, options) do
-    bind = Noizu.EmailService.Email.Binding.Helper.prepare_effective_binding(this.bind, state, context, options)
+    {bind, state} = Effective.new(this, state, context, options)
     Enum.reduce(this.children, {bind, state}, fn(child, {b,s}) ->
-      {c,s} = Noizu.RuleEngine.ScriptProtocol.execute!(child, s, context, options)
-      b = Noizu.EmailService.Email.Binding.Helper.merge_effective_binding(b,c, s, context, options)
-      {b,s}
+      {r,s} = Noizu.RuleEngine.ScriptProtocol.execute!(child, s, context, options)
+      Effective.merge(b, r, s, context, options)
     end)
   end
 
