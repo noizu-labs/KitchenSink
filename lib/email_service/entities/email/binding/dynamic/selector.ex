@@ -9,7 +9,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
                selector: list,
              }
   defstruct [
-    selector: [:root],
+    selector: [],
   ]
 
   #----------------------------------
@@ -23,7 +23,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   #
   #----------------------------------
   def valid?(this, options \\ %{})
-  def valid?(%__MODULE__{selector: [:root]}, options), do: false
+  def valid?(%__MODULE__{selector: []}, options), do: false
   def valid?(%__MODULE__{}, options), do: true
   def valid?(_this, _options), do: false
 
@@ -45,7 +45,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   def new([h|t], pipes, matches) do
     selector = case matches[h] do
                %{selector: v} -> v
-               _ -> [:root, {:select, h}]
+               _ -> [{:select, h}]
                end
     case t do
       [] -> {%__MODULE__{selector: selector}, pipes}
@@ -58,7 +58,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   #----------------------------------
   def extend(this, [h|t] = v, pipes) do
     cond do
-      this.selector == [:root] -> {:error, {:extract_clause, :this, :invalid}}
+      this.selector == [] -> {:error, {:extract_clause, :this, :invalid}}
       :else ->
       selector = this.selector ++
                  Enum.map(v || [], fn(x) ->
@@ -98,10 +98,10 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   #
   #----------------------------------
   def parent(this, pipes, options \\ %{})
-  def parent(this = %__MODULE__{selector: [:root]}, _pipes, options) do
+  def parent(this = %__MODULE__{selector: []}, _pipes, options) do
   {:error, {:select_parent, :already_root}}
   end
-  def parent(this = %__MODULE__{selector: [:root, _object]}, _pipes, options) do
+  def parent(this = %__MODULE__{selector: [_object]}, _pipes, options) do
   {:error, {:select_parent, :already_top}}
   end
   def parent(this = %__MODULE__{selector: selector}, pipes, options) do

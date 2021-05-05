@@ -32,6 +32,10 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
   #
   #----------------------
   def finalize(%__MODULE__{} = this, state, context, options) do
+
+
+
+
     # Special case scalars
     scalars = Enum.filter(this.bind, &(Selector.scalar?(&1)))
               |> Enum.uniq()
@@ -39,6 +43,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
     binds = Enum.filter(this.bind, &(!Selector.scalar?(&1)))
             |> Enum.uniq()
             |> Enum.sort_by(&(&1.selector < &1.selector))
+
+
+
 
 
     # @TODO this is relatively straight forward, for each {:select} find smallest bind and load up that value
