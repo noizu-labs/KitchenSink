@@ -6,18 +6,10 @@
 defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   @vsn 1.0
   @type t :: %__MODULE__{
-               identifier: String.t | list | tuple | nil,
                selector: list,
-               as: String.t | nil,
-               required: boolean,
-               vsn: float,
              }
   defstruct [
-    identifier: nil,
     selector: [:root],
-    as: nil,
-    required: true,
-    vsn: @vsn
   ]
 
   #----------------------------------
@@ -35,6 +27,18 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   def valid?(%__MODULE__{}, options), do: true
   def valid?(_this, _options), do: false
 
+  #----------------------
+  # exists/1
+  #----------------------
+  def exists(%__MODULE__{} = this) do
+    # indicate only return scalar values and true/false/nil, nested readings not required.
+    %__MODULE__{this| selector: this.selector ++ [:scalar_value]}
+  end
+
+  def scalar?(%__MODULE__{} = this) do
+    List.last(this.selector) == :scalar_value
+  end
+
   #----------------------------------
   #
   #----------------------------------
@@ -44,24 +48,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
                _ -> [:root, {:select, h}]
                end
     case t do
-      [] -> %__MODULE__{selector: selector, as: pipes[:as]}
+      [] -> {%__MODULE__{selector: selector}, pipes}
       v when is_list(v) -> extend(%__MODULE__{selector: selector}, t, pipes)
     end
-  end
-
-  #----------------------------------
-  #
-  #----------------------------------
-  def wildcard(this) do
-    %__MODULE__{this| selector: this.selector ++ [{:*}]}
-  end
-
-  #----------------------------------
-  #
-  #----------------------------------
-  def set_wildcard_hint(%__MODULE__{} = this, hint) do
-    selector = Enum.slice(this.selector, 0..-2) ++ [hint]
-    %__MODULE__{selector: selector}
   end
 
   #----------------------------------
@@ -79,7 +68,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
                      "[" <> v -> {:at, String.trim(v)}
                    end
                  end)
-      %__MODULE__{this| selector: selector, as: pipes[:as]}
+      {%__MODULE__{this| selector: selector}, pipes}
     end
   end
 
@@ -87,19 +76,19 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   #
   #----------------------------------
   def relative(this, path, pipes, options \\ %{}) do
-    Enum.reduce_while(String.split(path, "./"), this, fn(token,acc) ->
+    Enum.reduce_while(String.split(path, "./"), {this, pipes}, fn(token, {t, p} = acc) ->
       case token do
         "" -> {:halt, acc}
         "." ->
-          case parent(acc, pipes) do
-            p = %__MODULE_{} -> {:cont, p}
-            e -> {:halt, e}
+          case parent(t, p) do
+            tp = {%__MODULE_{}, _meta} -> {:cont, tp}
+            e = {:error, _} -> {:halt, e}
           end
         v ->
           b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9]+/, "." <> v) |> List.flatten()
-          case extend(acc, b, pipes) do
-            p = %__MODULE_{} -> {:cont, p}
-            e -> {:halt, e}
+          case extend(t, b, p) do
+            tp = {%__MODULE_{}, _} -> {:cont, tp}
+            e = {:error, _} -> {:halt, e}
           end
       end
     end)
@@ -120,8 +109,25 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
                List.last(this.selector) == :* -> Enum.slice(this.selector, 0 .. -3)
                :else -> Enum.slice(this.selector, 0 .. -2)
              end
-    %__MODULE__{this| selector: parent, as: pipes[:as]}
+    {%__MODULE__{this| selector: parent}, pipes}
   end
+
+
+  #----------------------------------
+  #
+  #----------------------------------
+  def wildcard(this) do
+    %__MODULE__{this| selector: this.selector ++ [{:*}]}
+  end
+
+  #----------------------------------
+  #
+  #----------------------------------
+  def set_wildcard_hint(%__MODULE__{} = this, hint) do
+    selector = Enum.slice(this.selector, 0..-2) ++ [hint]
+    %__MODULE__{selector: selector}
+  end
+
 end
 
 
@@ -143,12 +149,12 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
   #---------------------
   # identifier/3
   #---------------------
-  def identifier(this, _state, _context), do: Helper.identifier(this)
+  def identifier(this, _state, _context), do: "..."
 
   #---------------------
   # identifier/4
   #---------------------
-  def identifier(this, _state, _context, _options), do: Helper.identifier(this)
+  def identifier(this, _state, _context, _options), do: "..."
 
   #---------------------
   # render/3

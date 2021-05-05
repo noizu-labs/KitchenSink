@@ -26,6 +26,7 @@ end
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen do
   alias Noizu.RuleEngine.Helper
   alias Noizu.EmailService.Email.Binding.Dynamic.Effective
+
   #-----------------
   # execute!/3
   #-----------------

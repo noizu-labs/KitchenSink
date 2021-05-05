@@ -147,9 +147,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   #
   #----------------------------
   def extract_token__section_open__enter(section, clause, this, options) do
-    case extract_selector(this, clause, options) do
+    case extended_extract_selector(this, clause, options) do
       {:error, this} -> {:halt, this}
-      {clause, this} ->
+      {{clause, pipes}, this} ->
         # Deprecate, section collapse process takes care of forced requirements, formula process takes care of ensuring required bindings for if/unless clauses loaded.
         # this = require_binding(this, clause, options)
 
@@ -162,13 +162,13 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
         case section do
           :with ->
             cond do
-              clause.as -> add_alias(this, clause)
+              as = pipes[:as] -> add_alias(this, clause, as)
               :else -> current_selector(this, clause)
             end
           :each ->
             clause = Selector.wildcard(clause)
             cond do
-              clause && clause.as -> add_alias(this, clause)
+              as = pipes[:as] -> add_alias(this, clause, as)
               :else -> current_selector(this, clause)
             end
             _ -> this
@@ -244,8 +244,8 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   #----------------------------
   # add_alias/2
   #----------------------------
-  def add_alias(this, clause) do
-    update_in(this, [Access.key(:section_stack), Access.at(0)], &(Section.add_alias(&1, clause)))
+  def add_alias(this, clause, at) do
+    update_in(this, [Access.key(:section_stack), Access.at(0)], &(Section.add_alias(&1, clause, at)))
   end
 
   #----------------------------
@@ -284,6 +284,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     end
   end
 
+
   #----------------------------
   # extract_selector/3
   #----------------------------
@@ -291,15 +292,29 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     Parse clause to extract any operations/formulas and or bound variables.
     @returns Dynamic.Binding.Selector or Dynamic.Binding.HandleBarClause
   """
-  def extract_selector(this, token, options \\ %{})
-  def extract_selector(this, nil, _options), do: {nil, this}
-  def extract_selector(this, token, options) do
+  def extract_selector(this, token, options \\ %{}) do
+    case extended_extract_selector(this, token, options) do
+      {:error, this} -> {:error, this}
+      {{clause, _meta}, this} -> {clause, this}
+    end
+  end
+
+  #----------------------------
+  # extract_selector/3
+  #----------------------------
+  @doc """
+    Parse clause to extract any operations/formulas and or bound variables.
+    @returns Dynamic.Binding.Selector or Dynamic.Binding.HandleBarClause
+  """
+  def extended_extract_selector(this, token, options \\ %{})
+  def extended_extract_selector(this, nil, _options), do: {{nil, nil}, this}
+  def extended_extract_selector(this, token, options) do
     token = String.trim(token)
     cond do
       token == "this" || token == "." ->
         selector = current_selector(this)
         if Selector.valid?(selector, options) do
-          {selector, this}
+          {{selector, nil}, this}
         else
           {:error, mark_error(this, {:extract_clause, :this, :invalid}, options)}
         end
@@ -316,6 +331,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
           "../" <> _relative ->
             clean_token = Regex.replace(~r/\|.*$/, token, "") # strip any pipes
             selector = current_selector(this)
+            pipes = parse_pipes(token)
             case Selector.relative(selector, clean_token, parse_pipes(token), options) do
               {:error, clause} ->
                 {:error, mark_error(this, clause, options)}
@@ -323,8 +339,8 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
             end
 
           "!bind " <> clause ->
-            case extract_selector(this, clause, options) do
-              {selector = %Selector{}, this} -> {selector, this}
+            case extended_extract_selector(this, clause, options) do
+              {{%Selector{}, _meta} = selector, this} -> {selector, this}
               {:error, this} -> {:error, this}
               {_, _this} -> {:error, mark_error(this, :rule_engine_pending, options)}
             end
@@ -335,7 +351,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
              [b|c] -> {:error, mark_error(this, clause, options)}
                b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9_]+/, b) |> List.flatten()
                case Selector.extend(current_selector(this), b, parse_pipes(c)) do
-                 selector = %Selector{} -> {selector, this}
+                 selector = {%Selector{}, _meta} -> {selector, this}
                  {:error, clause} -> {:error, mark_error(this, clause, options)}
                end
                _ ->
@@ -348,7 +364,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
               b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9_]+/, b) |> List.flatten()
               # todo check for existing match
               case Selector.new([a] ++ b, parse_pipes(c), matches(this)) do
-                selector = %Selector{} -> {selector, this}
+                selector = {%Selector{}, _meta} -> {selector, this}
                 {:error, clause} -> {:error, mark_error(this, clause, options)}
               end
               _ ->
@@ -361,6 +377,7 @@ end
 
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic do
   alias Noizu.RuleEngine.Helper
+  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------
@@ -371,7 +388,8 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
   #-----------------
   def execute!(this, state, context, options) do
     [root] = this.section_stack
-    Noizu.RuleEngine.ScriptProtocol.execute!(root, state, @context, options)
+    {r, s} = Noizu.RuleEngine.ScriptProtocol.execute!(root, state, context, options)
+    Effective.finalize(r,s, context, options)
   end
 
   #---------------------

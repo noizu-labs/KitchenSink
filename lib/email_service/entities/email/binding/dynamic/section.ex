@@ -54,10 +54,10 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   end
 
   #----------------------------
-  # add_alias/2
+  # add_alias/3
   #----------------------------
-  def add_alias(this, value) do
-    put_in(this, [Access.key(:match), value.as], value)
+  def add_alias(this, value, as) do
+    put_in(this, [Access.key(:match), as], value)
   end
 
   #----------------------------
@@ -151,7 +151,6 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
     this
   end
   def require_binding(this, %Selector{} = binding, options) do
-    binding = %Selector{binding| as: nil}
     %__MODULE__{this| bind: Enum.uniq([binding] ++ this.bind)}
   end
 end
