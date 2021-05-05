@@ -20,7 +20,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
     bind: [],
     bound: %{},
     unbound: %{
-      option: [],
+      optional: [],
       required: []
     },
     meta: %{},
@@ -28,36 +28,165 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
   ]
 
 
+
+  def insert_path(blob, path, selector, acc \\ [])
+  def insert_path(blob, [h], selector, p) do
+    p = p ++ [h]
+    block = update_in(blob, p, &(&1 || %{type: :trace, index_size: 0, selector: nil, children: %{}}))
+
+    # Track indexes
+    blob = case h do
+             {:at, v} ->
+               parent_index_size_path = Enum.slice(p, 0 .. -3) ++ [:index_size]
+               index_size = get_in(blob, parent_index_size_path)
+               cond do
+                 v + 1 >= index_size -> put_in(blob, parent_index_size_path, v + 1)
+                 :else -> blob
+               end
+             _else -> blob
+           end
+
+    # set to copy if terminal full value insert, or scalar if existence check value that doesnt require full body to be included in payload.
+    type = get_in(block, p ++ [:type])
+    scalar? = Selector.scalar?(selector)
+    cond do
+      type == :copy -> block
+      scalar? ->
+        block
+        |> put_in(p ++ [:type], :scalar)
+        |> put_in(p ++ [:selector], selector)
+      :else ->
+        block
+        |> put_in(p ++ [:type], :copy)
+        |> put_in(p ++ [:selector], selector)
+    end
+  end
+  def insert_path(blob, [h|t], selector, p) do
+    p = p ++ [h]
+    blob = update_in(blob, p, &(&1 || %{type: :trace, index_size: 0, selector: nil, children: %{}}))
+
+    # Track indexes
+    blob = case h do
+             {:at, v} ->
+               parent_index_size_path = Enum.slice(p, 0 .. -3) ++ [:index_size]
+               index_size = get_in(blob, parent_index_size_path)
+               cond do
+                 v + 1 >= index_size -> put_in(blob, parent_index_size_path, v + 1)
+                 :else -> blob
+               end
+             _else -> blob
+           end
+
+    insert_path(blob, t, selector, p ++ [:children])
+  end
+
+  #----------------------
+  # interstitial_map
+  #----------------------
+  def interstitial_map(%__MODULE__{} = this, state, context, options) do
+    bind = this.bind
+           |> Enum.uniq()
+           |> Enum.sort_by(&(&1.selector < &1.selector))
+
+    book_keeping = Enum.reduce(bind, %{}, fn(selector, acc) ->
+      path = Selector.path(selector)
+      insert_path(acc, path, selector)
+    end)
+  end
+
+  def build_output(v = %{}, state, context, options) do
+    Enum.reduce(v, {%{}, state}, fn({k,v}, {acc, s}) ->
+      {snippet, s} = build_output_inner({k,v}, %{}, s, context, options)
+      case snippet do
+        {:value, value} ->
+          case k do
+            {:select, name} -> {put_in(acc, [name], value), s}
+          end
+        _else -> {acc, s}
+      end
+    end)
+  end
+
+  defp build_output_inner({k,v}, blob, state, context, options) do
+    cond do
+      v.type == :copy ->
+        {value, s} = Noizu.RuleEngine.ScriptProtocol.execute!(v.selector, state, context, options)
+        case value do
+          {:value, nil} ->
+            # consider a copy field a non-result to force required bind error.
+            {nil, s}
+          _ -> {value, s}
+        end
+      v.type == :scalar ->
+        {value, s} = Noizu.RuleEngine.ScriptProtocol.execute!(v.selector, state, context, options)
+        case value do
+          {:value, value} ->
+            cond do
+              value == nil -> {{:value, value}, s} # path existed e.g. map.key but response was null, so we may include in result. If no value was returned we return nil to avoid improperly triggering
+              # conditionals higher in the formula tree.
+              is_integer(value) || is_float(value) || is_atom(value) -> {{:value, value}, s}
+              is_map(value) || is_list(value) || is_tuple(value) -> {{:value, true}, s}
+              :else -> {{:value, value}, s}
+            end
+          _else -> {nil, s}
+        end
+      v.type == :trace ->
+        # Tentative mode
+        cond do
+          v.index_size == 0 ->
+            snippet = %{}
+            {snippet, state} = Enum.reduce(v.children, {snippet, state}, fn({k2,v2}, {acc_snippet, acc_state}) ->
+              {sv, s} = build_output_inner({k2, v2}, acc_snippet, acc_state, context, options)
+              case sv do
+                {:value, value} ->
+                  case k2 do
+                    {:key, name} -> {put_in(acc_snippet, [name], value), s}
+                    {:select, name} -> {put_in(acc_snippet, [name], value), s}
+                  end
+                _else -> {acc_snippet, s}
+              end
+            end)
+            cond do
+              snippet == %{} -> {nil, state} # value never reached, leave path barren (e.g. path ended in a scalar request that was nil)
+              :else -> {{:value, snippet}, state}
+            end
+          :else ->
+            snippet = Enum.map(0.. v.index_size - 1, fn(_) -> nil end)
+            {hit?, snippet, state} = Enum.reduce(v.children, {false, snippet, state}, fn({k2,v2}, {acc_hit?, acc_snippet, acc_state}) ->
+              {sv, s} = build_output_inner({k2, v2}, acc_snippet, acc_state, context, options)
+              case sv do
+                {:value, value} ->
+                  case k2 do
+                    {:at, index} -> {true, put_in(acc_snippet, [Access.at(index)], value), s}
+                  end
+                _else -> {acc_hit?, acc_snippet, s}
+              end
+            end)
+            cond do
+              !hit? -> {nil, state} # value never reached, leave path barren (e.g. path ended in a scalar request that was nil)
+              :else -> {{:value, snippet}, state}
+            end
+        end
+    end
+  end
+
   #----------------------
   #
   #----------------------
   def finalize(%__MODULE__{} = this, state, context, options) do
+    book_keeping = interstitial_map(this, state, context, options)
+    {output, state} = build_output(book_keeping, state, context, options)
+    this = %__MODULE__{this| bound: output}
 
-
-
-
-    # Special case scalars
-    scalars = Enum.filter(this.bind, &(Selector.scalar?(&1)))
-              |> Enum.uniq()
-              |> Enum.sort_by(&(&1.selector < &1.selector))
-    binds = Enum.filter(this.bind, &(!Selector.scalar?(&1)))
-            |> Enum.uniq()
-            |> Enum.sort_by(&(&1.selector < &1.selector))
-
-
-
-
-
-    # @TODO this is relatively straight forward, for each {:select} find smallest bind and load up that value
-    # For longer paths verify the bound value contains those readings or add to unbound list, only add shortest possible branches to unbound list.
-    # To deal arrays, pre populate with nil values up to max list index, and inject via Access.at(index) in reduce loop.
-    # Inject scalars if value exists otherwise we should be able to leave unbound unless handlebars throws an exception when accessing null paths.
-    # Not some juggling needed to deal with intermediate preexpanded format (e.g. lists not populated) and final format.
-    IO.puts """
-    scalars: #{inspect scalars}
-    ---------------
-    binds: #{inspect binds}
-    """
+    # now walk through binds to verify all non scalars are bound.
+    this = Enum.reduce(this.bind, this, fn(selector,this) ->
+      # only require non scalars.
+      cond do
+        Selector.is_bound?(selector, output, state, context, options) -> this
+        Selector.scalar?(selector) -> update_in(this, [Access.key(:unbound), Access.key(:optional)], &((&1 || []) ++ [selector]))
+        :else -> update_in(this, [Access.key(:unbound), Access.key(:required)], &((&1 || []) ++ [selector]))
+      end
+    end)
 
     {this, state}
   end
@@ -71,8 +200,8 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
 
   def new(%Formula.IfThen{condition_clause: formula} = section, state, context, options) do
     selectors = Formula.selectors(formula)
-    |> Enum.map(&(Selector.exists(&1)))
-    |> Enum.uniq()
+                |> Enum.map(&(Selector.exists(&1)))
+                |> Enum.uniq()
     {%__MODULE__{bind: selectors}, state}
   end
 
@@ -108,6 +237,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
     {r,s} = Noizu.RuleEngine.StateProtocol.get!(state, :wildcards, context)
     r = put_in(r || %{}, [selector.selector], %{key: key, value: value, type: :kv})
     s = Noizu.RuleEngine.StateProtocol.put!(s, :wildcards, r, context)
+    s = Noizu.RuleEngine.StateProtocol.put!(s, :last_wildcard,  {selector.selector, Selector.set_wildcard_hint(selector, {:key, key})}, context)
     this = put_in(this, [Access.key(:meta), :wildcard], {selector.selector, Selector.set_wildcard_hint(selector, {:key, key})})
     {this, s}
   end
@@ -128,20 +258,20 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
   #----------------------
   def merge(%__MODULE__{} = bind_a, %__MODULE__{} = bind_b, state, context, options) do
     r = cond do
-      bind_a.meta[:wildcard] ->
-        {ws,wr} = bind_a.meta[:wildcard]
-        wsl = length(ws)
-        r = Enum.map(bind_b.bind || [], fn(b_s) ->
-          cond do
-            List.starts_with?(b_s.selector, ws) ->
-              s = b_s.selector
-              s = wr.selector ++ Enum.slice(s, wsl .. -1)
-              %Selector{b_s| selector: s}
-            :else -> b_s
-          end
-        end)
-      :else -> bind_b.bind
-    end |> Enum.uniq
+          bind_a.meta[:wildcard] ->
+            {ws,wr} = bind_a.meta[:wildcard]
+            wsl = length(ws)
+            r = Enum.map(bind_b.bind || [], fn(b_s) ->
+              cond do
+                List.starts_with?(b_s.selector, ws) ->
+                  s = b_s.selector
+                  s = wr.selector ++ Enum.slice(s, wsl .. -1)
+                  %Selector{b_s| selector: s}
+                :else -> b_s
+              end
+            end)
+          :else -> bind_b.bind
+        end |> Enum.uniq
 
     {%__MODULE__{bind_a| bind: Enum.uniq(bind_a.bind ++ r)}, state}
   end

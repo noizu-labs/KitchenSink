@@ -33,8 +33,15 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
   def execute!(this, state, context, options) do
     {bind,state} = Effective.new(this, state, context, options)
     {iterator, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this.clause, state, context, options)
+
+    iterator = case iterator do
+                 {:value, v} -> v
+                 _else -> iterator
+               end
+
     case iterator do
       nil -> {bind, state}
+      false -> {bind, state}
       v when is_list(v) ->
         {b,s,_i} = Enum.reduce(v, {bind, state, 0}, fn(x, {b,s, index}) ->
           {b,s} = Effective.set_wildcard_hint(b, this.clause, :list, {index, x}, s, context, options)

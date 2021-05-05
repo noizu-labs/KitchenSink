@@ -45,6 +45,12 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
     {condition, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this.condition_clause, state, context, options)
     options_b = put_in(options, [:list_async?], async?)
     {bind, state} = Effective.new(this, state, context, options)
+
+    condition = case condition do
+      {:value, v} -> v
+      _else -> condition
+    end
+
     if condition do
       {r, s} = Noizu.RuleEngine.ScriptProtocol.execute!(this.then_clause, state, context, options_b)
       Effective.merge(bind, r, s, context, options)

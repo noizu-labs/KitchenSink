@@ -103,7 +103,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
           }
           %__MODULE__{this| children: this.children ++ [f]}
       _else ->
-        %__MODULE__{this| bind: merge_bindings(this.bind, child.bind, options)}
+        %__MODULE__{this| bind: merge_bindings(this.bind, child.bind, options), children: this.children ++ child.children}
     end
   end
 

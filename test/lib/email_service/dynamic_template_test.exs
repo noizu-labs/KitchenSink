@@ -13,13 +13,62 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
   @context Noizu.ElixirCore.CallingContext.admin()
 
+  @default_binding %{
+    required: %{
+      only_if_selection: %{
+        hint: 42
+      },
+      only_unless_else_selection: %{
+        hint: 41
+      },
+      variable: %{
+        hint: 7,
+      }
+    },
+    selection: {:tuple, :clause},
+    apple: %{
+
+    },
+    snapple: %{
+      details: [
+        %{width: 8}, %{width: 2, not_bound: 5}, %{width: :tiger}
+      ]
+    },
+    nested: %{
+      stuff: %{
+        user_name: %{
+          "first_name" => "adam",
+          "last_name" => "smith",
+          :via_alias => :robin,
+          scalar_embed: {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output}
+        }
+      },
+      stuff2: %{
+        user_name: %{
+          "first_name" => "adam",
+          "last_name" => "smith",
+          :via_alias => :robin,
+          scalar_embed: {:this, :will, :store, :as, :true}
+        }
+      }
+    },
+    oh: %{
+      my: 1,
+      goodness: -1
+    }
+  }
+
   @template """
   {{!bind required.variable.hint}}
   {{! regular comment }}
   {{!-- comment with nested tokens {{#if !condition}} --}}
+
+
+
+
   {{#if selection}}
     {{apple}}
-    {{#each apple.details}}
+    {{#each snapple.details}}
       {{this.width}}
     {{/each}}
 
@@ -31,16 +80,22 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
           {{myguy.via_alias}}
        {{/with}}
     {{/with}}
+  {{else}}
+    {{!bind required.only_else_selection.hint}}
   {{/if}}
 
-  {{ nested.stuff.user_name.last_name }}
-  {{#with nested.stuff.user_name as | myguy | }}
+  {{ nested.stuff2.user_name.last_name }}
+  {{#with nested.stuff2.user_name as | myguy | }}
      {{myguy.first_name | output_pipe}}
+     {{myguy.unbound_field}}
+     {{#if myguy.optional_unbound}} test {{/if}}
+     {{#if myguy.scalar_embed }} test2 {{/if}}
   {{/with}}
 
   {{#unless selection}}
       {{oh.my}}
   {{else}}
+    {{!bind required.only_unless_else_selection.hint}}
     {{oh.goodness}}
   {{/unless}}
 
@@ -448,17 +503,18 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
     [h|_] = sut.section_stack
 
-    assert length(h.bind) == 3
-    assert Enum.at(h.bind, 0).selector == [ {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "last_name"}]
+    assert length(h.bind) == 4
+    assert Enum.at(h.bind, 0).selector == [ {:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "last_name"}]
     assert Enum.at(h.bind, 1).selector == [ {:select, "required"}, {:key, "variable"}, {:key, "hint"}]
-    assert Enum.at(h.bind, 2).selector == [ {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "first_name"}]
+    assert Enum.at(h.bind, 2).selector == [ {:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "unbound_field"}]
+    assert Enum.at(h.bind, 3).selector == [ {:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "first_name"}]
 
 
     [i|_] = h.children
     i = i.then_clause
     assert Enum.at(i.bind, 0).selector == [ {:select, "required"}, {:key, "only_if_selection"}, {:key, "hint"}]
     assert length(sut.section_stack) == 1
-    assert length(h.children) == 2
+    assert length(h.children) == 4
   end
 
   @tag :email
@@ -471,15 +527,40 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     # define variable selector
     state = %Noizu.RuleEngine.State.InlineStateManager{}
     options = %{variable_extractor: &__MODULE__.variable_extractor/4}
+    state = Noizu.RuleEngine.StateProtocol.put!(state, :bind_space, @default_binding, @context)
+
     {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(sut, state, @context, options)
 
     alias_test = Enum.filter(response.bind, fn(v) -> v.selector ==  [ {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "via_alias"}] end)
     assert length(alias_test) == 1
 
+
+    #IO.inspect response
+
+    assert response.bound["apple"] == %{}
+    assert response.bound["nested"]["stuff"].user_name.scalar_embed == {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output}
+    assert response.bound["nested"]["stuff"].user_name.via_alias == :robin
+    assert response.bound["nested"]["stuff2"]["user_name"]["scalar_embed"] == true  # full contents dropped as they are not referenced by template, just checked for existence.
+    assert response.bound["oh"]["goodness"] == -1
+    assert response.bound["oh"]["my"] == nil
+    assert response.bound["required"]["only_if_selection"]["hint"] == 42
+    assert response.bound["required"]["only_else_selection"]["hint"] == nil
+    assert response.bound["required"]["only_unless_else_selection"]["hint"] == 41
+    assert Enum.at(response.bound["snapple"]["details"], 1)["width"] == 2
+    assert Enum.at(response.bound["snapple"]["details"], 1)["not_bound"] == nil
+    assert Enum.at(response.bound["snapple"]["details"], 2)["width"] == :tiger
+
+    assert Enum.at(response.unbound.optional, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "optional_unbound"}, :scalar_value]
+    assert Enum.at(response.unbound.required, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "unbound_field"}]
+
   end
 
+
+
   def variable_extractor(selector, state, context, options) do
-    {[%{wip: true}, %{wip: false}], state}
+    {blob, state} = Noizu.RuleEngine.StateProtocol.get!(state, :bind_space, context)
+    value = Selector.bound(selector, blob, state, context, options)
+    {value, state}
   end
 
   def fixture(fixture, options \\ %{})

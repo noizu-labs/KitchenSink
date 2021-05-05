@@ -39,6 +39,102 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     List.last(this.selector) == :scalar_value
   end
 
+  def path(%__MODULE__{} = this) do
+    cond do
+      List.last(this.selector) == :scalar_value -> Enum.slice(this.selector, 0 .. -2)
+      :else -> this.selector
+    end
+  end
+
+  def bound_inner(%__MODULE__{} = this, bound, state, context, options) do
+    full_path = path(this)
+    {bound?,val, path} = Enum.reduce_while(full_path, {true, bound, []}, fn(k,{b,a, path}) ->
+      case k do
+        {:*} ->
+          cpath = path ++ [k]
+
+          cond do
+            cpath == full_path -> {:halt, {b,a,cpath}}
+            :else ->
+              {r,s} = Noizu.RuleEngine.StateProtocol.get!(state, :wildcards, context)
+              case Enum.filter(r || [], fn({k,_}) -> k == cpath end) do
+                [{_,%{type: :list, index: i, value: v}}|_] -> {:cont, {b,v, path ++ [{:at, i}]}}
+                [{_,%{type: :kv, key: i, value: v}}|_] -> {:cont, {b,v, path ++ [{:key, i}]}}
+                _ -> {:halt, {false, nil, cpath}}
+              end
+          end
+
+        {:select, name} ->
+          path = path ++ [k]
+          cond do
+            is_map(a) ->
+              accessor = Enum.find(Map.keys(a), fn(s) ->
+                s == name || "#{s}" == name
+              end)
+              if accessor do
+                a = get_in(a, [Access.key(accessor)])
+                cond do
+                  a != nil -> {:cont, {b,a, path}}
+                  scalar?(this) -> {:cont, {b,a, path}}
+                  :else -> {:halt, {false, nil, path}}
+                end
+              else
+                {:halt, {false, nil, path}}
+              end
+            :else ->
+              {:halt, {false, nil, path}}
+          end
+        {:key, name} ->
+          path = path ++ [k]
+          cond do
+            is_map(a) ->
+              accessor = Enum.find(Map.keys(a), fn(s) ->
+                s == name || "#{s}" == name
+              end)
+              if accessor do
+                a = get_in(a, [Access.key(accessor)])
+                cond do
+                  a != nil -> {:cont, {b,a, path}}
+                  scalar?(this) -> {:cont, {b,a, path}}
+                  :else -> {:halt, {false, nil, path}}
+                end
+              else
+                {:halt, {false, nil, path}}
+              end
+            :else ->
+              {:halt, {false, nil, path}}
+          end
+        {:at, index} ->
+          path = path ++ [k]
+          cond do
+            is_list(a) && length(a) > index ->
+              a = get_in(a, [Access.at(index)])
+              cond do
+                a != nil -> {:cont, {b,a, path}}
+                scalar?(this) -> {:cont, {b,a, path}}
+                :else -> {:halt, {false, nil, path}}
+              end
+            :else ->
+              {:halt, {false, nil, path}}
+          end
+      end
+    end)
+    {bound?,val}
+  end
+
+
+  def is_bound?(%__MODULE__{} = this, bound, state, context, options) do
+    p = path(this)
+    {bound?,_} = bound_inner(this, bound, state, context, options)
+    bound? # todo dropped state
+  end
+
+  def bound(%__MODULE__{} = this, bound, state, context, options) do
+    p = path(this)
+    {bound?, v} = bound_inner(this, bound, state, context, options)
+    bound? && {:value, v} # todo dropped state
+  end
+
   #----------------------------------
   #
   #----------------------------------
