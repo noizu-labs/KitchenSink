@@ -536,6 +536,58 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
 
     #IO.inspect response
+    """
+    %Noizu.EmailService.Email.Binding.Dynamic.Effective{
+      bind: [Selector(nested.stuff2.user_name.last_name),
+       Selector(required.variable.hint),
+       Selector(nested.stuff2.user_name.unbound_field),
+       Selector(nested.stuff2.user_name.first_name), Selector(selection.(?)),
+       Selector(required.only_if_selection.hint), Selector(apple),
+       Selector(nested.stuff), Selector(nested.stuff.user_name.via_alias),
+       Selector(nested.stuff.user_name.first_name),
+       Selector(snapple.details.[n].width), Selector(snapple.details.[n].width),
+       Selector(snapple.details.[n].width),
+       Selector(nested.stuff2.user_name.optional_unbound.(?)),
+       Selector(nested.stuff2.user_name.scalar_embed.(?)), Selector(oh.goodness),
+       Selector(required.only_unless_else_selection.hint)],
+      bound: %{
+        "apple" => %{},
+        "nested" => %{
+          "stuff" => %{
+            user_name: %{
+              :scalar_embed => {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output},
+              :via_alias => :robin,
+              "first_name" => "adam",
+              "last_name" => "smith"
+            }
+          },
+          "stuff2" => %{
+            "user_name" => %{
+              "first_name" => "adam",
+              "last_name" => "smith",
+              "scalar_embed" => true
+            }
+          }
+        },
+        "oh" => %{"goodness" => -1},
+        "required" => %{
+          "only_if_selection" => %{"hint" => 42},
+          "only_unless_else_selection" => %{"hint" => 41},
+          "variable" => %{"hint" => 7}
+        },
+        "selection" => true,
+        "snapple" => %{
+          "details" => [%{"width" => 8}, %{"width" => 2}, %{"width" => :tiger}]
+        }
+      },
+      meta: %{},
+      unbound: %{
+        optional: [Selector(nested.stuff2.user_name.optional_unbound.(?))],
+        required: [Selector(nested.stuff2.user_name.unbound_field)]
+      },
+      vsn: 1.0
+    }
+    """
 
     assert response.bound["apple"] == %{}
     assert response.bound["nested"]["stuff"].user_name.scalar_embed == {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output}
@@ -552,6 +604,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
     assert Enum.at(response.unbound.optional, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "optional_unbound"}, :scalar_value]
     assert Enum.at(response.unbound.required, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "unbound_field"}]
+
 
   end
 

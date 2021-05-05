@@ -223,9 +223,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
     selector = Enum.slice(this.selector, 0..-2) ++ [hint]
     %__MODULE__{selector: selector}
   end
-
 end
-
 
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Selector do
   alias Noizu.RuleEngine.Helper
@@ -270,3 +268,26 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.D
     "#{prefix}#{id} [VALUE #{t}]\n"
   end
 end
+
+#=============================================================================
+# Inspect Protocol
+#=============================================================================
+defimpl Inspect, for: Noizu.EmailService.Email.Binding.Dynamic.Selector do
+  import Inspect.Algebra
+
+  def inspect(entity, opts) do
+
+    path = Enum.map(entity.selector, fn(k) ->
+      case k do
+        {:select, n} -> n
+        {:key, n} -> n
+        {:at, n} -> "[n]"
+        {:*} -> "*"
+        :scalar_value -> "(?)"
+        _ -> "_"
+      end
+    end) |> Enum.join(".")
+
+    concat ["Selector(", path, ")"]
+  end
+end  # end Inspect

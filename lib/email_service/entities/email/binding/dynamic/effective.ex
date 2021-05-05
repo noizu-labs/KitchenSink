@@ -27,8 +27,6 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
     vsn: @vsn
   ]
 
-
-
   def insert_path(blob, path, selector, acc \\ [])
   def insert_path(blob, [h], selector, p) do
     p = p ++ [h]
