@@ -14,6 +14,11 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
   @context Noizu.ElixirCore.CallingContext.admin()
 
   @default_binding %{
+    value_that_is_true: true,
+    single_if_clause: 7,
+    if_elseif_else: 3,
+    if_elseif: 1,
+    if_elseunless_else: 2,
     required: %{
       only_if_selection: %{
         hint: 42
@@ -95,7 +100,40 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     {{oh.goodness}}
   {{/unless}}
 
+  {{! single clause if }}
+  {{#if selection}}
+    {{single_if_clause}}
+  {{/if}}
+
+  {{! if else.if else }}
+  {{#if not_set}}
+     {{not_reached}}
+  {{else if also_not_set}}
+    {{also_not_reached}}
+  {{else}}
+    {{if_elseif_else}}
+  {{/if}}
+
+  {{! if else.if }}
+  {{#if not_set}}
+    {{not_reached}}
+  {{else if selected}}
+    {{if_elseif}}
+  {{/if}}
+
+  {{! if else.unless }}
+  {{#if not_set}}
+    {{not_reached}}
+  {{else unless value_that_is_true}}
+    {{not_reached}}
+  {{else}}
+    {{if_elseunless_else}}
+  {{/if}}
+
   """
+
+
+
 
   @tag :email
   @tag :dynamic_template
@@ -512,7 +550,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     i = i.then_clause
     assert Enum.at(i.bind, 0).selector == [ {:select, "required"}, {:key, "only_if_selection"}, {:key, "hint"}]
     assert length(sut.section_stack) == 1
-    assert length(h.children) == 4
+    assert length(h.children) == 8
   end
 
   @tag :email
@@ -532,8 +570,37 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     alias_test = Enum.filter(response.bind, fn(v) -> v.selector ==  [ {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "via_alias"}] end)
     assert length(alias_test) == 1
 
-    _output = """
-    %Noizu.EmailService.Email.Binding.Dynamic.Effective{
+
+
+
+    assert response.bound["if_elseif"] == 1
+    assert response.bound["if_elseif_else"] == 3
+    assert response.bound["if_elseunless_else"] == 2
+    assert response.bound["apple"] == %{}
+    assert response.bound["nested"]["stuff"].user_name.scalar_embed == {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output}
+    assert response.bound["nested"]["stuff"].user_name.via_alias == :robin
+    assert response.bound["nested"]["stuff2"]["user_name"]["scalar_embed"] == true  # full contents dropped as they are not referenced by template, just checked for existence.
+    assert response.bound["oh"]["goodness"] == -1
+    assert response.bound["oh"]["my"] == nil
+    assert response.bound["value_that_is_true"] == true
+    assert response.bound["required"]["only_if_selection"]["hint"] == 42
+    assert response.bound["required"]["only_else_selection"]["hint"] == nil
+    assert response.bound["required"]["only_unless_else_selection"]["hint"] == 41
+    assert Enum.at(response.bound["snapple"]["details"], 1)["width"] == 2
+    assert Enum.at(response.bound["snapple"]["details"], 1)["not_bound"] == nil
+    assert Enum.at(response.bound["snapple"]["details"], 2)["width"] == :tiger
+
+    assert Map.has_key?(response.bound, "not_reached") == false
+    assert Map.has_key?(response.bound, "also_not_reached") == false
+
+    assert Enum.at(response.unbound.optional, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "optional_unbound"}, :scalar_value]
+    assert Enum.at(response.unbound.required, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "unbound_field"}]
+    assert length(response.unbound.required) == 1
+
+
+    actual_output = "#{inspect response, pretty: true}\n"
+    expected_output = """
+    %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective{
       bind: [Selector(nested.stuff2.user_name.last_name),
        Selector(required.variable.hint),
        Selector(nested.stuff2.user_name.unbound_field),
@@ -541,17 +608,24 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
        Selector(required.only_if_selection.hint), Selector(apple),
        Selector(nested.stuff), Selector(nested.stuff.user_name.via_alias),
        Selector(nested.stuff.user_name.first_name),
-       Selector(snapple.details.[n].width), Selector(snapple.details.[n].width),
-       Selector(snapple.details.[n].width),
+       Selector(snapple.details.[0].width), Selector(snapple.details.[1].width),
+       Selector(snapple.details.[2].width),
        Selector(nested.stuff2.user_name.optional_unbound.(?)),
        Selector(nested.stuff2.user_name.scalar_embed.(?)), Selector(oh.goodness),
-       Selector(required.only_unless_else_selection.hint)],
+       Selector(required.only_unless_else_selection.hint),
+       Selector(single_if_clause), Selector(not_set.(?)),
+       Selector(also_not_set.(?)), Selector(if_elseif_else), Selector(if_elseif),
+       Selector(value_that_is_true.(?)), Selector(if_elseunless_else)],
       bound: %{
         "apple" => %{},
+        "if_elseif" => 1,
+        "if_elseif_else" => 3,
+        "if_elseunless_else" => 2,
         "nested" => %{
           "stuff" => %{
             user_name: %{
-              :scalar_embed => {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output},
+              :scalar_embed => {:this, :will, :copied, :in, :full, :due, :to,
+               :stuff, :output},
               :via_alias => :robin,
               "first_name" => "adam",
               "last_name" => "smith"
@@ -572,36 +646,23 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
           "variable" => %{"hint" => 7}
         },
         "selection" => true,
+        "single_if_clause" => 7,
         "snapple" => %{
           "details" => [%{"width" => 8}, %{"width" => 2}, %{"width" => :tiger}]
-        }
+        },
+        "value_that_is_true" => true
       },
       meta: %{},
+      outcome: :ok,
       unbound: %{
-        optional: [Selector(nested.stuff2.user_name.optional_unbound.(?))],
+        optional: [Selector(nested.stuff2.user_name.optional_unbound.(?)),
+         Selector(not_set.(?)), Selector(also_not_set.(?))],
         required: [Selector(nested.stuff2.user_name.unbound_field)]
       },
       vsn: 1.0
     }
     """
-
-    assert response.bound["apple"] == %{}
-    assert response.bound["nested"]["stuff"].user_name.scalar_embed == {:this, :will, :copied, :in, :full, :due, :to, :stuff, :output}
-    assert response.bound["nested"]["stuff"].user_name.via_alias == :robin
-    assert response.bound["nested"]["stuff2"]["user_name"]["scalar_embed"] == true  # full contents dropped as they are not referenced by template, just checked for existence.
-    assert response.bound["oh"]["goodness"] == -1
-    assert response.bound["oh"]["my"] == nil
-    assert response.bound["required"]["only_if_selection"]["hint"] == 42
-    assert response.bound["required"]["only_else_selection"]["hint"] == nil
-    assert response.bound["required"]["only_unless_else_selection"]["hint"] == 41
-    assert Enum.at(response.bound["snapple"]["details"], 1)["width"] == 2
-    assert Enum.at(response.bound["snapple"]["details"], 1)["not_bound"] == nil
-    assert Enum.at(response.bound["snapple"]["details"], 2)["width"] == :tiger
-
-    assert Enum.at(response.unbound.optional, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "optional_unbound"}, :scalar_value]
-    assert Enum.at(response.unbound.required, 0).selector == [{:select, "nested"}, {:key, "stuff2"}, {:key, "user_name"}, {:key, "unbound_field"}]
-
-
+    assert actual_output == expected_output
   end
 
   def fixture(fixture, options \\ %{})

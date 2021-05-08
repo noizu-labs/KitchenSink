@@ -10,7 +10,6 @@ defmodule Noizu.EmailService.AcceptanceTest do
   @context Noizu.ElixirCore.CallingContext.admin()
 
   @tag :email
-  @tag :legacy_template
   @tag :legacy_email
   test "Send Transactional Email (Legacy)" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
@@ -47,7 +46,6 @@ defmodule Noizu.EmailService.AcceptanceTest do
 
 
   @tag :email
-  @tag :legacy_template
   @tag :legacy_email
   test "Send Transactional Email Failure (Legacy)" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
@@ -76,7 +74,6 @@ defmodule Noizu.EmailService.AcceptanceTest do
 
 
   @tag :email
-  @tag :dynamic_template
   @tag :dynamic_email
   test "Send Transactional Email (Dynamic)" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_dynamic_template, @context)
@@ -97,14 +94,14 @@ defmodule Noizu.EmailService.AcceptanceTest do
       body: nil,
       html_body: nil,
       subject: nil, # Note setting a subject for dynamic template will result in an error state, and email will be sent with out subject line. @todo detect for this.
-      bindings: %{alert: %{language: %{"German" => true}, devices: "37001", temperature: %{low: %{unit: :celsius, value: 3.23}, current: %{unit: :celsius, value: 3.23}}, name: :wip}},
+      bindings: %{alert: %{language: %{"French" => true, "German" => false}, devices: "37001", temperature: %{low: %{unit: :celsius, value: 3.23}, current: %{unit: :celsius, value: 3.23}}, name: :wip}},
     }
     sut = Noizu.EmailService.SendGrid.TransactionalEmail.send!(email, @context)
     assert sut.state == :queued
     assert sut.__struct__ == Noizu.EmailService.Email.QueueEntity
     assert sut.binding.state == :ok
     assert sut.binding.effective_binding.outcome == :ok
-    assert sut.binding.effective_binding.bound == %{"alert" => %{"language" => %{"German" => true}, "name" => :wip, "temperature" => %{"low" => %{"unit" => :celsius, "value" => 3.23}}}}
+    assert sut.binding.effective_binding.bound == %{"alert" => %{"language" => %{"French" => true, "German" => false}, "name" => :wip, "temperature" => %{"low" => %{"unit" => :celsius, "value" => 3.23}}}}
     assert sut.binding.recipient_email == "keith.brings+recipient@noizu.com"
     assert sut.binding.body == nil
     assert sut.binding.html_body == nil
@@ -115,7 +112,6 @@ defmodule Noizu.EmailService.AcceptanceTest do
   end
 
   @tag :email
-  @tag :dynamic_template
   @tag :dynamic_email
   test "Send Transactional Email Failure (Dynamic)" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_dynamic_template, @context)

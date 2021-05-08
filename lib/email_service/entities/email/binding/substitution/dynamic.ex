@@ -9,6 +9,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
   @type t :: %__MODULE__{
                version: any,
@@ -121,7 +122,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
           this -> {:cont, this}
         end
 
-      "else" ->
+      "else" <> clause ->
         case extract_token__section_open(this, token, options) do
           {:halt, this} -> {:halt, this}
           {:cont, this} -> {:cont, this}
@@ -153,6 +154,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   def extract_token__section_open(this, token, options) do
     token = String.trim(token)
     case token do
+      "else " <> clause -> extract_token__section_open__enter(:extended_else, clause, this, options)
       "else" -> extract_token__section_open__enter(:else, nil, this, options)
       "#if " <> clause -> extract_token__section_open__enter(:if, clause, this, options)
       "#unless " <> clause -> extract_token__section_open__enter(:unless, clause, this, options)
@@ -170,6 +172,35 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   #----------------------------
   #
   #----------------------------
+  def extract_token__section_open__enter(:extended_else, clause, this, options) do
+    cond do
+      Regex.match?(~r/^\s*if.*$/, clause) ->
+        case Regex.run(~r/^\s*if\s*(.*$)/, clause, capture: :all_but_first) do
+          [m] ->
+            case extended_extract_selector(this, String.trim(m), options) do
+              {:error, this} -> {:halt, this}
+              {{clause, pipes}, this} ->
+                [head|tail] = this.section_stack
+                new_section = Section.spawn(head, :extended_else, clause, options)
+                this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
+            end
+        end
+      Regex.match?(~r/^\s*unless.*$/, clause) ->
+        case Regex.run(~r/^\s*unless\s*(.*$)/, clause, capture: :all_but_first) do
+          [m] ->
+            case extended_extract_selector(this, String.trim(m), options) do
+              {:error, this} -> {:halt, this}
+              {{clause, pipes}, this} ->
+                [head|tail] = this.section_stack
+                clause = Formula.negate(clause)
+                new_section = Section.spawn(head, :extended_else, clause, options)
+                this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
+            end
+        end
+      :else -> extract_token__section_open__enter(:else, nil, this, options)
+    end
+  end
+
   def extract_token__section_open__enter(section, clause, this, options) do
     case extended_extract_selector(this, clause, options) do
       {:error, this} -> {:halt, this}
@@ -235,10 +266,17 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
       h.section == section ->
         p = Section.collapse(p, h, options)
         %__MODULE__{this| section_stack: [p|tail]}
-      h.section == :else && section == p.section && (section == :if || section == :unless) ->
+      (h.section == :else || h.section == :extended_else) && section == p.section && (section == :if || section == :unless) ->
         [e,i_u,p|t] = this.section_stack
         p = Section.collapse(p, i_u, e, options)
         %__MODULE__{this| section_stack: [p|t]}
+
+      (h.section == :else || h.section == :extended_else) && (p.section == :extended_else) ->
+        case Section.collapse_daisy_chain(this.section_stack, options) do
+          {:error, details} -> {:error, details}
+          tail -> %__MODULE__{this| section_stack: tail}
+        end
+
       Kernel.match?({:unsupported, _}, h.section) ->
         # Allow non closed unsupported sections, unwrap until end of list or match.
         p = Section.collapse(p, h, options)

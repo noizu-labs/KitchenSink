@@ -65,7 +65,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   #----------------------------
   def spawn(this, type, clause, options \\ %{}) do
     clause  = case type do
-                :else -> this.clause
+                :else -> nil
                 :each -> Selector.wildcard(clause)
                 _ -> clause
               end
@@ -79,29 +79,84 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
     }
   end
 
+  def collapse_daisy_chain([h,p|t], options) do
+    cond do
+      (h.section == :else || h.section == :extended_else) && p.section == :extended_else ->
+        # TODO deal with selector list
+        f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
+          condition_clause: p.clause,
+          then_clause: %__MODULE__{p| match: nil, current_selector: nil, errors: nil},
+          else_clause: %__MODULE__{h| match: nil, current_selector: nil, errors: nil},
+          selectors: Formula.selectors(p)
+        }
+
+        {o, clip} = Enum.reduce_while(t, {f,0}, fn(section, {acc, clip}) ->
+          cond do
+            section.section == :extended_else ->
+              f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
+                condition_clause: section.clause,
+                then_clause: %__MODULE__{section| match: nil, current_selector: nil, errors: nil},
+                else_clause: acc,
+                selectors: Formula.selectors(section) ++ acc.selectors,
+              }
+              {:cont, {f, clip + 1}}
+            section.section == :if ->
+              f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
+                condition_clause: section.clause,
+                then_clause: %__MODULE__{section| match: nil, current_selector: nil, errors: nil},
+                else_clause: acc,
+                selectors: Formula.selectors(section) ++ acc.selectors,
+              }
+              {:halt, {f, clip + 1}}
+            section.section == :unless ->
+              c = Formula.negate(section.clause)
+              f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
+                condition_clause: c,
+                then_clause: %__MODULE__{section| match: nil, current_selector: nil, errors: nil},
+                else_clause: acc,
+                selectors: Formula.selectors(section) ++ acc.selectors,
+              }
+              {:halt, {f, clip}}
+            :else -> {:halt, {{:error, :invalid_daisy_chain}, clip}}
+          end
+        end)
+        case o do
+          {:error, _} -> o
+          f ->
+            [h|t] = Enum.slice(t, clip .. -1)
+            [%__MODULE__{h| children: h.children ++ [f]} | t]
+        end
+      :else -> {:error, :invalid_daisy_chain}
+    end
+  end
+
   #----------------------------
   # collapse/3
   #----------------------------
   def collapse(this = %__MODULE__{}, child = %__MODULE__{}, options) do
     case child.section do
       :if ->
+        c = child.clause
         f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
           condition_clause: child.clause,
-          then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil}
+          then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil},
+          selectors: Formula.selectors(child.clause),
         }
         %__MODULE__{this| children: this.children ++ [f]}
       :unless ->
+        c = Formula.negate(child.clause)
         f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
-          condition_clause: Formula.negate(child.clause),
-          then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil}
+          condition_clause: c,
+          then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil},
+          selectors: Formula.selectors(child.clause),
         }
         %__MODULE__{this| children: this.children ++ [f]}
-        :each ->
-          f = %Formula.Each{
-            clause: child.clause,
-            argument: %__MODULE__{child| match: nil, current_selector: nil, errors: nil},
-          }
-          %__MODULE__{this| children: this.children ++ [f]}
+      :each ->
+        f = %Formula.Each{
+          clause: child.clause,
+          argument: %__MODULE__{child| match: nil, current_selector: nil, errors: nil},
+        }
+        %__MODULE__{this| children: this.children ++ [f]}
       _else ->
         %__MODULE__{this| bind: merge_bindings(this.bind, child.bind, options), children: this.children ++ child.children}
     end
@@ -113,17 +168,21 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   def collapse(this = %__MODULE__{}, if_child = %__MODULE__{}, else_child = %__MODULE__{}, options) do
     case if_child.section do
       :if ->
+        c = if_child.clause
         f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
-          condition_clause: if_child.clause,
+          condition_clause: c,
           then_clause: %__MODULE__{if_child| match: nil, current_selector: nil, errors: nil},
           else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil},
+          selectors: Formula.selectors(if_child),
         }
         %__MODULE__{this| children: this.children ++ [f]}
       :unless ->
+        c = Formula.negate(if_child.clause)
         f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
-          condition_clause: Formula.negate(if_child.clause),
+          condition_clause: c,
           then_clause: %__MODULE__{if_child| match: nil, current_selector: nil, errors: nil},
-          else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil}
+          else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil},
+          selectors: Formula.selectors(if_child),
         }
         %__MODULE__{this| children: this.children ++ [f]}
     end

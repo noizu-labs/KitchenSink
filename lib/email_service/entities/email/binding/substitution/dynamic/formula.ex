@@ -5,6 +5,7 @@
 
 defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula do
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
   @vsn 1.0
   @type t :: %__MODULE__{
                identifier: String.t | list | tuple | nil,
@@ -19,8 +20,22 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula do
     vsn: @vsn
   ]
 
+
+  def selectors(%Section{clause: nil} = _section) do
+    []
+  end
+
+  def selectors(%Section{clause: clause} = _section) do
+    selectors(clause)
+  end
+
+
   def selectors(%Selector{} = selector) do
     [selector]
+  end
+
+  def selectors(%Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{} = this) do
+    this.selectors
   end
 
   def selectors(%__MODULE__{} = this) do

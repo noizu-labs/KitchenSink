@@ -199,7 +199,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective do
   end
 
   def new(%Formula.IfThen{condition_clause: formula} = section, state, context, options) do
-    selectors = Formula.selectors(formula)
+    selectors = Formula.selectors(section)
                 |> Enum.map(&(Selector.exists(&1)))
                 |> Enum.uniq()
     {%__MODULE__{bind: selectors}, state}

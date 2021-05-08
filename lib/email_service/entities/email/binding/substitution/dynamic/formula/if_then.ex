@@ -11,6 +11,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen d
                then_clause: any,
                else_clause: any,
                settings: Keyword.t,
+               selectors: list,
                vsn: float,
              }
   defstruct [
@@ -19,6 +20,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen d
     then_clause: nil,
     else_clause: nil,
     settings: [async?: :auto, throw_on_timeout?: :auto],
+    selectors: [],
     vsn: @vsn
   ]
 end

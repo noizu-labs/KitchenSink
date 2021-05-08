@@ -281,7 +281,7 @@ defimpl Inspect, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Sele
       case k do
         {:select, n} -> n
         {:key, n} -> n
-        {:at, n} -> "[n]"
+        {:at, n} -> "[#{n}]"
         {:*} -> "*"
         :scalar_value -> "(?)"
         _ -> "_"
