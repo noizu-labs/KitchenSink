@@ -9,6 +9,29 @@ defmodule Noizu.EmailService.AcceptanceTest do
 
   @context Noizu.ElixirCore.CallingContext.admin()
 
+
+  def assert_eventually(msg, lambda, timeout \\ 5_000) do
+    timeout = cond do
+                timeout < 100_000 -> :os.system_time(:millisecond) + timeout
+                :else -> timeout
+              end
+
+      cond do
+        :os.system_time(:millisecond) < timeout ->
+          cond do
+            v = lambda.() -> v
+            :else ->
+              Process.sleep(100)
+              assert_eventually(msg, lambda, timeout)
+          end
+        :else ->
+          cond do
+            v = lambda.() -> v
+            :else -> assert :timeout == msg
+          end
+      end
+  end
+
   @tag :email
   @tag :legacy_email
   test "Send Transactional Email (Legacy)" do
@@ -40,8 +63,18 @@ defmodule Noizu.EmailService.AcceptanceTest do
     assert sut.binding.html_body == "HTML Email Body"
     # Delay to allow send to complete.
     Process.sleep(1000)
-    queue_entry = Noizu.EmailService.Database.Email.QueueTable.read!(sut.identifier)
-    assert Enum.member?([:delivered, :queued], queue_entry.state)
+
+    assert_eventually(:email_delivered, fn() ->
+      queue_entry = Noizu.EmailService.Database.Email.QueueTable.read!(sut.identifier)
+      Enum.member?([:delivered], queue_entry.state)
+    end)
+
+    queue_entry_ref = Noizu.ERP.ref(sut)
+    history = Noizu.EmailService.Database.Email.Queue.EventTable.match!(queue_item: queue_entry_ref) |> Amnesia.Selection.values
+    assert length(history) == 1
+    [h] = history
+    assert h.entity.event == :delivered
+    assert h.entity.details == :first_attempt
   end
 
 
@@ -70,6 +103,13 @@ defmodule Noizu.EmailService.AcceptanceTest do
     assert sut.__struct__ == Noizu.EmailService.Email.QueueEntity
     assert sut.binding.effective_binding.outcome == {:error, :unbound_fields}
     assert sut.state == {:error, :unbound_fields}
+
+    queue_entry_ref = Noizu.ERP.ref(sut)
+    history = Noizu.EmailService.Database.Email.Queue.EventTable.match!(queue_item: queue_entry_ref) |> Amnesia.Selection.values
+    assert length(history) == 1
+    [h] = history
+    assert h.entity.event == :failure
+    assert h.entity.details == {:error, :unbound_fields}
   end
 
 
@@ -106,9 +146,18 @@ defmodule Noizu.EmailService.AcceptanceTest do
     assert sut.binding.body == nil
     assert sut.binding.html_body == nil
     # Delay to allow send to complete.
-    Process.sleep(1000)
-    queue_entry = Noizu.EmailService.Database.Email.QueueTable.read!(sut.identifier)
-    assert Enum.member?([:delivered, :queued], queue_entry.state)
+
+    assert_eventually(:email_delivered, fn() ->
+      queue_entry = Noizu.EmailService.Database.Email.QueueTable.read!(sut.identifier)
+      Enum.member?([:delivered], queue_entry.state)
+    end)
+
+    queue_entry_ref = Noizu.ERP.ref(sut)
+    history = Noizu.EmailService.Database.Email.Queue.EventTable.match!(queue_item: queue_entry_ref) |> Amnesia.Selection.values
+    assert length(history) == 1
+    [h] = history
+    assert h.entity.event == :delivered
+    assert h.entity.details == :first_attempt
   end
 
   @tag :email
@@ -139,5 +188,12 @@ defmodule Noizu.EmailService.AcceptanceTest do
     assert sut.state == {:error, :unbound_fields}
     assert sut.binding.effective_binding.outcome == {:error, :unbound_fields}
     assert sut.binding.state == {:error, :unbound_fields}
+
+    queue_entry_ref = Noizu.ERP.ref(sut)
+    history = Noizu.EmailService.Database.Email.Queue.EventTable.match!(queue_item: queue_entry_ref) |> Amnesia.Selection.values
+    assert length(history) == 1
+    [h] = history
+    assert h.entity.event == :failure
+    assert h.entity.details == {:error, :unbound_fields}
   end
 end

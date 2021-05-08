@@ -71,21 +71,29 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   def send_email!(queued_email, context) do
     cond do
       simulate?() ->
-        QueueRepo.update_state!(queued_email, :delivered, context)
+        QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, :simulated}, context)
       restricted?(queued_email.binding.recipient_email) ->
-        QueueRepo.update_state!(queued_email, :restricted, context)
+        QueueRepo.update_state_and_history!(queued_email, :restricted, {:restricted, :restricted}, context)
       true ->
         case queued_email.binding.template_version.template do
           {:sendgrid, sendgrid_template_id} ->
             email = build_email(sendgrid_template_id, queued_email.binding)
             v = SendGrid.Mail.send(email)
             case v do
-              :ok -> QueueRepo.update_state!(queued_email, :delivered, context)
+              :ok ->
+                details = case queued_email.state do
+                  :queued -> :first_attempt
+                  :retrying -> :retry_attempt
+                  v -> v
+                end
+                queued_email.state == :queued
+                QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, details}, context)
                 :ok
+              {:error, error} ->
+                QueueRepo.update_state_and_history!(queued_email, :retrying, {:error, {:error, error}}, context)
+                {:error, error}
               error ->
-                QueueRepo.update_state!(queued_email, :retrying, context)
-                #QueueRepo.audit!(queued_email, {:sengrid_error, error}, context)
-                Logger.error("Mail Send Error: #{inspect error}")
+                QueueRepo.update_state_and_history!(queued_email, :retrying, {:error, {:error, error}}, context)
                 error
             end # end case Mailer.send
         end # end case template_record.template.external_template_identifier do

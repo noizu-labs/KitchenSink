@@ -23,6 +23,7 @@ Noizu.KitchenSink.Database.Support.UserTable.create(memory: [node()])
 # Email Service
 Noizu.EmailService.Database.Email.TemplateTable.create(memory: [node()])
 Noizu.EmailService.Database.Email.QueueTable.create(memory: [node()])
+Noizu.EmailService.Database.Email.Queue.EventTable.create(memory: [node()])
 
 # Setup Template
 %Noizu.EmailService.Email.TemplateEntity{

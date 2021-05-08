@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.QueueEntity do
-  @vsn 1.0
+  @vsn 1.1
 
   @type t :: %__MODULE__{
                identifier: any,

@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.Binding do
-  @vsn 1.2
+  @vsn 1.1
   alias Noizu.KitchenSink.Types, as: T
 
   alias Noizu.EmailService.SendGrid.TransactionalEmail
@@ -26,7 +26,7 @@ defmodule Noizu.EmailService.Email.Binding do
                template: any,
                template_version: any, # Exact version being used {:sendgrid, template, version}
 
-               state: :valid | {:error| any},
+               state: :ok | {:error| any},
 
                effective_binding: any,
 
@@ -58,6 +58,29 @@ defmodule Noizu.EmailService.Email.Binding do
     meta: %{},
     vsn: @vsn
   ]
+
+  def update_version(%{vsn: 1.0} = entity, _context, _options) do
+    bind = Map.keys(entity.substitutions || %{}) ++ Map.keys(entity.unbound || %{})
+    bound = entity.substitutions
+    unbound = Enum.map(entity.unbound || %{}, &(&1))
+    effective_binding = %Noizu.EmailService.Email.Binding.Substitution.Legacy.Effective{
+      bind: bind,
+      bound: bound,
+      unbound: %{:optional => [], :required => unbound},
+      outcome: length(unbound) > 0 && {:error, :unbound_fields} || :ok
+    }
+    entity
+    |> Map.delete(:substitutions)
+    |> Map.delete(:unbound)
+    |> Map.put(:effective_binding, effective_binding)
+    |> Map.put(:template, Noizu.ERP.ref(entity.template))
+    |> Map.put(:state, effective_binding.outcome)
+    |> Map.put(:vsn, @vsn)
+  end
+
+  def update_version(%{vsn: 1.1} = entity, _context, _options) do
+    entity
+  end
 
   #--------------------------
   # bind_from_template/1
