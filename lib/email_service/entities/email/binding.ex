@@ -23,6 +23,8 @@ defmodule Noizu.EmailService.Email.Binding do
                reply_to_name: :default | String.t,
                reply_to_email: :default | String.t,
 
+               bcc: list | nil,
+
                body: String.t,
                html_body: String.t,
                subject: String.t,
@@ -43,12 +45,16 @@ defmodule Noizu.EmailService.Email.Binding do
     recipient: nil,
     recipient_name: :default,
     recipient_email: :default,
+
     sender: nil,
     sender_name: :default,
     sender_email: :default,
+
     reply_to: nil,
     reply_to_name: :default,
     reply_to_email: :default,
+
+    bcc: nil,
 
     body: nil,
     html_body: nil,
@@ -82,6 +88,7 @@ defmodule Noizu.EmailService.Email.Binding do
     |> Map.put(:reply_to, nil)
     |> Map.put(:reply_to_name, nil)
     |> Map.put(:reply_to_email, nil)
+    |> Map.put(:bcc, nil)
     |> Map.put(:effective_binding, effective_binding)
     |> Map.put(:template, Noizu.ERP.ref(entity.template))
     |> Map.put(:state, effective_binding.outcome)
@@ -117,21 +124,39 @@ defmodule Noizu.EmailService.Email.Binding do
     reply_to = Noizu.Proto.EmailAddress.email_details(txn_email.reply_to)
 
     outcome = effective_binding.outcome
+    {bcc, outcome} = Enum.map_reduce(txn_email.bcc || [], outcome, fn(bcc, o) ->
+      case Noizu.Proto.EmailAddress.email_details(bcc) do
+        {:error, details} ->
+          cond do
+            o != :ok -> {nil, o}
+            :else -> {nil, {:error, details}}
+          end
+        nil ->
+          cond do
+            o != :ok -> {nil, o}
+            :else -> {nil, {:error, :invalid_bcc}}
+          end
+        v -> {v, o}
+      end
+    end)
+    bcc = Enum.filter(bcc || [], &(&1))
+
     outcome = cond do
                 outcome != :ok -> outcome
                 Kernel.match?({:error, :_}, recipient) -> recipient
-                recipient == nil && binding_input[:recipient_email] == nil && (txn_email.recipient_email == nil || txn_email.recipient_email == :default) -> {:error, :recipient_required}
+                (recipient == nil || recipient.email == nil) && binding_input[:recipient_email] == nil && (txn_email.recipient_email == nil || txn_email.recipient_email == :default) -> {:error, :recipient_required}
                 :else -> outcome
               end
     outcome = cond do
                 outcome != :ok -> outcome
                 Kernel.match?({:error, :_}, sender) -> sender
-                sender == nil && binding_input[:sender_email] == nil -> {:error, :sender_required}
+                (sender == nil || sender.email == nil) && binding_input[:sender_email] == nil -> {:error, :sender_required}
                 :else -> outcome
               end
     outcome = cond do
                 outcome != :ok -> outcome
                 Kernel.match?({:error, :_}, reply_to) -> reply_to
+                (reply_to && reply_to.email == nil) && binding_input[:reply_to_email] == nil -> {:error, :invalid_reply_to}
                 :else -> outcome # not required field, no need for nil check
               end
 
@@ -154,6 +179,8 @@ defmodule Noizu.EmailService.Email.Binding do
       reply_to_name: binding_input[:reply_to_name] || reply_to[:name],
       reply_to_email: binding_input[:reply_to_email] || reply_to[:email],
 
+      bcc: bcc,
+
       subject: txn_email.subject,
       body: txn_email.body,
       html_body: txn_email.html_body,
@@ -162,7 +189,7 @@ defmodule Noizu.EmailService.Email.Binding do
       template: Noizu.ERP.ref(template),
       template_version: %{template: template.external_template_identifier, version: template.cached.version},
 
-      state: effective_binding.outcome,
+      state: outcome,
 
       effective_binding: effective_binding,
 

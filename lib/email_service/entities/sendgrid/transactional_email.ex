@@ -18,6 +18,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
                recipient_email: :default | String.t,
                sender: nil | T.entity_reference | any,
                reply_to: nil | T.entity_reference | any,
+               bcc: list | nil,
                body: String.t,
                html_body: String.t,
                subject: String.t,
@@ -33,6 +34,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     recipient_email: :default,
     sender: nil,
     reply_to: nil,
+    bcc: nil,
     body: nil,
     html_body: nil,
     subject: nil,
@@ -118,6 +120,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     |> put_sender(binding)
     |> put_recipient(binding)
     |> put_reply_to(binding)
+    |> put_bcc(binding)
     |> put_text(binding)
     |> put_html(binding)
     |> put_subject(binding)
@@ -125,6 +128,20 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     |> put_attachments(binding)
   end # end build_email/2
 
+  defp put_bcc(email, binding) do
+      case binding.bcc do
+        [] -> email
+        v when is_list(v) ->
+           Enum.reduce(v, email, fn(bcc, email) ->
+             cond do
+               bcc.name && bcc.email -> SendGrid.Email.add_bcc(email, bcc.email, bcc.name)
+               bcc.email -> SendGrid.Email.add_bcc(email, bcc.email)
+               :else -> email
+             end
+           end)
+        _ -> email
+      end
+  end
 
   defp put_sender(email, binding) do
     cond do

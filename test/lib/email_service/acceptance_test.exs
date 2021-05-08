@@ -75,6 +75,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
     assert sut.email.to == [%{email: "keith.brings+recipient@noizu.com", name: "Recipient Name"}]
     assert sut.email.from == %{email: "keith.brings+sender@noizu.com", name: "Sender Name"}
     assert sut.email.reply_to == nil
+    assert sut.email.bcc == nil
 
     queue_entry_ref = Noizu.ERP.ref(sut)
     history = Noizu.EmailService.Database.Email.Queue.EventTable.match!(queue_item: queue_entry_ref) |> Amnesia.Selection.values
@@ -97,6 +98,11 @@ defmodule Noizu.EmailService.AcceptanceTest do
              |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
              |> Noizu.ERP.ref()
 
+    bcc = [
+      %Noizu.KitchenSink.Support.UserEntity{name: nil, email: "keith.brings+bcc1@noizu.com"},
+      %Noizu.KitchenSink.Support.UserEntity{name: "BCC Name", email: "keith.brings+bcc2@noizu.com"}
+    ]
+
     reply_to = %Noizu.KitchenSink.Support.UserEntity{name: "Reply To Name", email: "keith.brings+reply@noizu.com"}
 
     email = %Noizu.EmailService.SendGrid.TransactionalEmail{
@@ -105,6 +111,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
       recipient_email: "keith.brings+override@noizu.com",
       sender: sender,
       reply_to: reply_to,
+      bcc: bcc,
       body: "Email Body",
       html_body: "HTML Email Body",
       subject: "Email Subject",
@@ -123,6 +130,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
     assert sut.email.to == [%{email: "keith.brings+override@noizu.com", name: "Recipient Name"}]
     assert sut.email.from == %{email: "keith.brings+sender@noizu.com", name: "Sender Name"}
     assert sut.email.reply_to == %{email: "keith.brings+reply@noizu.com", name: "Reply To Name"}
+    assert sut.email.bcc == [%{email: "keith.brings+bcc1@noizu.com"}, %{email: "keith.brings+bcc2@noizu.com", name: "BCC Name"}]
 
     # Verify simulated send
     queue_entry_ref = Noizu.ERP.ref(sut)
@@ -131,6 +139,133 @@ defmodule Noizu.EmailService.AcceptanceTest do
     [h] = history
     assert h.entity.event == :delivered
     assert h.entity.details == :simulated
+  end
+
+
+  @tag :email
+  @tag :legacy_email
+  test "Send Transactional Email (Legacy) invalid bcc" do
+    template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
+               |> Noizu.Proto.EmailServiceTemplate.refresh!(@context)
+    template_ref = Noizu.EmailService.Email.TemplateEntity.ref(template)
+    recipient = %Noizu.KitchenSink.Support.UserEntity{name: "Recipient Name", email: "keith.brings+recipient@noizu.com"}
+                |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+    sender = %Noizu.KitchenSink.Support.UserEntity{name: "Sender Name", email: "keith.brings+sender@noizu.com"}
+             |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+             |> Noizu.ERP.ref()
+
+    bcc = [
+      %Noizu.KitchenSink.Support.UserEntity{name: nil, email: "keith.brings+bcc1@noizu.com"},
+      %Noizu.KitchenSink.Support.UserEntity{name: "BCC Name", email: "keith.brings+bcc2@noizu.com"},
+      nil
+    ]
+
+    reply_to = %Noizu.KitchenSink.Support.UserEntity{name: "Reply To Name", email: "keith.brings+reply@noizu.com"}
+
+    email = %Noizu.EmailService.SendGrid.TransactionalEmail{
+      template: template_ref,
+      recipient: recipient,
+      recipient_email: "keith.brings+override@noizu.com",
+      sender: sender,
+      reply_to: reply_to,
+      bcc: bcc,
+      body: "Email Body",
+      html_body: "HTML Email Body",
+      subject: "Email Subject",
+      bindings: %{"foo" => %{"bar" => "foo-bizz"}},
+    }
+    sut = Noizu.EmailService.SendGrid.TransactionalEmail.send!(email, @context, %{persist_email: true, simulate_email: true})
+    assert sut.state == {:error, :invalid_bcc}
+  end
+
+
+  @tag :email
+  @tag :legacy_email
+  test "Send Transactional Email (Legacy) invalid recipient" do
+    template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
+               |> Noizu.Proto.EmailServiceTemplate.refresh!(@context)
+    template_ref = Noizu.EmailService.Email.TemplateEntity.ref(template)
+    recipient = %Noizu.KitchenSink.Support.UserEntity{name: "Recipient Name", email: nil}
+                |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+    sender = %Noizu.KitchenSink.Support.UserEntity{name: "Sender Name", email: "keith.brings+sender@noizu.com"}
+             |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+             |> Noizu.ERP.ref()
+
+    reply_to = %Noizu.KitchenSink.Support.UserEntity{name: "Reply To Name", email: "keith.brings+reply@noizu.com"}
+
+    email = %Noizu.EmailService.SendGrid.TransactionalEmail{
+      template: template_ref,
+      recipient: recipient,
+      recipient_email: nil,
+      sender: sender,
+      reply_to: reply_to,
+      body: "Email Body",
+      html_body: "HTML Email Body",
+      subject: "Email Subject",
+      bindings: %{"foo" => %{"bar" => "foo-bizz"}},
+    }
+    sut = Noizu.EmailService.SendGrid.TransactionalEmail.send!(email, @context, %{persist_email: true, simulate_email: true})
+    assert sut.state == {:error, :recipient_required}
+  end
+
+
+  @tag :email
+  @tag :legacy_email
+  test "Send Transactional Email (Legacy) invalid sender" do
+    template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
+               |> Noizu.Proto.EmailServiceTemplate.refresh!(@context)
+    template_ref = Noizu.EmailService.Email.TemplateEntity.ref(template)
+    recipient = %Noizu.KitchenSink.Support.UserEntity{name: "Recipient Name", email: "keith.brings+recipient@noizu.com"}
+                |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+    sender = %Noizu.KitchenSink.Support.UserEntity{name: "Sender Name", email: nil}
+             |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+             |> Noizu.ERP.ref()
+
+    reply_to = %Noizu.KitchenSink.Support.UserEntity{name: "Reply To Name", email: "keith.brings+reply@noizu.com"}
+
+    email = %Noizu.EmailService.SendGrid.TransactionalEmail{
+      template: template_ref,
+      recipient: recipient,
+      recipient_email: nil,
+      sender: sender,
+      reply_to: reply_to,
+      body: "Email Body",
+      html_body: "HTML Email Body",
+      subject: "Email Subject",
+      bindings: %{"foo" => %{"bar" => "foo-bizz"}},
+    }
+    sut = Noizu.EmailService.SendGrid.TransactionalEmail.send!(email, @context, %{persist_email: true, simulate_email: true})
+    assert sut.state == {:error, :sender_required}
+  end
+
+
+  @tag :email
+  @tag :legacy_email
+  test "Send Transactional Email (Legacy) invalid reply_to" do
+    template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
+               |> Noizu.Proto.EmailServiceTemplate.refresh!(@context)
+    template_ref = Noizu.EmailService.Email.TemplateEntity.ref(template)
+    recipient = %Noizu.KitchenSink.Support.UserEntity{name: "Recipient Name", email: "keith.brings+recipient@noizu.com"}
+                |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+    sender = %Noizu.KitchenSink.Support.UserEntity{name: "Sender Name", email: "keith.brings+sender@noizu.com"}
+             |> Noizu.KitchenSink.Support.UserRepo.create!(@context)
+             |> Noizu.ERP.ref()
+
+    reply_to = %Noizu.KitchenSink.Support.UserEntity{name: "Reply To Name", email: nil}
+
+    email = %Noizu.EmailService.SendGrid.TransactionalEmail{
+      template: template_ref,
+      recipient: recipient,
+      recipient_email: nil,
+      sender: sender,
+      reply_to: reply_to,
+      body: "Email Body",
+      html_body: "HTML Email Body",
+      subject: "Email Subject",
+      bindings: %{"foo" => %{"bar" => "foo-bizz"}},
+    }
+    sut = Noizu.EmailService.SendGrid.TransactionalEmail.send!(email, @context, %{persist_email: true, simulate_email: true})
+    assert sut.state == {:error, :invalid_reply_to}
   end
 
   @tag :email
