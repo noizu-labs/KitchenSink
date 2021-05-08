@@ -3,13 +3,14 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   @vsn 1.0
-  alias Noizu.EmailService.Email.Binding.Dynamic.Selector
-  alias Noizu.EmailService.Email.Binding.Dynamic.Section
-  alias Noizu.EmailService.Email.Binding.Dynamic.Error
-  alias Noizu.EmailService.Email.Binding.Dynamic, as: Binding
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
   @type t :: %__MODULE__{
+               version: any,
                current_token: {integer, String.t} | nil,
                section_stack: [Section.t],
                errors: list,
@@ -20,6 +21,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
              }
 
   defstruct [
+    version: nil,
     current_token: nil,
     section_stack: [%Section{}],
     errors: [],
@@ -29,13 +31,34 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
     vsn: @vsn
   ]
 
+
+  def effective_bindings(%__MODULE__{} = this, input, context, options) do
+    default_extractor = &__MODULE__.variable_extractor/4
+    options = update_in(options || %{}, [Access.key(:variable_extractor)], &(&1 || default_extractor))
+    state = options[:state] || %Noizu.RuleEngine.State.InlineStateManager{}
+    state = Noizu.RuleEngine.StateProtocol.put!(state, :bind_space, input, context)
+    {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this, state, context, options)
+    response
+  end
+
+  def variable_extractor(selector, state, context, options) do
+    {blob, state} = Noizu.RuleEngine.StateProtocol.get!(state, :bind_space, context)
+    value = Selector.bound(selector, blob, state, context, options)
+    {value, state}
+  end
+
   #----------------------------
   # extract/2
   #----------------------------
   @doc """
     Parse input string and extract (including conditional qualifiers) data needed to populate template.
   """
-  def extract(block, options \\ %{}) do
+  def extract(block, options \\ %{})
+  def extract(%SendGrid.Template.Version{} = version, options) do
+    this = extract((version.subject || "") <>  (version.html_content || "") <> (version.plain_content || ""), options)
+    %__MODULE__{this| version: version.id}
+  end
+  def extract(block, options) when is_bitstring(block) do
     state = %__MODULE__{}
 
     # 1. Reshape bindings
@@ -375,9 +398,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic do
   end
 end
 
-defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic do
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   alias Noizu.RuleEngine.Helper
-  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------

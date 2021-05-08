@@ -13,7 +13,6 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
                identifier: T.nmid,
                synched_on: DateTime.t,
                cached: any,
-               cached_details: any,
                name: String.t,
                description: String.t,
                external_template_identifier: T.entity_reference,
@@ -26,7 +25,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     identifier: nil,
     synched_on: nil,
     cached: nil,
-    cached_details: %{},
+
     name: nil,
     description: nil,
     external_template_identifier: nil,
@@ -56,16 +55,12 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     end
   end # end refresh/1
 
-
-
   defp internal_refresh__cache(%SendGrid.LegacyTemplate{} = template) do
     # Grab Active Version
     version = Enum.find(template.versions, &(&1.active))
 
     # Grab Substitutions
-    substitutions = Binding.extract_substitutions(:legacy, version)
-
-    %{version: version.id, substitutions: substitutions}
+    Noizu.EmailService.Email.Binding.Substitution.Legacy.extract(version)
   end
 
   defp internal_refresh__cache(%SendGrid.DynamicTemplate{} = template) do
@@ -73,9 +68,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     version = Enum.find(template.versions, &(&1.active))
 
     # Grab Substitutions
-    substitutions = Binding.extract_substitutions(:dynamic, version)
-
-    %{version: version.id, substitutions: substitutions}
+    Noizu.EmailService.Email.Binding.Substitution.Dynamic.extract(version)
   end
 
   #--------------------------
@@ -89,6 +82,21 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     # Return updated record
     %__MODULE__{this| cached: cached, synched_on: DateTime.utc_now()}
   end # end refresh/2
+
+  #--------------------------
+  # effective_binding
+  #--------------------------
+  def effective_binding(template, binding_input, context, options) do
+    case template.cached do
+      v =  %Noizu.EmailService.Email.Binding.Substitution.Dynamic{} ->
+        Noizu.EmailService.Email.Binding.Substitution.Dynamic.effective_bindings(v, binding_input, context, options)
+
+      v =  %Noizu.EmailService.Email.Binding.Substitution.Legacy{binding: substitutions} ->
+        Noizu.EmailService.Email.Binding.Substitution.Legacy.effective_bindings(v, binding_input, context, options)
+
+      _ -> {:error, :not_supported}
+    end
+  end
 
   #--------------------------
   # refresh/1

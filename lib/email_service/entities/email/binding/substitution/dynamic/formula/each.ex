@@ -3,7 +3,7 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula.Each do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.Each do
   @vsn 1.0
   @type t :: %__MODULE__{
                identifier: String.t | list | tuple | nil,
@@ -19,9 +19,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula.Each do
   ]
 end
 
-defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Formula.Each do
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.Each do
   alias Noizu.RuleEngine.Helper
-  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------

@@ -5,7 +5,7 @@
 
 defprotocol Noizu.Proto.EmailBind do
   @fallback_to_any true
-  @doc "Format bound paramater into expected string representation for passing to sendgrid."
+  @doc "Format bound parameter into expected string representation for passing to sendgrid."
   def format(reference)
 end # end defprotocol
 

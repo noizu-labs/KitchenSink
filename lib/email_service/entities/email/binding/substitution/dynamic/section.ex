@@ -3,11 +3,11 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   @vsn 1.0
-  alias Noizu.EmailService.Email.Binding.Dynamic.Selector
-  alias Noizu.EmailService.Email.Binding.Dynamic.Formula
-  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
   @type t :: %__MODULE__{
                section: :root | :if | :when | :each | :unless | {:unsupported, String.t},
                clause: any | nil,
@@ -85,13 +85,13 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   def collapse(this = %__MODULE__{}, child = %__MODULE__{}, options) do
     case child.section do
       :if ->
-        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+        f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
           condition_clause: child.clause,
           then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil}
         }
         %__MODULE__{this| children: this.children ++ [f]}
       :unless ->
-        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+        f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
           condition_clause: Formula.negate(child.clause),
           then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil}
         }
@@ -113,14 +113,14 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   def collapse(this = %__MODULE__{}, if_child = %__MODULE__{}, else_child = %__MODULE__{}, options) do
     case if_child.section do
       :if ->
-        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+        f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
           condition_clause: if_child.clause,
           then_clause: %__MODULE__{if_child| match: nil, current_selector: nil, errors: nil},
           else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil},
         }
         %__MODULE__{this| children: this.children ++ [f]}
       :unless ->
-        f = %Noizu.EmailService.Email.Binding.Dynamic.Formula.IfThen{
+        f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
           condition_clause: Formula.negate(if_child.clause),
           then_clause: %__MODULE__{if_child| match: nil, current_selector: nil, errors: nil},
           else_clause: %__MODULE__{else_child| match: nil, current_selector: nil, errors: nil}
@@ -155,9 +155,9 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Section do
   end
 end
 
-defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Section do
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   alias Noizu.RuleEngine.Helper
-  alias Noizu.EmailService.Email.Binding.Dynamic.Effective
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
   #-----------------
   # execute!/3
   #-----------------

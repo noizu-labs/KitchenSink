@@ -3,15 +3,16 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective do
   @vsn 1.0
-  alias Noizu.EmailService.Email.Binding.Dynamic.Selector
-  alias Noizu.EmailService.Email.Binding.Dynamic.Section
-  alias Noizu.EmailService.Email.Binding.Dynamic.Formula
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula
   @type t :: %__MODULE__{
                bind: [Selector.t],
                bound: Map.t,
                unbound: %{:optional => [Selector.t], :required => [Selector.t]},
+               outcome: tuple | :ok,
                meta: Map.t,
                vsn: float,
              }
@@ -23,6 +24,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Effective do
       optional: [],
       required: []
     },
+    outcome: :ok,
     meta: %{},
     vsn: @vsn
   ]

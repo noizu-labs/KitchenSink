@@ -185,7 +185,12 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   end
 
   defp put_substitutions(email, binding) do
-    Enum.reduce(binding.substitutions || %{}, email, fn({substitution_key, substitution_value}, acc) -> put_substitutions({substitution_key, substitution_value}, acc) end)
+    case binding.effective_binding do
+      %Noizu.EmailService.Email.Binding.Substitution.Legacy.Effective{bound: substitutions} ->
+        Enum.reduce(substitutions || %{}, email, fn({substitution_key, substitution_value}, acc) -> put_substitutions({substitution_key, substitution_value}, acc) end)
+      %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective{bound: dynamic} ->
+        Enum.reduce(dynamic || %{}, email, fn({dynamic_key, dynamic_value}, acc) -> SendGrid.Email.add_dynamic_template_data(acc, dynamic_key, dynamic_value) end)
+    end
   end # end put_substitutions/2
 
   #--------------------------

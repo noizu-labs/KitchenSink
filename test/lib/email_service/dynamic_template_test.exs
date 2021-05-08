@@ -6,7 +6,7 @@
 defmodule Noizu.EmailService.DynamicTemplateTest do
   use ExUnit.Case, async: false
   require Logger
-  alias  Noizu.EmailService.Email.Binding.Dynamic, as: Binding
+  alias  Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
   alias Binding.Error
   alias Binding.Section
   alias Binding.Selector
@@ -526,7 +526,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
     # define variable selector
     state = %Noizu.RuleEngine.State.InlineStateManager{}
-    options = %{variable_extractor: &__MODULE__.variable_extractor/4}
+    options = %{variable_extractor: &Noizu.EmailService.Email.Binding.Substitution.Dynamic.variable_extractor/4}
     state = Noizu.RuleEngine.StateProtocol.put!(state, :bind_space, @default_binding, @context)
 
     {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(sut, state, @context, options)
@@ -608,25 +608,17 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
   end
 
-
-
-  def variable_extractor(selector, state, context, options) do
-    {blob, state} = Noizu.RuleEngine.StateProtocol.get!(state, :bind_space, context)
-    value = Selector.bound(selector, blob, state, context, options)
-    {value, state}
-  end
-
   def fixture(fixture, options \\ %{})
   def fixture(:default, _options) do
-    %Noizu.EmailService.Email.Binding.Dynamic{}
+    %Noizu.EmailService.Email.Binding.Substitution.Dynamic{}
   end
   def fixture(:foo_biz, _options) do
-    %Noizu.EmailService.Email.Binding.Dynamic{
+    %Noizu.EmailService.Email.Binding.Substitution.Dynamic{
       section_stack: [%Section{current_selector: %Selector{selector: [ {:select, "foo"}, {:key, "biz"}]}}]
     }
   end
   def fixture(:foo_biz_bop, _options) do
-    %Noizu.EmailService.Email.Binding.Dynamic{
+    %Noizu.EmailService.Email.Binding.Substitution.Dynamic{
       section_stack: [%Section{current_selector: %Selector{selector: [ {:select, "foo"}, {:key, "biz"}, {:key, "bop"}]}}]
     }
   end

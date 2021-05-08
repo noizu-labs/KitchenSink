@@ -3,8 +3,8 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula do
-  alias Noizu.EmailService.Email.Binding.Dynamic.Selector
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula do
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
   @vsn 1.0
   @type t :: %__MODULE__{
                identifier: String.t | list | tuple | nil,
@@ -27,7 +27,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula do
     this.selectors
   end
 
-  def negate(selector = %Noizu.EmailService.Email.Binding.Dynamic.Selector{}) do
+  def negate(selector = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector{}) do
     this = %__MODULE__{
       argument: selector,
       selectors: [selector]
@@ -41,7 +41,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Formula do
   end
 end
 
-defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Formula do
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula do
   alias Noizu.RuleEngine.Helper
   #-----------------
   # execute!/3

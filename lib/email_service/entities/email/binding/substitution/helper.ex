@@ -3,7 +3,7 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Helper do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Helper do
 
   def prepare_effective_binding(a, state, context, options) do
     a

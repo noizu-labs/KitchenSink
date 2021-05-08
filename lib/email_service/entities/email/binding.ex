@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.Binding do
-  @vsn 1.1
+  @vsn 1.2
   alias Noizu.KitchenSink.Types, as: T
 
   alias Noizu.EmailService.SendGrid.TransactionalEmail
@@ -28,8 +28,8 @@ defmodule Noizu.EmailService.Email.Binding do
 
                state: :valid | {:error| any},
 
-               substitutions: Map.t, # Injected variables.
-               unbound: Map.t, # Template variables we were unable to bind to values.
+               effective_binding: any,
+
                attachments: Map.t,
                meta: Map.t,
                vsn: float
@@ -52,8 +52,8 @@ defmodule Noizu.EmailService.Email.Binding do
 
     state: nil,
 
-    substitutions: nil,
-    unbound: nil,
+    effective_binding: nil,
+
     attachments: nil,
     meta: %{},
     vsn: @vsn
@@ -65,139 +65,57 @@ defmodule Noizu.EmailService.Email.Binding do
   @doc """
 
   """
-  def bind_from_template(%TransactionalEmail{} = email, %TemplateEntity{} = template, context, options) do
+  def bind_from_template(%TransactionalEmail{} = txn_email, %TemplateEntity{} = template, context, options) do
     #-------------------------------
     # 1. Update Bindings & Extract final recipient/sender values in reference format.
     #-------------------------------------
-    bindings = apply_template_bindings(email, template, context, options)
+    binding_input = prepare_binding_inputs(txn_email, template, context, options)
 
     #-------------------------------------
     # 2. Track bindings required for template
     #-------------------------------------
-    {bound, unbound} = extract_bindings(bindings, template.cached, context)
-    outcome = (map_size(unbound) != 0) && {:error, :unbound_fields} || :ok
+    effective_binding = TemplateEntity.effective_binding(template, binding_input, context, options)
+    outcome = effective_binding.outcome
 
     #-------------------------------
     # 3. Return Binding Structure
     #-------------------------------------
+    recipient = txn_email.recipient |> Noizu.ERP.entity!() |> Noizu.Proto.EmailAddress.email_details()
+    sender = txn_email.sender |> Noizu.ERP.entity!() |> Noizu.Proto.EmailAddress.email_details()
 
-    recipient = Noizu.Proto.EmailAddress.email_details(bindings.recipient)
-    sender = Noizu.Proto.EmailAddress.email_details(bindings.sender)
-
-    binding = %__MODULE__{
+    this = %__MODULE__{
       recipient: recipient.ref,
-      recipient_name: bindings[:recipient_name] || recipient.name,
-      recipient_email: bindings[:recipient_email] || recipient.email,
+      recipient_name: binding_input[:recipient_name] || recipient.name,
+      recipient_email: binding_input[:recipient_email] || recipient.email,
 
       sender: sender.ref,
-      sender_name: bindings[:sender_name] || sender.name,
-      sender_email: bindings[:sender_email] ||  sender.email,
+      sender_name: binding_input[:sender_name] || sender.name,
+      sender_email: binding_input[:sender_email] ||  sender.email,
 
-      subject: bindings.subject,
-      body: bindings.body,
-      html_body: bindings.html_body,
+      subject: txn_email.subject,
+      body: txn_email.body,
+      html_body: txn_email.html_body,
 
       template: template,
-      template_version: %{template: template.external_template_identifier, version: template.cached_details[:version]},
+      template_version: %{template: template.external_template_identifier, version: template.cached.version},
 
       state: outcome,
-      substitutions: bound,
-      unbound: unbound,
 
-      attachments: bindings.attachments,
+      effective_binding: effective_binding,
+
+
+      attachments: txn_email.attachments,
     }
 
-    {outcome, binding}
+    {outcome, this}
   end # end bind/2
 
-
-  #-------------------------
-  # extract_bindings/3
-  #-------------------------
-  def extract_bindings(bindings, cached_details, context) do
-    case cached_details[:substitutions] do
-      nil -> {%{}, %{}}
-      %MapSet{} = substitutions ->
-        List.foldl(
-          MapSet.to_list(substitutions),
-          {%{}, %{}},
-          fn(binding, {bound, unbound}) ->
-            case extract_binding(binding, bindings, context) do
-              {:error, details} ->
-                {bound, Map.put(unbound, binding, {:error, details})}
-              m ->
-                {Map.put(bound, binding, m), unbound}
-            end
-          end
-        )
-    end
-  end # end extract_bindings/2
-
-  #-------------------------
-  # extract_binding/3
-  #-------------------------
-  def extract_binding(binding, bindings, context) do
-    value = if Map.has_key?(bindings, binding) do
-      # Allow Overrides of fields otherwise yanked from EAV, Structs, etc.
-              bindings[binding]
-    else
-      case String.split(binding, ".") do
-        ["site"] -> extract_inner_site()
-        ["EAV"| specifier] -> extract_inner_eav(specifier, context)
-        path -> extract_inner_path(path, bindings, context)
-      end
-            end
-
-    case value do
-      {:error, details} -> {:error, details}
-      _ -> Noizu.Proto.EmailBind.format(value)
-    end
-  end # end extract_binding/2
-
-  #-------------------------
-  # extract_inner_site/0
-  #-------------------------
-  defp extract_inner_site() do
-    case Application.get_env(:sendgrid, :email_site_url) do
-      nil -> {:error, :email_sit_url_not_set}
-      m -> m
-    end
-  end # end extract_inner/1
-
-  #-------------------------
-  # extract_inner_eav/1
-  #-------------------------
-  defp extract_inner_eav(_path, _context) do
-    #@TODO _path ->  ref.type.id|attribute
-    #@TODO pending EAV table implementation.
-    {:error, :eav_lookup_nyi}
-  end # end extract_inner/2
-
-  #-------------------------
-  # extract_inner_path/3
-  #-------------------------
-  defp extract_inner_path([] = _path, current, _context) do
-    current
-  end # end extract_inner/3
-
-  defp extract_inner_path([h|t] = _path, %{} = current, context) do
-    matching_key = Map.keys(current)
-                   |> Enum.find(&("#{&1}" == h))
-    cond do
-      matching_key == nil && h == "EAV" ->
-        # @TODO Noizu.ERP.ref(current) -> EAV fetch
-        {:error, :eav_lookup_nyi}
-      matching_key == nil -> {:error, "#{h} key not found."}
-      true -> extract_inner_path(t, Map.get(current, matching_key), context)
-    end
-  end # end extract_inner/3
-
   #----------------------------
-  # apply_template_bindings/4
+  # prepare_binding_inputs/4
   #----------------------------
-  def apply_template_bindings(%TransactionalEmail{} = email, %TemplateEntity{} = template, context, options) do
+  def prepare_binding_inputs(%TransactionalEmail{} = email, %TemplateEntity{} = template, context, options) do
     # 1. Expand email bindings, ensure :sender and :recipient set.
-    initial_bindings = prep_email_bindings(email)
+    initial_bindings = is_map(email.bindings) && email.bindings || %{}
 
     if template.binding_defaults == nil do
       initial_bindings
@@ -212,38 +130,46 @@ defmodule Noizu.EmailService.Email.Binding do
     end # end if/else
   end # end apply_template_bindings/2
 
-
-  #----------------------------
-  # prep_email_bindings/1
-  #----------------------------
-  defp prep_email_bindings(%TransactionalEmail{} = email) do
-    # 1. Expand Recipient & Sender (Either may be null)
-    recipient = Noizu.ERP.entity!(email.recipient)
-    sender = Noizu.ERP.entity!(email.sender)
-
-    # 2. Append recipient, sender fields to simplify downstream logic.
-    (is_map(email.bindings) && email.bindings || %{})
-    |> Map.put(:recipient, recipient)
-    |> Map.put(:sender, sender)
-    |> Map.put(:body, email.body)
-    |> Map.put(:html_body, email.html_body)
-    |> Map.put(:subject, email.subject)
-    |> Map.put(:attachments, email.attachments)
-  end # end prep_email_bindings/1
-
-
-
   #----------------------------
   # apply_template_binding/5
   #----------------------------
   defp apply_template_binding(key, default, bindings, context, options) do
     # Process if entry does not exist or is set to :nil (use :undefined if you specifically do not want another value)
     # @NOTE logic may change in the future based on usage patterns/needs.
-    cond do
-      (bindings[key] == nil) -> bindings |> Map.put(key, calculate_binding(default, bindings, context, options))
-      true -> bindings
+    case key do
+      {:path, path} ->
+        cond do
+          path_valid?(path, bindings) ->
+            v = calculate_binding(default, bindings, context, options)
+            update_in(bindings, path, &(&1 || v))
+          :else -> bindings
+        end
+      key ->
+        cond do
+          (bindings[key] == nil) -> bindings |> Map.put(key, calculate_binding(default, bindings, context, options))
+          :else -> bindings
+        end
     end
   end # end apply_template_binding/5
+
+  #----------------------------
+  #
+  #----------------------------
+  defp path_valid?([h], nil), do: false
+  defp path_valid?([h], blob) do
+    try do
+      get_in(blob, [h])
+      true
+    rescue _ -> false
+    end
+  end
+  defp path_valid?([h|t], blob) do
+    try do
+      b = get_in(blob, [h])
+      path_valid?(t, b)
+    rescue _ -> false
+    end
+  end
 
   #----------------------------
   # calculate_binding/3
@@ -253,7 +179,14 @@ defmodule Noizu.EmailService.Email.Binding do
   end # end calculate_binding/2
 
   defp calculate_binding({:bind, field}, bindings, _context, _options) do
-    bindings[field]
+    case field do
+      {:path, path} ->
+        cond do
+          path_valid?(path, bindings) -> get_in(bindings, path)
+          :else -> nil
+        end
+      _other -> bindings[field]
+    end
   end # end calculate_binding/2
 
   defp calculate_binding({:entity_reference, reference}, _bindings, _context, _options) do
@@ -265,35 +198,5 @@ defmodule Noizu.EmailService.Email.Binding do
     |> Noizu.SmartToken.TokenEntity.bind(bindings, options)
     |> Noizu.SmartToken.TokenRepo.create!(Noizu.ElixirCore.CallingContext.system(context))
   end # end calculate_binding/2
-
-  #----------------------------
-  # extract_substitutions/1
-  #----------------------------
-  def extract_substitutions(:legacy, %SendGrid.Template.Version{} = version) do
-    extract_field_substitutions(version, :subject)
-    |> MapSet.union(extract_field_substitutions(version, :html_content))
-    |> MapSet.union(extract_field_substitutions(version, :plain_content))
-  end # end extract_substitutions/1
-
-  def extract_substitutions(:dynamic, %SendGrid.Template.Version{} = version) do
-    Noizu.EmailService.Email.Binding.Dynamic.extract((version.subject || "") <>  (version.html_content || "") <> (version.plain_content || ""))
-  end # end extract_substitutions/1
-
-  #----------------------------
-  # extract_field_substitutions/2
-  #----------------------------
-  defp extract_field_substitutions(subject, field) do
-    case Map.get(subject, field) do
-      :nil -> MapSet.new
-      value when is_bitstring(value) ->
-        case Regex.scan(~r/-\{([a-zA-Z0-9\._\[\]]+)\}-/, value, capture: :all_but_first) do
-          :nil -> MapSet.new()
-          matches when is_list(matches) ->
-            matches
-            |> List.flatten
-            |> MapSet.new
-        end
-    end # end case
-  end # end extract_field_substitutions/2
 
 end # end defmodule

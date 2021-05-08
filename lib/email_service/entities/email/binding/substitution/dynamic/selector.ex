@@ -3,7 +3,7 @@
 # Copyright (C) 2020 Noizu Labs, Inc. All rights reserved.
 #-------------------------------------------------------------------------------
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   @vsn 1.0
   @type t :: %__MODULE__{
                selector: list,
@@ -225,7 +225,7 @@ defmodule Noizu.EmailService.Email.Binding.Dynamic.Selector do
   end
 end
 
-defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Dynamic.Selector do
+defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   alias Noizu.RuleEngine.Helper
   #-----------------
   # execute!/3
@@ -272,7 +272,7 @@ end
 #=============================================================================
 # Inspect Protocol
 #=============================================================================
-defimpl Inspect, for: Noizu.EmailService.Email.Binding.Dynamic.Selector do
+defimpl Inspect, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   import Inspect.Algebra
 
   def inspect(entity, opts) do

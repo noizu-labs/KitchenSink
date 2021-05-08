@@ -10,6 +10,7 @@ defmodule Noizu.EmailService.AcceptanceTest do
   @context Noizu.ElixirCore.CallingContext.admin()
 
   @tag :email
+  @tag :legacy_template
   test "Send Transactional Email (Legacy)" do
     template = Noizu.EmailService.Email.TemplateRepo.get!(:test_template, @context)
                |> Noizu.Proto.EmailServiceTemplate.refresh!(@context)
@@ -33,14 +34,13 @@ defmodule Noizu.EmailService.AcceptanceTest do
       bindings: %{"foo" => %{"bar" => "foo-bizz"}},
     }
     sut = Noizu.EmailService.SendGrid.TransactionalEmail.send!(email, @context)
-    assert sut.binding.substitutions == %{"default_field" => "default_value", "foo.bar" => "foo-bizz", "site" => "https://github.com/noizu/KitchenSink"}
+    assert sut.binding.effective_binding.bound == %{"default_field" => "default_value", "foo.bar" => "foo-bizz", "site" => "https://github.com/noizu/KitchenSink"}
     assert sut.binding.recipient_email == "keith.brings+recipient@noizu.com"
     assert sut.binding.body == "Email Body"
     assert sut.binding.html_body == "HTML Email Body"
     # Delay to allow send to complete.
     Process.sleep(1000)
     queue_entry = Noizu.EmailService.Database.Email.QueueTable.read!(sut.identifier)
-    IO.inspect queue_entry
     assert Enum.member?([:delivered, :queued], queue_entry.state)
   end
 

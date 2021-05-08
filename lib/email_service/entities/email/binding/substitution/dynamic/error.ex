@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 
-defmodule Noizu.EmailService.Email.Binding.Dynamic.Error do
+defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error do
   @vsn 1.0
 
   @type t :: %__MODULE__{

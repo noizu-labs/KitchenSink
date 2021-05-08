@@ -16,7 +16,7 @@ defmodule Noizu.EmailService.Email.QueueEntity do
 
                template: any, # template.ref
                version: any, # template version or time stamp.
-               binding: any, # binding provided.
+               binding: any, # effective binding.
 
                email: any, # actual email as sent or what is to be sent . . . @TODO details.
 
