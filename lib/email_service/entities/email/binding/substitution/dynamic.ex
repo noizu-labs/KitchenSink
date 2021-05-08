@@ -8,6 +8,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error
+  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
   @type t :: %__MODULE__{
                version: any,
@@ -38,7 +39,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
     state = options[:state] || %Noizu.RuleEngine.State.InlineStateManager{}
     state = Noizu.RuleEngine.StateProtocol.put!(state, :bind_space, input, context)
     {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this, state, context, options)
-    response
+    %Effective{response| outcome: length(response.unbound.required) > 0 && {:error, :unbound_fields} || :ok}
   end
 
   def variable_extractor(selector, state, context, options) do

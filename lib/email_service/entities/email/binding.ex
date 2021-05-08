@@ -75,7 +75,6 @@ defmodule Noizu.EmailService.Email.Binding do
     # 2. Track bindings required for template
     #-------------------------------------
     effective_binding = TemplateEntity.effective_binding(template, binding_input, context, options)
-    outcome = effective_binding.outcome
 
     #-------------------------------
     # 3. Return Binding Structure
@@ -96,18 +95,17 @@ defmodule Noizu.EmailService.Email.Binding do
       body: txn_email.body,
       html_body: txn_email.html_body,
 
-      template: template,
+      # TODO collapse to a unique version identifier
+      template: Noizu.ERP.ref(template),
       template_version: %{template: template.external_template_identifier, version: template.cached.version},
 
-      state: outcome,
+      state: effective_binding.outcome,
 
       effective_binding: effective_binding,
 
 
       attachments: txn_email.attachments,
     }
-
-    {outcome, this}
   end # end bind/2
 
   #----------------------------

@@ -55,13 +55,12 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
         {:error, details}
       %TemplateEntity{} ->
         case Binding.bind_from_template(this, template, context, options) do
-          {{:error, details}, %Binding{} = binding} ->
-            QueueRepo.queue_failed!(binding, {:error, details}, context) #Todo save more information on bind failure.
-            {:error, details}
-          {:ok, %Binding{} = binding} ->
+          binding = %Binding{state: :ok} ->
             queued_email = QueueRepo.queue!(binding, context)
             spawn(fn -> send_email!(queued_email, context) end)
             queued_email
+          binding = %Binding{state: {:error, details}} ->
+            QueueRepo.queue_failed!(binding, details, context) #Todo save more information on bind failure.
         end # end case
     end # end case
   end # end send!/1
@@ -76,7 +75,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
       restricted?(queued_email.binding.recipient_email) ->
         QueueRepo.update_state!(queued_email, :restricted, context)
       true ->
-        case queued_email.binding.template.external_template_identifier do
+        case queued_email.binding.template_version.template do
           {:sendgrid, sendgrid_template_id} ->
             email = build_email(sendgrid_template_id, queued_email.binding)
             v = SendGrid.Mail.send(email)

@@ -33,6 +33,17 @@ Noizu.EmailService.Database.Email.QueueTable.create(memory: [node()])
   binding_defaults: [{:default_field, {:literal,  "default_value"}}],
 } |> Noizu.EmailService.Email.TemplateRepo.create!(Noizu.ElixirCore.CallingContext.admin())
 
+
+%Noizu.EmailService.Email.TemplateEntity{
+  identifier: :test_dynamic_template,
+  name: "Test Template",
+  description: "Template Description",
+  external_template_identifier: {:sendgrid, "d-e09ef095b9f641d8a35d862ec8882d9c"}, # todo standardize ref
+  binding_defaults: [{:default_field, {:literal,  "default_value"}}],
+} |> Noizu.EmailService.Email.TemplateRepo.create!(Noizu.ElixirCore.CallingContext.admin())
+
+
+
 # Cms
 Noizu.Cms.Database.PostTable.create(memory: [node()])
 Noizu.Cms.Database.Post.TagTable.create(memory: [node()])

@@ -15,11 +15,11 @@ defmodule Noizu.EmailService.Email.QueueRepo do
   #--------------------------
   # queue_failed!
   #--------------------------
-  def queue_failed!(binding, _details, context) do
+  def queue_failed!(binding, details, context) do
     %QueueEntity{
       recipient: binding.recipient,
       sender: binding.sender,
-      state: :error,
+      state: {:error, details || :unknown},
       created_on: DateTime.utc_now(),
       retry_on: nil,
       template: Noizu.ERP.ref(binding.template),

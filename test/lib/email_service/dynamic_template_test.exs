@@ -62,10 +62,6 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
   {{!bind required.variable.hint}}
   {{! regular comment }}
   {{!-- comment with nested tokens {{#if !condition}} --}}
-
-
-
-
   {{#if selection}}
     {{apple}}
     {{#each snapple.details}}
@@ -270,7 +266,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     {:cont, state} =  Binding.extract_token({"#with hello.dolly", state}, %{})
     selector = Binding.current_selector(state)
     assert selector == %Selector{selector: [ {:select, "hello"}, {:key, "dolly"}]}
-    [h,t|_] = state.section_stack
+    [h,_] = state.section_stack
     assert h.section == :with
     assert h.clause == %Selector{selector: [ {:select, "hello"}, {:key, "dolly"}]}
   end
@@ -408,7 +404,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
 
     {_, state} = Binding.extract_token({"#apple bob.douglas as | bob | ", state}, %{})
 
-    [h,t|_] = state.section_stack
+    [h|_] = state.section_stack
 
     assert h.section == {:unsupported, "apple"}
     assert h.clause == %Selector{selector: [ {:select, "foo"}, {:key, "biz"}, {:key, "dolly"}, {:key, "henry"}, {:key, "douglas"}]} # , as: "bob"
@@ -433,7 +429,7 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
 
     {_, state} = Binding.extract_token({"#apple", state}, %{})
-    [h,t|_] = state.section_stack
+    [h|_] = state.section_stack
     assert h.section == {:unsupported, "apple"}
     assert h.clause == nil
     {_, state} = Binding.extract_token({"/apple", state}, %{})
@@ -476,7 +472,8 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     {_, state} = Binding.extract_token({"#apple", state}, %{})
 
     {:halt, state} = Binding.extract_token({"/if", state}, %{})
-    state.outcome == :error
+    assert state.outcome == :ok # error not set at this level of parsing.
+    assert state.last_error.error == {:tag_close_mismatch, :if}
   end
 
 
@@ -488,7 +485,8 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     {_, state} = Binding.extract_token({"#with this.dolly", state}, %{})
     {_, state} = Binding.extract_token({"#with this.henry as | bob | ", state}, %{})
     {:halt, state} = Binding.extract_token({"/if", state}, %{})
-    state.outcome == :error
+    assert state.outcome == :ok # error not set at this level of parsing.
+    assert state.last_error.error == {:tag_close_mismatch, :if}
   end
 
 
@@ -529,14 +527,12 @@ defmodule Noizu.EmailService.DynamicTemplateTest do
     options = %{variable_extractor: &Noizu.EmailService.Email.Binding.Substitution.Dynamic.variable_extractor/4}
     state = Noizu.RuleEngine.StateProtocol.put!(state, :bind_space, @default_binding, @context)
 
-    {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(sut, state, @context, options)
+    {response, _state} = Noizu.RuleEngine.ScriptProtocol.execute!(sut, state, @context, options)
 
     alias_test = Enum.filter(response.bind, fn(v) -> v.selector ==  [ {:select, "nested"}, {:key, "stuff"}, {:key, "user_name"}, {:key, "via_alias"}] end)
     assert length(alias_test) == 1
 
-
-    #IO.inspect response
-    """
+    _output = """
     %Noizu.EmailService.Email.Binding.Dynamic.Effective{
       bind: [Selector(nested.stuff2.user_name.last_name),
        Selector(required.variable.hint),
