@@ -4,22 +4,49 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.QueueRepo do
-  use Noizu.Scaffolding.RepoBehaviour,
-      mnesia_table: Noizu.EmailService.Database.Email.QueueTable,
-      override: [] #@TODO CRITICAL override audit engine, @TODO audit format protocol.
+  use Noizu.Scaffolding.V2.RepoBehaviour,
+      mnesia_table: Noizu.EmailService.Database.Email.QueueTable
+
   require Logger
   alias Noizu.EmailService.Email.QueueEntity
   alias Noizu.ElixirCore.CallingContext
   alias Noizu.EmailService.Email.Binding
 
+  #----------------------------
+  # post_get_callback/3
+  #----------------------------
+  def post_get_callback(%{vsn: 1.1} = entity, _context, _options) do
+     entity
+  end
+  def post_get_callback(%{vsn: _} = entity, context, options) do
+    update_version(entity, context, options)
+    |> update!(Noizu.ElixirCore.Context.system(context), options)
+  end
+  def post_get_callback(entity, _context, _options) do
+    entity
+  end
+
+  #----------------------------
+  # update_version/3
+  #----------------------------
+  def update_version(%{vsn: 1.0} = entity, context, options) do
+    entity
+    |> put_in([Access.key(:binding)], Noizu.EmailService.Email.Binding.update_version(entity.binding, context, options))
+    |> put_in([Access.key(:vsn)], 1.1)
+  end
+
+  def update_version(%{vsn: 1.1} = entity, _context, _options) do
+    entity
+  end
+
   #--------------------------
   # queue_failed!
   #--------------------------
-  def queue_failed!(binding, _details, context) do
-    %QueueEntity{
+  def queue_failed!(binding, details, context) do
+    queue_entry = %QueueEntity{
       recipient: binding.recipient,
       sender: binding.sender,
-      state: :error,
+      state: {:error, details || :unknown},
       created_on: DateTime.utc_now(),
       retry_on: nil,
       template: Noizu.ERP.ref(binding.template),
@@ -27,6 +54,17 @@ defmodule Noizu.EmailService.Email.QueueRepo do
       binding: binding,
       email: nil,
     } |> create!(CallingContext.system(context))
+
+    ref = Noizu.ERP.ref(queue_entry)
+    %Noizu.EmailService.Email.Queue.EventEntity{
+      queue_item: ref,
+      event: :failure,
+      event_time: queue_entry.created_on,
+      details: {:error, details || :unknown},
+    } |> Noizu.EmailService.Email.Queue.EventRepo.create!(Noizu.ElixirCore.CallingContext.system(context))
+
+    queue_entry
+
   end # end queue_failed/3
 
   #--------------------------
@@ -48,16 +86,37 @@ defmodule Noizu.EmailService.Email.QueueRepo do
   end # end queue/2
 
   #--------------------------
-  # update_state!
+  # update_state_and_history!
   #--------------------------
-  def update_state!(%QueueEntity{} = entity, :retrying, context) do
+  def update_state_and_history!(%QueueEntity{} = entity, :retrying, {event, details}, context) do
     retry_on = Timex.shift(DateTime.utc_now(), minutes: 30)
-    %QueueEntity{entity| retry_on: retry_on, state: :retrying}
-    |> update!(CallingContext.system(context))
+    queue_entry = %QueueEntity{entity| retry_on: retry_on, state: :retrying}
+                  |> update!(CallingContext.system(context))
+
+
+    ref = Noizu.ERP.ref(queue_entry)
+    %Noizu.EmailService.Email.Queue.EventEntity{
+      queue_item: ref,
+      event: event,
+      event_time: DateTime.utc_now(),
+      details: details,
+    } |> Noizu.EmailService.Email.Queue.EventRepo.create!(Noizu.ElixirCore.CallingContext.system(context))
+
+    queue_entry
   end # end update_state/2
 
-  def update_state!(%QueueEntity{} = entity, new_state, context) do
-    %QueueEntity{entity| retry_on: nil, state: new_state}
-    |> update!(CallingContext.system(context))
+  def update_state_and_history!(%QueueEntity{} = entity, new_state, {event, details}, context) do
+    queue_entry = %QueueEntity{entity| retry_on: nil, state: new_state}
+                  |> update!(CallingContext.system(context))
+
+    ref = Noizu.ERP.ref(queue_entry)
+    %Noizu.EmailService.Email.Queue.EventEntity{
+      queue_item: ref,
+      event: event,
+      event_time: DateTime.utc_now(),
+      details: details,
+    } |> Noizu.EmailService.Email.Queue.EventRepo.create!(Noizu.ElixirCore.CallingContext.system(context))
+
+    queue_entry
   end # end update_state/2
 end

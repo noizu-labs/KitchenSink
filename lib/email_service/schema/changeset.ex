@@ -35,6 +35,21 @@ defmodule Noizu.EmailService.ChangeSet do
           destroy_table(Noizu.EmailService.Database.Email.QueueTable)
           :removed
         end
+      },
+      %ChangeSet{
+        changeset:  "Email Queue - Queued Email Event History",
+        author: "Keith Brings",
+        note: "Table for tracking send, resend, etc. attempts.",
+        environments: :all,
+        update: fn() ->
+                  neighbors = neighbors()
+                  create_table(Noizu.EmailService.Database.Email.Queue.EventTable, [disk: neighbors])
+                  :success
+        end,
+        rollback: fn() ->
+          destroy_table(Noizu.EmailService.Database.Email.Queue.EventTable)
+          :removed
+        end
       }
     ]
   end

@@ -3,7 +3,7 @@ defmodule Noizu.KitchenSink.Mixfile do
 
   def project do
     [app: :noizu_kitchen_sink,
-     version: "0.3.3",
+     version: "0.3.4",
      elixir: "~> 1.4",
      package: package(),
      deps: deps(),
@@ -36,11 +36,12 @@ defmodule Noizu.KitchenSink.Mixfile do
       {:noizu_simple_pool, github: "noizu/SimplePool", tag: "2.0.8", override: true},
       {:noizu_scaffolding, github: "noizu/ElixirScaffolding", tag: "1.1.43", override: true},
       {:noizu_mnesia_versioning, github: "noizu/MnesiaVersioning", tag: "0.1.9", override: true},
+      {:noizu_rule_engine, github: "noizu/RuleEngine", tag: "0.2.0"},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
       {:tzdata, github: "noizu/tzdata", tag: "opt_exp", override: true},
       {:timex, github: "noizu/timex", ref: "7e3c887", override: true},
-      {:sendgrid, github: "SolaceClub/sendgrid_elixir", tag: "v1.8.0-templates"}, # Derived from Sendgrid Api Wrapper (https://github.com/alexgaribay/sendgrid_elixir)
+      {:sendgrid, github: "Noizu/sendgrid_elixir", branch: "master"},
       {:mock, "~> 0.3.1", optional: true},
     ]
   end # end deps

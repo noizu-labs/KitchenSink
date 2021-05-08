@@ -10,7 +10,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   alias Noizu.EmailService.Email.QueueRepo
   require Logger
 
-  @vsn 1.00
+  @vsn 1.0
 
   @type t :: %__MODULE__{
                template: T.entity_reference,
@@ -55,13 +55,12 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
         {:error, details}
       %TemplateEntity{} ->
         case Binding.bind_from_template(this, template, context, options) do
-          {{:error, details}, %Binding{} = binding} ->
-            QueueRepo.queue_failed!(binding, {:error, details}, context) #Todo save more information on bind failure.
-            {:error, details}
-          {:ok, %Binding{} = binding} ->
+          binding = %Binding{state: :ok} ->
             queued_email = QueueRepo.queue!(binding, context)
             spawn(fn -> send_email!(queued_email, context) end)
             queued_email
+          binding = %Binding{state: {:error, details}} ->
+            QueueRepo.queue_failed!(binding, details, context) #Todo save more information on bind failure.
         end # end case
     end # end case
   end # end send!/1
@@ -72,21 +71,29 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   def send_email!(queued_email, context) do
     cond do
       simulate?() ->
-        QueueRepo.update_state!(queued_email, :delivered, context)
+        QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, :simulated}, context)
       restricted?(queued_email.binding.recipient_email) ->
-        QueueRepo.update_state!(queued_email, :restricted, context)
+        QueueRepo.update_state_and_history!(queued_email, :restricted, {:restricted, :restricted}, context)
       true ->
-        case queued_email.binding.template.external_template_identifier do
+        case queued_email.binding.template_version.template do
           {:sendgrid, sendgrid_template_id} ->
             email = build_email(sendgrid_template_id, queued_email.binding)
-            v = SendGrid.Mailer.send(email)
+            v = SendGrid.Mail.send(email)
             case v do
-              :ok -> QueueRepo.update_state!(queued_email, :delivered, context)
+              :ok ->
+                details = case queued_email.state do
+                  :queued -> :first_attempt
+                  :retrying -> :retry_attempt
+                  v -> v
+                end
+                queued_email.state == :queued
+                QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, details}, context)
                 :ok
+              {:error, error} ->
+                QueueRepo.update_state_and_history!(queued_email, :retrying, {:error, {:error, error}}, context)
+                {:error, error}
               error ->
-                QueueRepo.update_state!(queued_email, :retrying, context)
-                #QueueRepo.audit!(queued_email, {:sengrid_error, error}, context)
-                Logger.error("Mail Send Error: #{inspect error}")
+                QueueRepo.update_state_and_history!(queued_email, :retrying, {:error, {:error, error}}, context)
                 error
             end # end case Mailer.send
         end # end case template_record.template.external_template_identifier do
@@ -105,7 +112,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     |> put_text(binding)
     |> put_html(binding)
     |> put_subject(binding)
-    |> put_substitions(binding)
+    |> put_substitutions(binding)
     |> put_attachments(binding)
   end # end build_email/2
 
@@ -174,19 +181,24 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   end # end put_subject
 
   #--------------------------
-  # put_substitions/2
+  # put_substitutions/2
   #--------------------------
-  defp put_substitions({substition_key, substition_value}, email) do
-    if is_map(substition_value) do
-      Enum.reduce(substition_value, email, fn({k,v}, acc) -> put_substitions({"#{substition_key}.#{k}", v}, acc) end)
+  defp put_substitutions({substitution_key, substitution_value}, email) do
+    if is_map(substitution_value) do
+      Enum.reduce(substitution_value, email, fn({k,v}, acc) -> put_substitutions({"#{substitution_key}.#{k}", v}, acc) end)
     else
-      SendGrid.Email.add_substitution(email, "-{#{substition_key}}-", substition_value)
+      SendGrid.Email.add_substitution(email, "-{#{substitution_key}}-", substitution_value)
     end
   end
 
-  defp put_substitions(email, binding) do
-    Enum.reduce(binding.substitutions || %{}, email, fn({substition_key, substition_value}, acc) -> put_substitions({substition_key, substition_value}, acc) end)
-  end # end put_substitions/2
+  defp put_substitutions(email, binding) do
+    case binding.effective_binding do
+      %Noizu.EmailService.Email.Binding.Substitution.Legacy.Effective{bound: substitutions} ->
+        Enum.reduce(substitutions || %{}, email, fn({substitution_key, substitution_value}, acc) -> put_substitutions({substitution_key, substitution_value}, acc) end)
+      %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective{bound: dynamic} ->
+        Enum.reduce(dynamic || %{}, email, fn({dynamic_key, dynamic_value}, acc) -> SendGrid.Email.add_dynamic_template_data(acc, dynamic_key, dynamic_value) end)
+    end
+  end # end put_substitutions/2
 
   #--------------------------
   # restricted?/1
