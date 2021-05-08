@@ -10,14 +10,14 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   alias Noizu.EmailService.Email.QueueRepo
   require Logger
 
-  @vsn 1.0
+  @vsn 1.1
 
   @type t :: %__MODULE__{
                template: T.entity_reference,
                recipient: T.entity_reference,
                recipient_email: :default | String.t,
-               sender: :nil | T.entity_reference | any,
-
+               sender: nil | T.entity_reference | any,
+               reply_to: nil | T.entity_reference | any,
                body: String.t,
                html_body: String.t,
                subject: String.t,
@@ -32,6 +32,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     recipient: nil,
     recipient_email: :default,
     sender: nil,
+    reply_to: nil,
     body: nil,
     html_body: nil,
     subject: nil,
@@ -57,7 +58,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
         case Binding.bind_from_template(this, template, context, options) do
           binding = %Binding{state: :ok} ->
             queued_email = QueueRepo.queue!(binding, context)
-            spawn(fn -> send_email!(queued_email, context) end)
+            spawn(fn -> send_email!(queued_email, context, options) end)
             queued_email
           binding = %Binding{state: {:error, details}} ->
             QueueRepo.queue_failed!(binding, details, context) #Todo save more information on bind failure.
@@ -68,16 +69,24 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   #--------------------------
   # send_email!/2
   #--------------------------
-  def send_email!(queued_email, context) do
+  def send_email!(queued_email, context, options \\ %{}) do
     cond do
-      simulate?() ->
-        QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, :simulated}, context)
+      simulate?() || options[:simulate_email] == true ->
+        case queued_email.binding.template_version.template do
+          {:sendgrid, sendgrid_template_id} ->
+            email = build_email(sendgrid_template_id, queued_email.binding)
+            queued_email = options[:persist_email] && put_in(queued_email, [Access.key(:email)], email) || queued_email
+            QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, :simulated}, context)
+          _else ->
+            QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, :simulated}, context)
+        end
       restricted?(queued_email.binding.recipient_email) ->
         QueueRepo.update_state_and_history!(queued_email, :restricted, {:restricted, :restricted}, context)
       true ->
         case queued_email.binding.template_version.template do
           {:sendgrid, sendgrid_template_id} ->
             email = build_email(sendgrid_template_id, queued_email.binding)
+            queued_email = options[:persist_email] && put_in(queued_email, [Access.key(:email)], email) || queued_email
             v = SendGrid.Mail.send(email)
             case v do
               :ok ->
@@ -86,7 +95,6 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
                   :retrying -> :retry_attempt
                   v -> v
                 end
-                queued_email.state == :queued
                 QueueRepo.update_state_and_history!(queued_email, :delivered, {:delivered, details}, context)
                 :ok
               {:error, error} ->
@@ -109,6 +117,7 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
     |> SendGrid.Email.put_template(sendgrid_template_id)
     |> put_sender(binding)
     |> put_recipient(binding)
+    |> put_reply_to(binding)
     |> put_text(binding)
     |> put_html(binding)
     |> put_subject(binding)
@@ -120,16 +129,25 @@ defmodule Noizu.EmailService.SendGrid.TransactionalEmail do
   defp put_sender(email, binding) do
     cond do
       binding.sender_name -> SendGrid.Email.put_from(email, binding.sender_email, binding.sender_name)
-      true -> SendGrid.Email.put_from(email, binding.sender_email)
+      :else -> SendGrid.Email.put_from(email, binding.sender_email)
     end
   end
 
   defp put_recipient(email, binding) do
     cond do
       binding.recipient_name -> SendGrid.Email.add_to(email, binding.recipient_email, binding.recipient_name)
-      true -> SendGrid.Email.add_to(email, binding.recipient_email)
+      :else -> SendGrid.Email.add_to(email, binding.recipient_email)
     end
   end
+
+  defp put_reply_to(email, binding) do
+    cond do
+      binding.reply_to_email && binding.reply_to_name -> SendGrid.Email.put_reply_to(email, binding.reply_to_email, binding.reply_to_name)
+      binding.reply_to_email -> SendGrid.Email.put_reply_to(email, binding.recipient_email)
+      :else -> email
+    end
+  end
+
 
 
 

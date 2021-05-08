@@ -19,6 +19,10 @@ defmodule Noizu.EmailService.Email.Binding do
                sender_name: :default | String.t,
                sender_email: :default | String.t,
 
+               reply_to: T.entity_reference,
+               reply_to_name: :default | String.t,
+               reply_to_email: :default | String.t,
+
                body: String.t,
                html_body: String.t,
                subject: String.t,
@@ -42,6 +46,9 @@ defmodule Noizu.EmailService.Email.Binding do
     sender: nil,
     sender_name: :default,
     sender_email: :default,
+    reply_to: nil,
+    reply_to_name: :default,
+    reply_to_email: :default,
 
     body: nil,
     html_body: nil,
@@ -72,6 +79,9 @@ defmodule Noizu.EmailService.Email.Binding do
     entity
     |> Map.delete(:substitutions)
     |> Map.delete(:unbound)
+    |> Map.put(:reply_to, nil)
+    |> Map.put(:reply_to_name, nil)
+    |> Map.put(:reply_to_email, nil)
     |> Map.put(:effective_binding, effective_binding)
     |> Map.put(:template, Noizu.ERP.ref(entity.template))
     |> Map.put(:state, effective_binding.outcome)
@@ -102,17 +112,47 @@ defmodule Noizu.EmailService.Email.Binding do
     #-------------------------------
     # 3. Return Binding Structure
     #-------------------------------------
-    recipient = txn_email.recipient |> Noizu.ERP.entity!() |> Noizu.Proto.EmailAddress.email_details()
-    sender = txn_email.sender |> Noizu.ERP.entity!() |> Noizu.Proto.EmailAddress.email_details()
+    recipient = Noizu.Proto.EmailAddress.email_details(txn_email.recipient)
+    sender = Noizu.Proto.EmailAddress.email_details(txn_email.sender)
+    reply_to = Noizu.Proto.EmailAddress.email_details(txn_email.reply_to)
 
+    outcome = effective_binding.outcome
+    outcome = cond do
+                outcome != :ok -> outcome
+                Kernel.match?({:error, :_}, recipient) -> recipient
+                recipient == nil && binding_input[:recipient_email] == nil && (txn_email.recipient_email == nil || txn_email.recipient_email == :default) -> {:error, :recipient_required}
+                :else -> outcome
+              end
+    outcome = cond do
+                outcome != :ok -> outcome
+                Kernel.match?({:error, :_}, sender) -> sender
+                sender == nil && binding_input[:sender_email] == nil -> {:error, :sender_required}
+                :else -> outcome
+              end
+    outcome = cond do
+                outcome != :ok -> outcome
+                Kernel.match?({:error, :_}, reply_to) -> reply_to
+                :else -> outcome # not required field, no need for nil check
+              end
+
+    # strip error tuples
+    recipient = is_map(recipient) && recipient || nil
+    sender = is_map(sender) && sender || nil
+    reply_to = is_map(reply_to) && reply_to || nil
+
+    # prepare response
     this = %__MODULE__{
-      recipient: recipient.ref,
-      recipient_name: binding_input[:recipient_name] || recipient.name,
-      recipient_email: binding_input[:recipient_email] || recipient.email,
+      recipient: recipient[:ref],
+      recipient_name: binding_input[:recipient_name] || recipient[:name],
+      recipient_email: (txn_email.recipient_email != :default && txn_email.recipient_email) || binding_input[:recipient_email] || recipient[:email],
 
-      sender: sender.ref,
-      sender_name: binding_input[:sender_name] || sender.name,
-      sender_email: binding_input[:sender_email] ||  sender.email,
+      sender: sender[:ref],
+      sender_name: binding_input[:sender_name] || sender[:name],
+      sender_email: binding_input[:sender_email] || sender[:email],
+
+      reply_to: reply_to[:ref],
+      reply_to_name: binding_input[:reply_to_name] || reply_to[:name],
+      reply_to_email: binding_input[:reply_to_email] || reply_to[:email],
 
       subject: txn_email.subject,
       body: txn_email.body,
