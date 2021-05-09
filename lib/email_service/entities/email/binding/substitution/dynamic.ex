@@ -45,8 +45,8 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
 
   def variable_extractor(selector, state, context, options) do
     {blob, state} = Noizu.RuleEngine.StateProtocol.get!(state, :bind_space, context)
-    value = Selector.bound(selector, blob, state, context, options)
-    {value, state}
+    {bound?,val, state} = Selector.bound_inner(selector, blob, state, context, options)
+    {bound? && {:value, val}, state}
   end
 
   #----------------------------

@@ -240,7 +240,7 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.S
   # execute!/4
   #-----------------
   def execute!(this, state, context, options) do
-    variable_extractor =  options.variable_extractor
+    variable_extractor = options.variable_extractor
     variable_extractor.(this, state, context, options)
   end
 

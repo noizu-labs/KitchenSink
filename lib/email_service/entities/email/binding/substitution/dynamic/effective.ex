@@ -179,16 +179,15 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective do
     this = %__MODULE__{this| bound: output}
 
     # now walk through binds to verify all non scalars are bound.
-    this = Enum.reduce(this.bind, this, fn(selector,this) ->
+    Enum.reduce(this.bind, {this, state}, fn(selector,{this, state}) ->
       # only require non scalars.
+      {bound?, _val, state} = Selector.bound_inner(selector, output, state, context, options)
       cond do
-        Selector.is_bound?(selector, output, state, context, options) -> this
-        Selector.scalar?(selector) -> update_in(this, [Access.key(:unbound), Access.key(:optional)], &((&1 || []) ++ [selector]))
-        :else -> update_in(this, [Access.key(:unbound), Access.key(:required)], &((&1 || []) ++ [selector]))
+        bound? -> {this, state}
+        Selector.scalar?(selector) -> {update_in(this, [Access.key(:unbound), Access.key(:optional)], &((&1 || []) ++ [selector])), state}
+        :else -> {update_in(this, [Access.key(:unbound), Access.key(:required)], &((&1 || []) ++ [selector])), state}
       end
     end)
-
-    {this, state}
   end
 
   #----------------------
