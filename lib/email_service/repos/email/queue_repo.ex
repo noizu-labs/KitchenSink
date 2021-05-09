@@ -18,9 +18,12 @@ defmodule Noizu.EmailService.Email.QueueRepo do
   def post_get_callback(%{vsn: 1.1} = entity, _context, _options) do
      entity
   end
-  def post_get_callback(%{vsn: _} = entity, context, options) do
-    update_version(entity, context, options)
-    |> update!(Noizu.ElixirCore.Context.system(context), options)
+  def post_get_callback(%{vsn: vsn} = entity, context, options) do
+    entity = update_version(entity, context, options)
+    cond do
+      entity.vsn != vsn -> update!(entity, Noizu.ElixirCore.Context.system(context), options)
+      :else -> entity
+    end
   end
   def post_get_callback(entity, _context, _options) do
     entity

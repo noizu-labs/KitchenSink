@@ -46,93 +46,97 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
     end
   end
 
-  def bound_inner(%__MODULE__{} = this, bound, state, context, options) do
-    full_path = path(this)
-    {bound?,val, path} = Enum.reduce_while(full_path, {true, bound, []}, fn(k,{b,a, path}) ->
-      case k do
-        {:*} ->
-          cpath = path ++ [k]
-
-          cond do
-            cpath == full_path -> {:halt, {b,a,cpath}}
-            :else ->
-              {r,s} = Noizu.RuleEngine.StateProtocol.get!(state, :wildcards, context)
-              case Enum.filter(r || [], fn({k,_}) -> k == cpath end) do
-                [{_,%{type: :list, index: i, value: v}}|_] -> {:cont, {b,v, path ++ [{:at, i}]}}
-                [{_,%{type: :kv, key: i, value: v}}|_] -> {:cont, {b,v, path ++ [{:key, i}]}}
-                _ -> {:halt, {false, nil, cpath}}
-              end
-          end
-
-        {:select, name} ->
-          path = path ++ [k]
-          cond do
-            is_map(a) ->
-              accessor = Enum.find(Map.keys(a), fn(s) ->
-                s == name || "#{s}" == name
-              end)
-              if accessor do
-                a = get_in(a, [Access.key(accessor)])
-                cond do
-                  a != nil -> {:cont, {b,a, path}}
-                  scalar?(this) -> {:cont, {b,a, path}}
-                  :else -> {:halt, {false, nil, path}}
-                end
-              else
-                {:halt, {false, nil, path}}
-              end
-            :else ->
-              {:halt, {false, nil, path}}
-          end
-        {:key, name} ->
-          path = path ++ [k]
-          cond do
-            is_map(a) ->
-              accessor = Enum.find(Map.keys(a), fn(s) ->
-                s == name || "#{s}" == name
-              end)
-              if accessor do
-                a = get_in(a, [Access.key(accessor)])
-                cond do
-                  a != nil -> {:cont, {b,a, path}}
-                  scalar?(this) -> {:cont, {b,a, path}}
-                  :else -> {:halt, {false, nil, path}}
-                end
-              else
-                {:halt, {false, nil, path}}
-              end
-            :else ->
-              {:halt, {false, nil, path}}
-          end
-        {:at, index} ->
-          path = path ++ [k]
-          cond do
-            is_list(a) && length(a) > index ->
-              a = get_in(a, [Access.at(index)])
-              cond do
-                a != nil -> {:cont, {b,a, path}}
-                scalar?(this) -> {:cont, {b,a, path}}
-                :else -> {:halt, {false, nil, path}}
-              end
-            :else ->
-              {:halt, {false, nil, path}}
-          end
-      end
-    end)
-    {bound?,val}
+  def auto_expand({:ref, _m, _id} = ref, state, context, options) do
+    {lookup,state} = Noizu.RuleEngine.StateProtocol.get!(state, :ref_lookup, context)
+    cond do
+      v = lookup[ref] -> {v, state}
+      v = Noizu.RestrictedProtocol.restricted_view(Noizu.ERP.entity!(ref), context, options) ->
+         lookup = put_in(lookup || %{}, [ref], v)
+         state = Noizu.RuleEngine.StateProtocol.put!(state, :ref_lookup, lookup, context)
+         {v, state}
+      :else ->
+         lookup = put_in(lookup || %{}, [ref], ref)
+         state = Noizu.RuleEngine.StateProtocol.put!(state, :ref_lookup, lookup, context)
+         {ref, state}
+    end
   end
 
+  def auto_expand(v, state, context, options) do
+    {Noizu.RestrictedProtocol.restricted_view(v, context, options),state}
+  end
+
+  def extract_wildcard(this, _key, bound?, blob, state, head, path, full_path, context, options) do
+    cpath = path ++ [{:*}]
+    cond do
+      cpath == full_path -> {:halt, {bound?, blob, state, cpath}}
+      :else ->
+        {r,state} = Noizu.RuleEngine.StateProtocol.get!(state, :wildcards, context)
+        case Enum.filter(r || [], fn({k,_}) -> k == cpath end) do
+          [{_,%{type: :list, index: i, value: v}}|_] -> {:cont, {bound?, v, state, path ++ [{:at, i}]}}
+          [{_,%{type: :kv, key: i, value: v}}|_] -> {:cont, {bound?, v, state, path ++ [{:key, i}]}}
+          _ -> {:halt, {false, nil, state, cpath}}
+        end
+    end
+  end
+
+  def extract_key(this, member, bound?, blob, state, head, path, full_path, context, options) do
+    path = path ++ [head]
+    cond do
+      is_map(blob) ->
+        accessor = Enum.find(Map.keys(blob), &(&1 == member || "#{&1}" == member))
+        if accessor do
+          {blob, state} = auto_expand(get_in(blob, [Access.key(accessor)]), state, context, options)
+          cond do
+            blob != nil -> {:cont, {bound?, blob, state, path}}
+            scalar?(this) -> {:cont, {bound?, blob, state, path}}
+            :else -> {:halt, {false, nil, state, path}}
+          end
+        else
+          {:halt, {false, nil, state, path}}
+        end
+      :else ->
+        {:halt, {false, nil, state, path}}
+    end
+  end
+
+  def extract_at(this, index, bound?, blob, state, head, path, _full_path, context, options) do
+    path = path ++ [head]
+    cond do
+      is_list(blob) && length(blob) > index ->
+        {blob, state} = auto_expand(get_in(blob, [Access.at(index)]), state, context, options)
+        cond do
+          blob != nil -> {:cont, {bound?, blob, state, path}}
+          scalar?(this) -> {:cont, {bound?, blob, state, path}}
+          :else -> {:halt, {false, nil, state, path}}
+        end
+      :else ->
+        {:halt, {false, nil, state, path}}
+    end
+  end
+
+  def bound_inner(%__MODULE__{} = this, bound, state, context, options) do
+    full_path = path(this)
+    {bound?,val, state, path} = Enum.reduce_while(full_path, {true, bound, state, []}, fn(head,{bound?, blob, state, path}) ->
+      case head do
+        {:*} -> extract_wildcard(this, :*, bound?, blob, state, head, path, full_path, context, options)
+        {:select, name} -> extract_key(this, name, bound?, blob, state, head, path, full_path, context, options)
+        {:key, name} -> extract_key(this, name, bound?, blob, state, head, path, full_path, context, options)
+        {:at, index} -> extract_at(this, index, bound?, blob, state, head, path, full_path, context, options)
+      end
+    end)
+    {bound?,val, state}
+  end
 
   def is_bound?(%__MODULE__{} = this, bound, state, context, options) do
     p = path(this)
-    {bound?,_} = bound_inner(this, bound, state, context, options)
-    bound? # todo dropped state
+    {bound?,_v,_state} = bound_inner(this, bound, state, context, options)
+    bound? # @todo dropped state
   end
 
   def bound(%__MODULE__{} = this, bound, state, context, options) do
     p = path(this)
-    {bound?, v} = bound_inner(this, bound, state, context, options)
-    bound? && {:value, v} # todo dropped state
+    {bound?, v, _state} = bound_inner(this, bound, state, context, options)
+    bound? && {:value, v} # @todo dropped state
   end
 
   #----------------------------------

@@ -4,7 +4,7 @@
 #-------------------------------------------------------------------------------
 
 defmodule Noizu.EmailService.Email.TemplateEntity do
-  @vsn 1.0
+  @vsn 1.1
   alias Noizu.KitchenSink.Types, as: T
   alias Noizu.EmailService.Email.TemplateRepo
   alias Noizu.EmailService.Email.Binding
@@ -17,6 +17,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
                description: String.t,
                external_template_identifier: T.entity_reference,
                binding_defaults: [{atom|String.t,any}], # TODO revisit data structure
+               status: atom,
                kind: module,
                vsn: T.vsn
              }
@@ -30,6 +31,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
     description: nil,
     external_template_identifier: nil,
     binding_defaults: [],
+    status: :active,
     kind: __MODULE__,
     vsn: @vsn
   ]
