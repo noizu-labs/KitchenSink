@@ -249,6 +249,7 @@ defmodule Noizu.EmailService.Email.Binding do
       get_in(blob, [h])
       true
     rescue _ -> false
+    catch _ -> false
     end
   end
   defp path_valid?([h|t], blob) do
@@ -256,6 +257,7 @@ defmodule Noizu.EmailService.Email.Binding do
       b = get_in(blob, [h])
       path_valid?(t, b)
     rescue _ -> false
+    catch _ -> false
     end
   end
 
