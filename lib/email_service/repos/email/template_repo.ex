@@ -34,6 +34,7 @@ defmodule Noizu.EmailService.Email.TemplateRepo do
     entity
     |> put_in([Access.key(:status)], :active)
     |> put_in([Access.key(:vsn)], 1.1)
+    |> Map.delete(:cached_details)
   end
 
   def update_version(%{vsn: 1.1} = entity, _context, _options) do
