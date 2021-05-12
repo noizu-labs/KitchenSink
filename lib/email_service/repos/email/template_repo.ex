@@ -19,7 +19,7 @@ defmodule Noizu.EmailService.Email.TemplateRepo do
   def post_get_callback(%{vsn: vsn} = entity, context, options) do
     entity = update_version(entity, context, options)
     cond do
-      entity.vsn != vsn -> update!(entity, Noizu.ElixirCore.Context.system(context), options)
+      entity.vsn != vsn -> update!(entity, Noizu.ElixirCore.CallingContext.system(context), options)
       :else -> entity
     end
   end
