@@ -55,7 +55,7 @@ access to different components than regular users. etc.
   
   You may also lookup the effective setting of multiple paths `effective_for(settings, setting, [path_1, path_2])`
    
-  @note this library is not highly optomized and is innapropriate for scenarios where it will be called frequently against large settings structs. 
+  @note this library is not highly optomized and is innapropriate for scenarios where it will be called frequently against large settings common. 
 
 ### EAV 
 - Basic Entity Attribute Value support. 

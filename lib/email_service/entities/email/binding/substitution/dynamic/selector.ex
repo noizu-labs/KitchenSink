@@ -181,13 +181,13 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
         "" -> {:halt, acc}
         "." ->
           case parent(t, p) do
-            tp = {%__MODULE_{}, _meta} -> {:cont, tp}
+            tp = {%__MODULE__{}, _meta} -> {:cont, tp}
             e = {:error, _} -> {:halt, e}
           end
         v ->
           b = Regex.scan(~r/[\.\[\]]@?[a-zA-Z0-9]+/, "." <> v) |> List.flatten()
           case extend(t, b, p) do
-            tp = {%__MODULE_{}, _} -> {:cont, tp}
+            tp = {%__MODULE__{}, _} -> {:cont, tp}
             e = {:error, _} -> {:halt, e}
           end
       end
