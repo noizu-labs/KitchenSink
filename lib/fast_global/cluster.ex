@@ -57,8 +57,10 @@ defmodule Noizu.FastGlobal.Cluster do
               case value do
                 {:fast_global, :no_cache, _} -> :bypass
                 _ ->
-                  update = %Record{identifier: identifier, origin: origin || node(), pool: [node()], value: value, revision: 1, ts: :os.system_time(:millisecond)}
-                  put(identifier, update)
+                  pool = ((options[:pool] || Node.list() ++ [node()])) |> Enum.uniq()
+                  update = %Record{identifier: identifier, origin: origin || node(), pool: pool, value: value, revision: 1, ts: :os.system_time(:millisecond)}
+                  Enum.map(update.pool, &(&1 == node() && FastGlobal.put(identifier, update) ||  :rpc.cast(&1, FastGlobal, :put, [identifier, update])))
+                  :ok
               end
           end
         rescue _e -> nil
@@ -116,11 +118,11 @@ defmodule Noizu.FastGlobal.Cluster do
   def coordinate_put(identifier, value, settings, options) do
     update = case get_record(identifier) do
       %Record{} = record ->
-        pool = options[:pool] || settings[:pool] || []
+        pool = options[:pool] || settings[:pool] || Node.list()
         pool = ([node()] ++ pool) |> Enum.uniq()
         %Record{record| origin: node(), pool: pool, value: value, revision: record.revision + 1, ts: :os.system_time(:millisecond)}
       nil ->
-        pool = options[:pool] || settings[:pool] || []
+        pool = options[:pool] || settings[:pool] || Node.list()
         pool = ([node()] ++ pool) |> Enum.uniq()
         %Record{identifier: identifier, origin: node(), pool: pool, value: value, revision: 1, ts: :os.system_time(:millisecond)}
     end
