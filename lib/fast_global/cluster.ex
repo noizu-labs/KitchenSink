@@ -104,11 +104,11 @@ defmodule Noizu.FastGlobal.Cluster do
   end
   def put(identifier, value, options) do
     settings = get_settings()
-    origin = options[:origin] || settings[:origin]
+    origin = options[:origin] || settings[:origin] || node()
     cond do
       origin == node() -> coordinate_put(identifier, value, settings, options)
       origin == nil -> :error
-      true -> :rpc.cast(origin, Noizu.SimplePool.FastGlobal.Cluster, :coordinate_put, [identifier, value, settings, options])
+      true -> :rpc.cast(origin, Noizu.FastGlobal.Cluster, :coordinate_put, [identifier, value, settings, options])
     end
   end
 
@@ -135,7 +135,7 @@ defmodule Noizu.FastGlobal.Cluster do
             if n == node() do
               put(identifier, update, options)
             else
-              :rpc.cast(n, Noizu.SimplePool.FastGlobal.Cluster, :put, [identifier, update, options])
+              :rpc.cast(n, Noizu.FastGlobal.Cluster, :put, [identifier, update, options])
             end
           end)
       end)
