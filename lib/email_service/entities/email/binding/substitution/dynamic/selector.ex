@@ -124,7 +124,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
         {:at, index} -> extract_at(this, index, bound?, blob, state, head, path, full_path, context, options)
       end
     end)
-    {bound?,val, state}
+    {bound?, Noizu.Proto.DynamicBind.bind_value(val), state}
   end
 
   def is_bound?(%__MODULE__{} = this, bound, state, context, options) do
