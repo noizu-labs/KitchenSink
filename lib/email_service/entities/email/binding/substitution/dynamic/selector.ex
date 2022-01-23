@@ -50,7 +50,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
     {lookup,state} = Noizu.RuleEngine.StateProtocol.get!(state, :ref_lookup, context)
     cond do
       v = lookup[ref] -> {v, state}
-      v = Noizu.RestrictedProtocol.restricted_view(Noizu.ERP.entity!(ref), context, options) ->
+      v = Noizu.ERP.entity!(ref) ->
          lookup = put_in(lookup || %{}, [ref], v)
          state = Noizu.RuleEngine.StateProtocol.put!(state, :ref_lookup, lookup, context)
          {v, state}
@@ -62,7 +62,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   end
 
   def auto_expand(v, state, context, options) do
-    {Noizu.RestrictedProtocol.restricted_view(v, context, options),state}
+    {v,state}
   end
 
   def extract_wildcard(this, _key, bound?, blob, state, head, path, full_path, context, options) do
@@ -124,7 +124,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
         {:at, index} -> extract_at(this, index, bound?, blob, state, head, path, full_path, context, options)
       end
     end)
-    {bound?, Noizu.Proto.DynamicBind.bind_value(val), state}
+    {bound?, Noizu.Proto.DynamicBind.bind_value(val, context, options), state}
   end
 
   def is_bound?(%__MODULE__{} = this, bound, state, context, options) do
