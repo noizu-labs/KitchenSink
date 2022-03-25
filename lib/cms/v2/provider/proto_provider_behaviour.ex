@@ -78,7 +78,7 @@ defmodule Noizu.Cms.V2.ProtoProvider.Default do
   #----------------------
   #
   #----------------------
-  def update_article_identifier(m, ref, context, options) do
+  def update_article_identifier(_m, ref, context, options) do
     case Noizu.Cms.V2.Proto.versioned_identifier(ref, context, options) do
       nil -> throw "unable to determine correct versioned identifier"
       v when is_tuple(v) -> put_in(ref, [Access.key(:identifier)], v)

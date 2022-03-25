@@ -66,7 +66,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour.Default do
   # update/4
   #-----------------------------
   def update(entity, context, options, caller) do
-    ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
+    #ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
     new_tags = case Noizu.Cms.V2.Proto.tags(entity, context, options) do
       v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
       v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()
@@ -83,7 +83,7 @@ defmodule Noizu.Cms.V2.Cms.TagsBehaviour.Default do
   # update!/4
   #-----------------------------
   def update!(entity, context, options, caller) do
-    ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
+    #ref = Noizu.Cms.V2.Proto.article_ref!(entity, context, options)
     new_tags = case Noizu.Cms.V2.Proto.tags!(entity, context, options) do
       v when is_list(v) -> v |> Enum.uniq() |> Enum.sort()
       v = %MapSet{} -> MapSet.to_list(v) |> Enum.uniq() |> Enum.sort()

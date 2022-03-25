@@ -5,10 +5,10 @@
 
 defmodule Noizu.EmailService.Email.Binding.Substitution.Legacy do
   @vsn 1.0
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
   @type t :: %__MODULE__{
                version: any,
                binding: MapSet.t | nil,
@@ -22,7 +22,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Legacy do
   ]
 
 
-  def effective_bindings(%__MODULE__{binding: substitutions}, input, context, options) do
+  def effective_bindings(%__MODULE__{binding: substitutions}, input, context, _options) do
     {bound, unbound} = List.foldl(
       MapSet.to_list(substitutions),
       {%{}, []},
@@ -115,7 +115,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Legacy do
     this = extract((version.subject || "") <>  (version.html_content || "") <> (version.plain_content || ""), options)
     %__MODULE__{this| version: version.id}
   end
-  def extract(block, options) when is_bitstring(block) do
+  def extract(block, _options) when is_bitstring(block) do
     bind = case Regex.scan(~r/-\{([a-zA-Z0-9\._\[\]]+)\}-/, block, capture: :all_but_first) do
       nil -> MapSet.new()
       matches when is_list(matches) ->

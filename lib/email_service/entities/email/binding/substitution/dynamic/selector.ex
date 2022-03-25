@@ -23,8 +23,8 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   #
   #----------------------------------
   def valid?(this, options \\ %{})
-  def valid?(%__MODULE__{selector: []}, options), do: false
-  def valid?(%__MODULE__{}, options), do: true
+  def valid?(%__MODULE__{selector: []}, _options), do: false
+  def valid?(%__MODULE__{}, _options), do: true
   def valid?(_this, _options), do: false
 
   #----------------------
@@ -46,7 +46,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
     end
   end
 
-  def auto_expand({:ref, _m, _id} = ref, state, context, options) do
+  def auto_expand({:ref, _m, _id} = ref, state, context, _options) do
     {lookup,state} = Noizu.RuleEngine.StateProtocol.get!(state, :ref_lookup, context)
     cond do
       v = lookup[ref] -> {v, state}
@@ -61,11 +61,11 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
     end
   end
 
-  def auto_expand(v, state, context, options) do
+  def auto_expand(v, state, _context, _options) do
     {v,state}
   end
 
-  def extract_wildcard(this, _key, bound?, blob, state, head, path, full_path, context, options) do
+  def extract_wildcard(_this, _key, bound?, blob, state, _head, path, full_path, context, _options) do
     cpath = path ++ [{:*}]
     cond do
       cpath == full_path -> {:halt, {bound?, blob, state, cpath}}
@@ -79,7 +79,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
     end
   end
 
-  def extract_key(this, member, bound?, blob, state, head, path, full_path, context, options) do
+  def extract_key(this, member, bound?, blob, state, head, path, _full_path, context, options) do
     path = path ++ [head]
     cond do
       is_map(blob) ->
@@ -116,7 +116,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
 
   def bound_inner(%__MODULE__{} = this, bound, state, context, options) do
     full_path = path(this)
-    {bound?,val, state, path} = Enum.reduce_while(full_path, {true, bound, state, []}, fn(head,{bound?, blob, state, path}) ->
+    {bound?,val, state, _path} = Enum.reduce_while(full_path, {true, bound, state, []}, fn(head,{bound?, blob, state, path}) ->
       case head do
         {:*} -> extract_wildcard(this, :*, bound?, blob, state, head, path, full_path, context, options)
         {:select, name} -> extract_key(this, name, bound?, blob, state, head, path, full_path, context, options)
@@ -128,13 +128,13 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   end
 
   def is_bound?(%__MODULE__{} = this, bound, state, context, options) do
-    p = path(this)
+    #p = path(this)
     {bound?,_v,_state} = bound_inner(this, bound, state, context, options)
     bound? # @todo dropped state
   end
 
   def bound(%__MODULE__{} = this, bound, state, context, options) do
-    p = path(this)
+    #p = path(this)
     {bound?, v, _state} = bound_inner(this, bound, state, context, options)
     bound? && {:value, v} # @todo dropped state
   end
@@ -156,7 +156,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   #----------------------------------
   #
   #----------------------------------
-  def extend(this, [h|t] = v, pipes) do
+  def extend(this, [_h|_t] = v, pipes) do
     cond do
       this.selector == [] -> {:error, {:extract_clause, :this, :invalid}}
       :else ->
@@ -175,7 +175,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   #----------------------------------
   #
   #----------------------------------
-  def relative(this, path, pipes, options \\ %{}) do
+  def relative(this, path, pipes, _options \\ %{}) do
     Enum.reduce_while(String.split(path, "./"), {this, pipes}, fn(token, {t, p} = acc) ->
       case token do
         "" -> {:halt, acc}
@@ -198,13 +198,13 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   #
   #----------------------------------
   def parent(this, pipes, options \\ %{})
-  def parent(this = %__MODULE__{selector: []}, _pipes, options) do
+  def parent(_this = %__MODULE__{selector: []}, _pipes, _options) do
   {:error, {:select_parent, :already_root}}
   end
-  def parent(this = %__MODULE__{selector: [_object]}, _pipes, options) do
+  def parent(_this = %__MODULE__{selector: [_object]}, _pipes, _options) do
   {:error, {:select_parent, :already_top}}
   end
-  def parent(this = %__MODULE__{selector: selector}, pipes, options) do
+  def parent(this = %__MODULE__{selector: _selector}, pipes, _options) do
     parent = cond do
                List.last(this.selector) == :* -> Enum.slice(this.selector, 0 .. -3)
                :else -> Enum.slice(this.selector, 0 .. -2)
@@ -230,7 +230,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
 end
 
 defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
-  alias Noizu.RuleEngine.Helper
+  #alias Noizu.RuleEngine.Helper
   #-----------------
   # execute!/3
   #-----------------
@@ -247,12 +247,12 @@ defimpl Noizu.RuleEngine.ScriptProtocol, for: Noizu.EmailService.Email.Binding.S
   #---------------------
   # identifier/3
   #---------------------
-  def identifier(this, _state, _context), do: "..."
+  def identifier(_this, _state, _context), do: "..."
 
   #---------------------
   # identifier/4
   #---------------------
-  def identifier(this, _state, _context, _options), do: "..."
+  def identifier(_this, _state, _context, _options), do: "..."
 
   #---------------------
   # render/3
@@ -279,7 +279,7 @@ end
 defimpl Inspect, for: Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector do
   import Inspect.Algebra
 
-  def inspect(entity, opts) do
+  def inspect(entity, _opts) do
 
     path = Enum.map(entity.selector, fn(k) ->
       case k do

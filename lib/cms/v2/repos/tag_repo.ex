@@ -19,7 +19,7 @@ defmodule Noizu.Cms.V2.TagRepo do
 
   def article_tags(entity, context, options, caller) do
     ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-    existing_tags = case caller.cms_tag_repo().mnesia_read(ref) do
+    _existing_tags = case caller.cms_tag_repo().mnesia_read(ref) do
       v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
       nil -> []
       v -> {:error, v}
@@ -27,7 +27,7 @@ defmodule Noizu.Cms.V2.TagRepo do
   end
   def article_tags!(entity, context, options, caller) do
     ref = Noizu.Cms.V2.Proto.article_ref(entity, context, options)
-    existing_tags = case caller.cms_tag_repo().mnesia_read!(ref) do
+    _existing_tags = case caller.cms_tag_repo().mnesia_read!(ref) do
       v when is_list(v) -> Enum.map(v, &(&1.tag)) |> Enum.uniq() |> Enum.sort()
       nil -> []
       v -> {:error, v}

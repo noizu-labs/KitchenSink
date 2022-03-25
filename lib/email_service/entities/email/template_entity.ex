@@ -7,7 +7,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
   @vsn 1.1
   alias Noizu.KitchenSink.Types, as: T
   alias Noizu.EmailService.Email.TemplateRepo
-  alias Noizu.EmailService.Email.Binding
+  #alias Noizu.EmailService.Email.Binding
 
   @type t :: %__MODULE__{
                identifier: T.nmid,
@@ -93,7 +93,7 @@ defmodule Noizu.EmailService.Email.TemplateEntity do
       v =  %Noizu.EmailService.Email.Binding.Substitution.Dynamic{} ->
         Noizu.EmailService.Email.Binding.Substitution.Dynamic.effective_bindings(v, binding_input, context, options)
 
-      v =  %Noizu.EmailService.Email.Binding.Substitution.Legacy{binding: substitutions} ->
+      v =  %Noizu.EmailService.Email.Binding.Substitution.Legacy{binding: _substitutions} ->
         Noizu.EmailService.Email.Binding.Substitution.Legacy.effective_bindings(v, binding_input, context, options)
 
       _ -> {:error, :not_supported}

@@ -63,13 +63,13 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   #----------------------------
   # spawn
   #----------------------------
-  def spawn(this, type, clause, options \\ %{}) do
+  def spawn(this, type, clause, _options \\ %{}) do
     clause  = case type do
                 :else -> nil
                 :each -> Selector.wildcard(clause)
                 _ -> clause
               end
-    spawn = %__MODULE__{this|
+    _spawn = %__MODULE__{this|
       section: type,
       clause: clause,
       bind: [],
@@ -79,7 +79,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
     }
   end
 
-  def collapse_daisy_chain([h,p|t], options) do
+  def collapse_daisy_chain([h,p|t], _options) do
     cond do
       (h.section == :else || h.section == :extended_else) && p.section == :extended_else ->
         # TODO deal with selector list
@@ -136,7 +136,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   def collapse(this = %__MODULE__{}, child = %__MODULE__{}, options) do
     case child.section do
       :if ->
-        c = child.clause
+        #c = child.clause
         f = %Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula.IfThen{
           condition_clause: child.clause,
           then_clause: %__MODULE__{child| match: nil, current_selector: nil, errors: nil},
@@ -165,7 +165,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   #----------------------------
   # collapse/4
   #----------------------------
-  def collapse(this = %__MODULE__{}, if_child = %__MODULE__{}, else_child = %__MODULE__{}, options) do
+  def collapse(this = %__MODULE__{}, if_child = %__MODULE__{}, else_child = %__MODULE__{}, _options) do
     case if_child.section do
       :if ->
         c = if_child.clause
@@ -191,14 +191,14 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   #----------------------------
   # merge_bindings/3
   #----------------------------
-  def merge_bindings(a, b, options) do
+  def merge_bindings(a, b, _options) do
     (a || []) ++ (b || [])
   end
 
   #----------------------------
   # mark_error/3
   #----------------------------
-  def mark_error(this, error, __options) do
+  def mark_error(this, error, _options) do
     put_in(this, [Access.key(:errors)], this.errors ++ [error])
   end
 
@@ -209,7 +209,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section do
   def require_binding(this, nil, _options) do
     this
   end
-  def require_binding(this, %Selector{} = binding, options) do
+  def require_binding(this, %Selector{} = binding, _options) do
     %__MODULE__{this| bind: Enum.uniq([binding] ++ this.bind)}
   end
 end

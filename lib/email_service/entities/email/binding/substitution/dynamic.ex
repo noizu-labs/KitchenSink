@@ -10,7 +10,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Error
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Effective
   alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic, as: Binding
   @type t :: %__MODULE__{
                version: any,
                current_token: {integer, String.t} | nil,
@@ -39,7 +39,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
     options = update_in(options || %{}, [Access.key(:variable_extractor)], &(&1 || default_extractor))
     state = options[:state] || %Noizu.RuleEngine.State.InlineStateManager{}
     state = Noizu.RuleEngine.StateProtocol.put!(state, :bind_space, input, context)
-    {response, state} = Noizu.RuleEngine.ScriptProtocol.execute!(this, state, context, options)
+    {response, _state} = Noizu.RuleEngine.ScriptProtocol.execute!(this, state, context, options)
     %Effective{response| outcome: length(response.unbound.required) > 0 && {:error, :unbound_fields} || :ok}
   end
 
@@ -122,7 +122,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
           this -> {:cont, this}
         end
 
-      "else" <> clause ->
+      "else" <> _clause ->
         case extract_token__section_open(this, token, options) do
           {:halt, this} -> {:halt, this}
           {:cont, this} -> {:cont, this}
@@ -179,10 +179,10 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
           [m] ->
             case extended_extract_selector(this, String.trim(m), options) do
               {:error, this} -> {:halt, this}
-              {{clause, pipes}, this} ->
-                [head|tail] = this.section_stack
+              {{clause, _pipes}, this} ->
+                [head|_tail] = this.section_stack
                 new_section = Section.spawn(head, :extended_else, clause, options)
-                this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
+                _this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
             end
         end
       Regex.match?(~r/^\s*unless.*$/, clause) ->
@@ -190,11 +190,11 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
           [m] ->
             case extended_extract_selector(this, String.trim(m), options) do
               {:error, this} -> {:halt, this}
-              {{clause, pipes}, this} ->
-                [head|tail] = this.section_stack
+              {{clause, _pipes}, this} ->
+                [head|_tail] = this.section_stack
                 clause = Formula.negate(clause)
                 new_section = Section.spawn(head, :extended_else, clause, options)
-                this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
+                _this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
             end
         end
       :else -> extract_token__section_open__enter(:else, nil, this, options)
@@ -209,7 +209,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
         # this = require_binding(this, clause, options)
 
         # append new section
-        [head|tail] = this.section_stack
+        [head|_tail] = this.section_stack
         new_section = Section.spawn(head, section, clause, options)
         this = %__MODULE__{this| section_stack: [new_section|this.section_stack]}
 
@@ -237,10 +237,10 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   def extract_token__section_close(this, token, options) do
     token = String.trim(token)
     case token do
-      "/if" <> clause -> extract_token__section_close__exit(:if, this, options)
-      "/unless" <> clause -> extract_token__section_close__exit(:unless, this, options)
-      "/each" <> clause -> extract_token__section_close__exit(:each, this, options)
-      "/with" <> clause -> extract_token__section_close__exit(:with, this, options)
+      "/if" <> _clause -> extract_token__section_close__exit(:if, this, options)
+      "/unless" <> _clause -> extract_token__section_close__exit(:unless, this, options)
+      "/each" <> _clause -> extract_token__section_close__exit(:each, this, options)
+      "/with" <> _clause -> extract_token__section_close__exit(:with, this, options)
       "/" <> section -> extract_token__section_close__exit({:unsupported, String.trim(section)}, this, options)
       _ -> fatal_error(this, {:section_close, token}, options)
     end
@@ -341,7 +341,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
   def parse_pipes([v]), do: parse_pipes(v)
   def parse_pipes(pipe) do
     case Regex.run(~r/as \|\s*([a-zA-Z0-9_]+)?\s*\|/, pipe, capture: :all_but_first) do
-      [h|t] -> %{as: h}
+      [h|_t] -> %{as: h}
       _ -> %{}
     end
   end
@@ -393,7 +393,7 @@ defmodule Noizu.EmailService.Email.Binding.Substitution.Dynamic do
           "../" <> _relative ->
             clean_token = Regex.replace(~r/\|.*$/, token, "") # strip any pipes
             selector = current_selector(this)
-            pipes = parse_pipes(token)
+            #pipes = parse_pipes(token)
             case Selector.relative(selector, clean_token, parse_pipes(token), options) do
               {:error, clause} ->
                 {:error, mark_error(this, clause, options)}

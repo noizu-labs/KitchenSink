@@ -5,7 +5,7 @@
 
 defmodule Noizu.EmailService.Email.Binding.Substitution.Helper do
 
-  def prepare_effective_binding(a, state, context, options) do
+  def prepare_effective_binding(a, _state, _context, _options) do
     a
   end
 

@@ -166,7 +166,7 @@ defmodule Noizu.EmailService.Email.Binding do
     reply_to = is_map(reply_to) && reply_to || nil
 
     # prepare response
-    this = %__MODULE__{
+    _this = %__MODULE__{
       recipient: recipient[:ref],
       recipient_name: binding_input[:recipient_name] || recipient[:name],
       recipient_email: (txn_email.recipient_email != :default && txn_email.recipient_email) || binding_input[:recipient_email] || recipient[:email],
@@ -243,7 +243,7 @@ defmodule Noizu.EmailService.Email.Binding do
   #----------------------------
   #
   #----------------------------
-  defp path_valid?([h], nil), do: false
+  defp path_valid?([_h], nil), do: false
   defp path_valid?([h], blob) do
     try do
       get_in(blob, [h])

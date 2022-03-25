@@ -5,9 +5,9 @@
 
 defmodule Noizu.EmailService.Email.Binding.Substitution.Legacy.Effective do
   @vsn 1.0
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
-  alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Selector
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Section
+  #alias Noizu.EmailService.Email.Binding.Substitution.Dynamic.Formula
   @type t :: %__MODULE__{
                bind: [String.t],
                bound: Map.t,
