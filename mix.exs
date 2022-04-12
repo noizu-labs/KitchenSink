@@ -3,7 +3,7 @@ defmodule Noizu.KitchenSink.Mixfile do
 
   def project do
     [app: :noizu_kitchen_sink,
-      version: "0.3.10",
+      version: "0.3.11",
       elixir: "~> 1.13",
       package: package(),
       deps: deps(),
@@ -38,7 +38,7 @@ defmodule Noizu.KitchenSink.Mixfile do
     [
       {:ex_doc, "~> 0.28.3", only: [:dev], optional: true}, # Documentation Provider
       {:markdown, github: "devinus/markdown", optional: false}, # Markdown processor for ex_doc
-      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "2.2.2"},
+      {:noizu_simple_pool, github: "noizu/SimplePool", tag: "2.2.3"},
       {:noizu_rule_engine, github: "noizu/RuleEngine", tag: "0.2.1"},
       {:fastglobal, "~> 1.0"}, # https://github.com/discordapp/fastglobal
       {:semaphore, "~> 1.0"}, # https://github.com/discordapp/semaphore
