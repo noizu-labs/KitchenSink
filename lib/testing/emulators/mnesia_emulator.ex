@@ -9,7 +9,7 @@ defmodule Noizu.Testing.Mnesia do
     #-----------------------------
     defp emulator_handle(nil), do: __MODULE__
     defp emulator_handle(:default), do: __MODULE__
-    defp emulator_handle(instance), do: {__MODULE__, instance}
+    defp emulator_handle(instance), do: :"#{__MODULE__}.#{instance}"
 
     #-----------------------------
     # Start Agent
