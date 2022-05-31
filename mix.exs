@@ -3,7 +3,7 @@ defmodule Noizu.KitchenSink.Mixfile do
 
   def project do
     [app: :noizu_kitchen_sink,
-      version: "0.3.11",
+      version: "0.3.12",
       elixir: "~> 1.13",
       package: package(),
       deps: deps(),
